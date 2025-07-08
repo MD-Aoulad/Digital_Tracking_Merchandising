@@ -1,46 +1,185 @@
-# Getting Started with Create React App
+# Workforce Management Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive workforce, task, and operations management platform built with React, TypeScript, and Tailwind CSS. This platform replicates the end-to-end capabilities of Shoplworks with an added IAM (Identity & Access Management) system for role-based access control.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+### 🧰 Workforce Management
+- **Attendance System**: Clock in/out via geolocation, QR code, and facial recognition
+- **Work Scheduling**: Calendar & list views with shift templates and bulk upload
+- **Leave Management**: Customizable leave types with approval workflows
+- **Journey Planning**: Map-based daily visit planner with KPIs
 
-### `npm start`
+### 🗣️ Task & Communication Tools
+- **Report Builder**: Dynamic form templates with completion tracking
+- **Posting Board**: Internal thread-based bulletin board
+- **To-Do List Manager**: Checklist-based task assignment
+- **Internal Chat**: Real-time 1:1 and group messaging
+- **AI Chatbot**: AI-powered assistance for FAQs and policies
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### 🔐 IAM (Identity & Access Management)
+- **Role-based Access Control**: Admin, Editor, and Viewer roles
+- **Permission-based Navigation**: Dynamic menu based on user permissions
+- **Secure Authentication**: Mock authentication system (easily replaceable with Firebase/Auth0)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### ⚙️ Technical Features
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
+- **Modern UI/UX**: Clean, professional interface with smooth animations
+- **TypeScript**: Full type safety and better development experience
+- **Modular Architecture**: Component-based structure for maintainability
 
-### `npm test`
+## 🛠️ Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Frontend**: React 19 + TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: React Context API
+- **Routing**: React Router DOM
+- **Animations**: Framer Motion
+- **Forms**: React Hook Form + Yup validation
+- **Notifications**: React Hot Toast
+- **Icons**: Lucide React
+- **Date Handling**: date-fns
 
-### `npm run build`
+## 📦 Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd workforce-management-platform
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. **Start the development server**
+   ```bash
+   npm start
+   ```
 
-### `npm run eject`
+4. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## 🔐 Demo Credentials
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The application includes mock authentication with the following demo accounts:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@company.com | password |
+| Editor | editor@company.com | password |
+| Viewer | viewer@company.com | password |
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## 📁 Project Structure
 
-## Learn More
+```
+src/
+├── components/
+│   ├── Layout/
+│   │   ├── Layout.tsx
+│   │   ├── Navbar.tsx
+│   │   └── Sidebar.tsx
+│   └── Attendance/
+│       └── AttendancePage.tsx
+├── contexts/
+│   └── AuthContext.tsx
+├── pages/
+│   ├── Login.tsx
+│   └── Dashboard.tsx
+├── types/
+│   └── index.ts
+├── App.tsx
+└── index.tsx
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🎯 Key Components
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Authentication System
+- **AuthContext**: Manages user authentication state and permissions
+- **ProtectedRoute**: Guards routes based on authentication status
+- **Role-based Navigation**: Dynamic sidebar based on user permissions
+
+### Dashboard
+- **Real-time Statistics**: Employee counts, attendance rates, task completion
+- **Quick Actions**: Direct access to common functions
+- **Recent Activity**: Live feed of system activities
+- **Performance Overview**: Visual metrics and KPIs
+
+### Attendance Management
+- **Clock In/Out**: Multiple authentication methods (GPS, QR, Facial)
+- **Real-time Tracking**: Live attendance monitoring
+- **Location Services**: GPS-based attendance verification
+- **Export Functionality**: Download attendance reports
+
+## 🔧 Customization
+
+### Adding New Features
+1. Create new components in the appropriate directory
+2. Add TypeScript interfaces in `src/types/index.ts`
+3. Update the sidebar navigation in `src/components/Layout/Sidebar.tsx`
+4. Add routes in `src/App.tsx`
+
+### Styling
+- Uses Tailwind CSS utility classes
+- Custom components defined in `src/index.css`
+- Responsive design with mobile-first approach
+
+### Authentication
+- Currently uses mock authentication
+- Easy to replace with Firebase, Auth0, or custom backend
+- Role-based permissions system in place
+
+## 🚀 Deployment
+
+### Build for Production
+```bash
+npm run build
+```
+
+### Deploy to Netlify/Vercel
+1. Connect your repository to Netlify or Vercel
+2. Set build command: `npm run build`
+3. Set publish directory: `build`
+4. Deploy!
+
+## 📱 Mobile Support
+
+The application is fully responsive and optimized for mobile devices:
+- Touch-friendly interface
+- Responsive navigation
+- Mobile-optimized forms
+- Progressive Web App ready
+
+## 🔮 Future Enhancements
+
+- [ ] Real-time notifications with WebSockets
+- [ ] Advanced reporting with charts and analytics
+- [ ] Document signing integration
+- [ ] Mobile app with React Native
+- [ ] Advanced scheduling with drag-and-drop
+- [ ] Integration with external HR systems
+- [ ] Advanced AI features for task automation
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+---
+
+**Built with ❤️ using React, TypeScript, and Tailwind CSS**
