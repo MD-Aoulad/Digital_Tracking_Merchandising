@@ -1,3 +1,24 @@
+/**
+ * Dashboard Page Component - Workforce Management Platform
+ * 
+ * Main dashboard that provides:
+ * - Key performance indicators and statistics
+ * - Quick action buttons for common tasks
+ * - Recent activity feed
+ * - Performance overview with visual metrics
+ * - Responsive grid layout with animations
+ * 
+ * Features:
+ * - Real-time statistics display
+ * - Animated cards using Framer Motion
+ * - Interactive quick actions
+ * - Activity timeline with status indicators
+ * - Performance metrics visualization
+ * 
+ * @author Workforce Management Team
+ * @version 1.0.0
+ */
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -14,10 +35,21 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardStats } from '../types';
 
+/**
+ * Dashboard Component
+ * 
+ * Main dashboard page that displays key metrics, quick actions, and recent activity.
+ * Provides an overview of workforce management data and quick access to common functions.
+ * 
+ * @returns JSX element with complete dashboard interface
+ */
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
-  // Mock dashboard data
+  /**
+   * Mock dashboard statistics data
+   * In production, this would be fetched from an API
+   */
   const stats: DashboardStats = {
     totalEmployees: 156,
     presentToday: 142,
@@ -27,6 +59,9 @@ const Dashboard: React.FC = () => {
     activeReports: 12
   };
 
+  /**
+   * Recent activity data for the activity feed
+   */
   const recentActivities = [
     {
       id: 1,
@@ -58,6 +93,9 @@ const Dashboard: React.FC = () => {
     }
   ];
 
+  /**
+   * Quick action buttons for common tasks
+   */
   const quickActions = [
     {
       title: 'Clock In/Out',
@@ -89,6 +127,17 @@ const Dashboard: React.FC = () => {
     }
   ];
 
+  /**
+   * StatCard Component
+   * 
+   * Displays a single statistic with icon, value, and optional change indicator
+   * 
+   * @param title - Statistic title
+   * @param value - Statistic value
+   * @param change - Percentage change from previous period
+   * @param icon - Icon to display
+   * @param color - Background color for icon
+   */
   const StatCard: React.FC<{
     title: string;
     value: number;
@@ -128,12 +177,25 @@ const Dashboard: React.FC = () => {
     </motion.div>
   );
 
+  /**
+   * ActivityItem Component
+   * 
+   * Displays a single activity item with status icon and timestamp
+   * 
+   * @param type - Activity type
+   * @param message - Activity message
+   * @param time - Time of activity
+   * @param status - Activity status (success, info, warning, error)
+   */
   const ActivityItem: React.FC<{
     type: string;
     message: string;
     time: string;
     status: 'success' | 'info' | 'warning' | 'error';
   }> = ({ type, message, time, status }) => {
+    /**
+     * Get appropriate status icon based on activity status
+     */
     const getStatusIcon = () => {
       switch (status) {
         case 'success':
@@ -162,7 +224,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">
@@ -170,7 +232,7 @@ const Dashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Statistics grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Employees"
@@ -202,8 +264,9 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
+      {/* Quick actions and recent activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
+        {/* Quick actions panel */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -235,7 +298,7 @@ const Dashboard: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Recent Activity */}
+        {/* Recent activity panel */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -270,7 +333,7 @@ const Dashboard: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Performance Overview */}
+      {/* Performance overview section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -306,4 +369,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

@@ -1,16 +1,3 @@
-/**
- * Workforce Management Platform - Main Application Component
- * 
- * This is the root component of the workforce management application that provides:
- * - Authentication context and protected routing
- * - Main application layout with navigation
- * - Toast notifications for user feedback
- * - Route definitions for all application pages
- * 
- * @author Workforce Management Team
- * @version 1.0.0
- */
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -20,19 +7,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AttendancePage from './components/Attendance/AttendancePage';
 
-/**
- * ProtectedRoute Component
- * 
- * Higher-order component that ensures users are authenticated before accessing protected routes.
- * Shows a loading spinner while checking authentication status and redirects to login if not authenticated.
- * 
- * @param children - React components to render if user is authenticated
- * @returns JSX element with authentication check
- */
+// Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
-  // Show loading spinner while checking authentication status
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -44,7 +22,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  // Redirect to login if user is not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -52,12 +29,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-/**
- * Schedule Management Page Component
- * 
- * Placeholder component for the schedule management functionality.
- * Will be implemented to handle employee scheduling, shift management, and calendar views.
- */
+// Placeholder components for other pages
 const SchedulePage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -70,12 +42,6 @@ const SchedulePage: React.FC = () => (
   </div>
 );
 
-/**
- * Leave Management Page Component
- * 
- * Placeholder component for leave request and approval functionality.
- * Will handle vacation requests, sick leave, and approval workflows.
- */
 const LeavePage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -88,12 +54,6 @@ const LeavePage: React.FC = () => (
   </div>
 );
 
-/**
- * Task Management Page Component
- * 
- * Placeholder component for task assignment and tracking functionality.
- * Will include task creation, assignment, progress tracking, and completion workflows.
- */
 const TasksPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -106,12 +66,6 @@ const TasksPage: React.FC = () => (
   </div>
 );
 
-/**
- * Team Chat Page Component
- * 
- * Placeholder component for real-time team communication.
- * Will include messaging, file sharing, and team collaboration features.
- */
 const ChatPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -124,12 +78,6 @@ const ChatPage: React.FC = () => (
   </div>
 );
 
-/**
- * Reports & Analytics Page Component
- * 
- * Placeholder component for reporting and analytics functionality.
- * Will include performance metrics, attendance reports, and data visualization.
- */
 const ReportsPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -142,12 +90,6 @@ const ReportsPage: React.FC = () => (
   </div>
 );
 
-/**
- * Journey Planning Page Component
- * 
- * Placeholder component for field team route planning.
- * Will include map integration, route optimization, and location tracking.
- */
 const JourneyPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -160,12 +102,6 @@ const JourneyPage: React.FC = () => (
   </div>
 );
 
-/**
- * Document Management Page Component
- * 
- * Placeholder component for document creation and management.
- * Will include document templates, digital signatures, and file organization.
- */
 const DocumentsPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -178,12 +114,6 @@ const DocumentsPage: React.FC = () => (
   </div>
 );
 
-/**
- * Surveys & Notices Page Component
- * 
- * Placeholder component for survey creation and announcement management.
- * Will include survey builder, response collection, and notification system.
- */
 const SurveysPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -196,12 +126,6 @@ const SurveysPage: React.FC = () => (
   </div>
 );
 
-/**
- * AI Assistant Page Component
- * 
- * Placeholder component for AI-powered assistance functionality.
- * Will include chatbot, task automation, and intelligent recommendations.
- */
 const AIAssistantPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -214,12 +138,6 @@ const AIAssistantPage: React.FC = () => (
   </div>
 );
 
-/**
- * User Management Page Component
- * 
- * Placeholder component for user account and permission management.
- * Will include user creation, role assignment, and access control.
- */
 const UsersPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -232,12 +150,6 @@ const UsersPage: React.FC = () => (
   </div>
 );
 
-/**
- * Settings Page Component
- * 
- * Placeholder component for system configuration and user preferences.
- * Will include application settings, notification preferences, and system configuration.
- */
 const SettingsPage: React.FC = () => (
   <div className="space-y-6">
     <div>
@@ -250,22 +162,11 @@ const SettingsPage: React.FC = () => (
   </div>
 );
 
-/**
- * AppContent Component
- * 
- * Main application content wrapper that defines all routes and their corresponding components.
- * Uses React Router for navigation and includes protected routes for authenticated users.
- * 
- * @returns JSX element with complete routing structure
- */
 const AppContent: React.FC = () => {
   return (
     <Router>
       <Routes>
-        {/* Public route for authentication */}
         <Route path="/login" element={<Login />} />
-        
-        {/* Protected routes wrapped in Layout component */}
         <Route
           path="/"
           element={
@@ -274,10 +175,7 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           }
         >
-          {/* Redirect root to dashboard */}
           <Route index element={<Navigate to="/dashboard" replace />} />
-          
-          {/* Main application routes */}
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="schedule" element={<SchedulePage />} />
@@ -297,21 +195,10 @@ const AppContent: React.FC = () => {
   );
 };
 
-/**
- * Main App Component
- * 
- * Root component that wraps the entire application with:
- * - Authentication context provider
- * - Toast notification system
- * - Main application content
- * 
- * @returns JSX element representing the complete application
- */
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <AppContent />
-      {/* Global toast notification system */}
       <Toaster
         position="top-right"
         toastOptions={{

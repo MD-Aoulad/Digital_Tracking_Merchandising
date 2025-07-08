@@ -1,3 +1,25 @@
+/**
+ * Attendance Page Component - Workforce Management Platform
+ * 
+ * Attendance management page that provides:
+ * - Real-time clock in/out functionality
+ * - Multiple authentication methods (GPS, QR, Facial)
+ * - Attendance records table with filtering
+ * - Search and date filtering capabilities
+ * - Export functionality for reports
+ * 
+ * Features:
+ * - Live clock display with current time
+ * - Geolocation-based attendance tracking
+ * - QR code scanning for clock in/out
+ * - Facial recognition authentication
+ * - Comprehensive attendance records
+ * - Status-based filtering and search
+ * 
+ * @author Workforce Management Team
+ * @version 1.0.0
+ */
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -16,8 +38,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { AttendanceRecord } from '../../types';
 import toast from 'react-hot-toast';
 
+/**
+ * AttendancePage Component
+ * 
+ * Main attendance management interface that allows employees to clock in/out
+ * and managers to view attendance records with filtering and search capabilities.
+ * 
+ * @returns JSX element with complete attendance management interface
+ */
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();
+  
+  // State management
   const [currentTime, setCurrentTime] = useState(new Date());
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isClockingIn, setIsClockingIn] = useState(false);
@@ -25,7 +57,10 @@ const AttendancePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  // Mock attendance data
+  /**
+   * Initialize mock attendance data
+   * In production, this would fetch from an API
+   */
   useEffect(() => {
     const mockRecords: AttendanceRecord[] = [
       {
@@ -73,7 +108,9 @@ const AttendancePage: React.FC = () => {
     setAttendanceRecords(mockRecords);
   }, []);
 
-  // Update current time
+  /**
+   * Update current time every second
+   */
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -81,10 +118,14 @@ const AttendancePage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  /**
+   * Handle clock in action
+   * Simulates API call and updates attendance records
+   */
   const handleClockIn = async () => {
     setIsClockingIn(true);
     try {
-      // Simulate API call
+      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const newRecord: AttendanceRecord = {
@@ -114,10 +155,14 @@ const AttendancePage: React.FC = () => {
     }
   };
 
+  /**
+   * Handle clock out action
+   * Updates existing attendance record with clock out time
+   */
   const handleClockOut = async () => {
     setIsClockingIn(true);
     try {
-      // Simulate API call
+      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const todayRecord = attendanceRecords.find(record => 
@@ -149,6 +194,11 @@ const AttendancePage: React.FC = () => {
     }
   };
 
+  /**
+   * Get current attendance status for the logged-in user
+   * 
+   * @returns Current attendance status
+   */
   const getCurrentStatus = () => {
     const todayRecord = attendanceRecords.find(record => 
       record.userId === user?.id && 
@@ -163,12 +213,21 @@ const AttendancePage: React.FC = () => {
 
   const currentStatus = getCurrentStatus();
 
+  /**
+   * Filter attendance records based on search term and status
+   */
   const filteredRecords = attendanceRecords.filter(record => {
     const matchesSearch = record.userId.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || record.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
+  /**
+   * Get status icon based on attendance status
+   * 
+   * @param status - Attendance status
+   * @returns JSX element with appropriate status icon
+   */
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'present':
@@ -184,7 +243,7 @@ const AttendancePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance Management</h1>
@@ -204,6 +263,7 @@ const AttendancePage: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
       >
+        {/* Current time display */}
         <div className="text-center mb-6">
           <div className="text-4xl font-mono font-bold text-gray-900 mb-2">
             {currentTime.toLocaleTimeString('en-US', { 
@@ -223,6 +283,7 @@ const AttendancePage: React.FC = () => {
           </p>
         </div>
 
+        {/* Authentication methods */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <Clock size={24} className="text-blue-500 mx-auto mb-2" />
@@ -241,6 +302,7 @@ const AttendancePage: React.FC = () => {
           </div>
         </div>
 
+        {/* Clock in/out buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           {currentStatus === 'not-clocked-in' && (
             <button
@@ -294,6 +356,7 @@ const AttendancePage: React.FC = () => {
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col sm:flex-row gap-4">
+          {/* Search input */}
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -306,6 +369,8 @@ const AttendancePage: React.FC = () => {
               />
             </div>
           </div>
+          
+          {/* Filter controls */}
           <div className="flex gap-2">
             <select
               value={filterStatus}
@@ -330,7 +395,7 @@ const AttendancePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Attendance Records */}
+      {/* Attendance Records Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Attendance Records</h3>
@@ -413,4 +478,4 @@ const AttendancePage: React.FC = () => {
   );
 };
 
-export default AttendancePage; 
+export default AttendancePage;

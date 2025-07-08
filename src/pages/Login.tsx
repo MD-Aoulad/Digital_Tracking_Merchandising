@@ -1,3 +1,26 @@
+/**
+ * Login Page Component - Workforce Management Platform
+ * 
+ * Authentication page that provides:
+ * - User login functionality
+ * - User registration functionality
+ * - Form validation with Yup and React Hook Form
+ * - Responsive design with hero section
+ * - Demo credentials for quick testing
+ * - Animated transitions using Framer Motion
+ * 
+ * Features:
+ * - Toggle between login and register modes
+ * - Real-time form validation
+ * - Password visibility toggle
+ * - Loading states during authentication
+ * - Toast notifications for feedback
+ * - Quick demo login buttons
+ * 
+ * @author Workforce Management Team
+ * @version 1.0.0
+ */
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -8,11 +31,17 @@ import { Eye, EyeOff, Lock, Mail, Users, Clock, Calendar, FileText, UserPlus, Lo
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
+/**
+ * Login form data interface
+ */
 interface LoginFormData {
   email: string;
   password: string;
 }
 
+/**
+ * Registration form data interface
+ */
 interface RegisterFormData {
   name: string;
   email: string;
@@ -21,11 +50,17 @@ interface RegisterFormData {
   role: string;
 }
 
+/**
+ * Yup validation schema for login form
+ */
 const loginSchema = yup.object({
   email: yup.string().email('Please enter a valid email').required('Email is required'),
   password: yup.string().required('Password is required'),
 }).required();
 
+/**
+ * Yup validation schema for registration form
+ */
 const registerSchema = yup.object({
   name: yup.string().required('Name is required'),
   email: yup.string().email('Please enter a valid email').required('Email is required'),
@@ -34,14 +69,25 @@ const registerSchema = yup.object({
   role: yup.string().required('Role is required'),
 }).required();
 
+/**
+ * Login Page Component
+ * 
+ * Main authentication page that handles both login and registration.
+ * Provides a modern, responsive interface with form validation and animations.
+ * 
+ * @returns JSX element with complete authentication interface
+ */
 const Login: React.FC = () => {
+  // State management for password visibility and form modes
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
+  
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
 
+  // React Hook Form setup for login
   const {
     register: registerLogin,
     handleSubmit: handleLoginSubmit,
@@ -50,6 +96,7 @@ const Login: React.FC = () => {
     resolver: yupResolver(loginSchema),
   });
 
+  // React Hook Form setup for registration
   const {
     register: registerForm,
     handleSubmit: handleRegisterSubmit,
@@ -58,6 +105,11 @@ const Login: React.FC = () => {
     resolver: yupResolver(registerSchema),
   });
 
+  /**
+   * Handle login form submission
+   * 
+   * @param data - Login form data
+   */
   const onLoginSubmit = async (data: LoginFormData) => {
     try {
       const success = await login(data.email, data.password);
@@ -72,6 +124,11 @@ const Login: React.FC = () => {
     }
   };
 
+  /**
+   * Handle registration form submission
+   * 
+   * @param data - Registration form data
+   */
   const onRegisterSubmit = async (data: RegisterFormData) => {
     try {
       // For demo purposes, we'll just show a success message
@@ -82,12 +139,21 @@ const Login: React.FC = () => {
     }
   };
 
+  /**
+   * Demo credentials for quick testing
+   */
   const demoCredentials = [
     { email: 'admin@company.com', password: 'password', role: 'Admin' },
     { email: 'editor@company.com', password: 'password', role: 'Editor' },
     { email: 'viewer@company.com', password: 'password', role: 'Viewer' },
   ];
 
+  /**
+   * Quick login function for demo credentials
+   * 
+   * @param email - Demo email
+   * @param password - Demo password
+   */
   const quickLogin = (email: string, password: string) => {
     const form = document.querySelector('form');
     if (form) {
@@ -108,7 +174,7 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-8 items-center">
-        {/* Left side - Hero */}
+        {/* Left side - Hero section */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -126,6 +192,7 @@ const Login: React.FC = () => {
               </p>
             </div>
 
+            {/* Feature highlights */}
             <div className="grid grid-cols-2 gap-6">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
@@ -177,6 +244,7 @@ const Login: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="bg-white rounded-2xl shadow-xl p-8"
         >
+          {/* Form header */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4">
               <span className="text-white font-bold text-2xl">WM</span>
@@ -189,7 +257,7 @@ const Login: React.FC = () => {
             </p>
           </div>
 
-          {/* Mode Toggle */}
+          {/* Mode toggle buttons */}
           <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
             <button
               onClick={() => setIsLoginMode(true)}
@@ -218,6 +286,7 @@ const Login: React.FC = () => {
           {isLoginMode ? (
             // Login Form
             <form onSubmit={handleLoginSubmit(onLoginSubmit)} className="space-y-6">
+              {/* Email field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email address
@@ -238,6 +307,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Password field */}
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                   Password
@@ -265,6 +335,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Submit button */}
               <button
                 type="submit"
                 disabled={isLoading}
@@ -286,6 +357,7 @@ const Login: React.FC = () => {
           ) : (
             // Register Form
             <form onSubmit={handleRegisterSubmit(onRegisterSubmit)} className="space-y-6">
+              {/* Name field */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name
@@ -302,6 +374,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Email field */}
               <div>
                 <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email address
@@ -321,6 +394,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Role field */}
               <div>
                 <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
                   Role
@@ -340,6 +414,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Password field */}
               <div>
                 <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-2">
                   Password
@@ -366,6 +441,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Confirm password field */}
               <div>
                 <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
                   Confirm Password
@@ -392,6 +468,7 @@ const Login: React.FC = () => {
                 )}
               </div>
 
+              {/* Submit button */}
               <button
                 type="submit"
                 className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
@@ -402,7 +479,7 @@ const Login: React.FC = () => {
             </form>
           )}
 
-          {/* Demo Credentials */}
+          {/* Demo credentials section */}
           <div className="mt-8 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Demo Login</h3>
             <div className="space-y-2">
@@ -423,4 +500,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login; 
+export default Login;

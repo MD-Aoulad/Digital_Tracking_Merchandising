@@ -1,3 +1,25 @@
+/**
+ * Sidebar Component - Workforce Management Platform
+ * 
+ * Collapsible sidebar navigation component that provides:
+ * - Main application navigation menu
+ * - Role-based menu item filtering
+ * - Responsive mobile design with overlay
+ * - Animated transitions using Framer Motion
+ * - Badge indicators for notifications
+ * - Admin section for administrative functions
+ * 
+ * Features:
+ * - Permission-based menu visibility
+ * - Active route highlighting
+ * - Mobile overlay for touch interaction
+ * - Smooth animations and transitions
+ * - Version information in footer
+ * 
+ * @author Workforce Management Team
+ * @version 1.0.0
+ */
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -19,22 +41,42 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
+/**
+ * Sidebar component props interface
+ */
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen: boolean;                // Whether sidebar is open (mobile)
+  onClose: () => void;            // Function to close sidebar
 }
 
+/**
+ * Menu item interface for navigation items
+ */
 interface MenuItem {
-  title: string;
-  path: string;
-  icon: React.ReactNode;
-  permission: string;
-  badge?: number;
+  title: string;                  // Menu item display text
+  path: string;                   // Route path
+  icon: React.ReactNode;          // Menu item icon
+  permission: string;             // Required permission to view
+  badge?: number;                 // Optional notification badge
 }
 
+/**
+ * Sidebar Component
+ * 
+ * Main navigation sidebar that provides access to all application features.
+ * Includes role-based filtering, responsive design, and smooth animations.
+ * 
+ * @param isOpen - Current sidebar open state
+ * @param onClose - Function to close sidebar
+ * @returns JSX element with complete sidebar navigation
+ */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { hasPermission } = useAuth();
 
+  /**
+   * Main navigation menu items
+   * Each item includes title, route, icon, and required permission
+   */
   const menuItems: MenuItem[] = [
     {
       title: 'Dashboard',
@@ -71,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: '/chat',
       icon: <MessageSquare size={20} />,
       permission: 'chat:view',
-      badge: 3
+      badge: 3  // Sample notification count
     },
     {
       title: 'Reports',
@@ -105,6 +147,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     }
   ];
 
+  /**
+   * Administrative menu items
+   * Only visible to users with admin permissions
+   */
   const adminItems: MenuItem[] = [
     {
       title: 'User Management',
@@ -120,20 +166,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     }
   ];
 
+  // Filter menu items based on user permissions
   const filteredMenuItems = menuItems.filter(item => hasPermission(item.permission));
   const filteredAdminItems = adminItems.filter(item => hasPermission(item.permission));
 
   return (
     <>
-      {/* Overlay for mobile */}
+      {/* Mobile overlay - closes sidebar when clicked */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={onClose}
+          aria-label="Close sidebar"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Main sidebar */}
       <motion.aside
         initial={{ x: -280 }}
         animate={{ x: isOpen ? 0 : -280 }}
@@ -141,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         className={`fixed left-0 top-0 h-full w-70 bg-white border-r border-gray-200 z-50 lg:translate-x-0 lg:static lg:inset-0`}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
+          {/* Sidebar header with logo */}
           <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
@@ -154,9 +202,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation menu */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {/* Main Menu */}
+            {/* Main navigation items */}
             <div className="space-y-1">
               {filteredMenuItems.map((item) => (
                 <NavLink
@@ -173,6 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
                   <span className="flex-1">{item.title}</span>
+                  {/* Notification badge */}
                   {item.badge && (
                     <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
                       {item.badge}
@@ -182,7 +231,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               ))}
             </div>
 
-            {/* Admin Section */}
+            {/* Administrative section */}
             {filteredAdminItems.length > 0 && (
               <>
                 <div className="pt-6 pb-2">
@@ -213,7 +262,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             )}
           </nav>
 
-          {/* Footer */}
+          {/* Sidebar footer with version info */}
           <div className="p-4 border-t border-gray-200">
             <div className="flex items-center space-x-3 px-3 py-2">
               <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
@@ -231,4 +280,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default Sidebar; 
+export default Sidebar;
