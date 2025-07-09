@@ -10,6 +10,7 @@ A comprehensive, modern workforce management platform built with React, TypeScri
 - **📅 Schedule Management** - Flexible shift planning and scheduling
 - **📋 Task Management** - Assign, track, and manage team tasks
 - **📝 Leave Management** - Automated leave request workflows
+- **🎁 Grant Leave** - Admin tool for granting accrued leave with Excel support
 - **💬 Team Communication** - Real-time chat and collaboration
 - **�� Reports & Analytics** - Comprehensive reporting and data visualization
 - **🗺️ Journey Planning** - Field team route optimization
@@ -132,6 +133,14 @@ src/
 - **Real-time Clock Display** - Live time tracking
 - **Attendance Records** - Comprehensive attendance history
 - **Filtering & Search** - Advanced record filtering
+
+### Grant Leave Management
+- **6-Step Wizard Interface** - Guided process for leave grant configuration
+- **Dual Grant Types** - Support for bulk and individual employee grants
+- **Excel Integration** - Template download and bulk upload capabilities
+- **Carryover Management** - Flexible expiration rules for unused leave
+- **Admin-Only Access** - Restricted to administrative users
+- **Real-time Validation** - Step-by-step form validation with clear feedback
 
 ### Navigation System
 - **Responsive Sidebar** - Collapsible navigation menu

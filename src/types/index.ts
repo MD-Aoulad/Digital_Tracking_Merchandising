@@ -68,8 +68,354 @@ export interface AttendanceRecord {
     lng: number;                 // Longitude
     address: string;             // Human-readable address
   };
-  method: 'geolocation' | 'qr' | 'facial';  // Authentication method used
-  status: 'present' | 'absent' | 'late' | 'half-day';  // Attendance status
+  method: 'geolocation' | 'qr' | 'facial' | 'photo';  // Authentication method used
+  status: 'present' | 'absent' | 'late' | 'half-day' | 'overtime';  // Attendance status
+  shiftId?: string;              // Associated shift ID
+  breaks: Break[];               // Break records during the day
+  overtime?: {                   // Overtime information
+    hours: number;               // Overtime hours
+    reason?: string;             // Reason for overtime
+  };
+  photos?: {                     // Photo evidence
+    clockIn?: string;            // Clock-in photo URL
+    clockOut?: string | null;    // Clock-out photo URL
+  };
+  notes?: string;                // Additional notes
+  approvedBy?: string;           // Manager who approved the record
+  approvedAt?: string;           // Approval timestamp
+  requiresApproval: boolean;     // Whether approval is required
+  geofence?: {                   // Geofencing information
+    zoneId: string;              // Geofence zone ID
+    zoneName: string;            // Geofence zone name
+    withinZone: boolean;         // Whether clock in/out was within zone
+  };
+}
+
+/**
+ * Break record for tracking employee breaks during work hours
+ */
+export interface Break {
+  id: string;                    // Unique break ID
+  type: 'lunch' | 'coffee' | 'rest' | 'other';  // Break type
+  startTime: string;             // Break start time (HH:MM)
+  endTime?: string;              // Break end time (HH:MM)
+  duration?: number;             // Break duration in minutes
+  notes?: string;                // Break notes
+}
+
+/**
+ * Work shift definition
+ */
+export interface WorkShift {
+  id: string;                    // Unique shift ID
+  name: string;                  // Shift name (e.g., "Morning Shift", "Night Shift")
+  startTime: string;             // Shift start time (HH:MM)
+  endTime: string;               // Shift end time (HH:MM)
+  breakDuration: number;         // Total break duration in minutes
+  overtimeThreshold: number;     // Hours after which overtime applies
+  color: string;                 // Color for UI display
+  isActive: boolean;             // Whether shift is active
+}
+
+/**
+ * Geofence zone for location-based attendance
+ */
+export interface GeofenceZone {
+  id: string;                    // Unique zone ID
+  name: string;                  // Zone name
+  center: {                      // Zone center coordinates
+    lat: number;                 // Latitude
+    lng: number;                 // Longitude
+  };
+  radius: number;                // Zone radius in meters
+  address: string;               // Zone address
+  isActive: boolean;             // Whether zone is active
+  allowedMethods: string[];      // Allowed attendance methods for this zone
+}
+
+/**
+ * Attendance approval request
+ */
+export interface AttendanceApproval {
+  id: string;                    // Unique approval ID
+  attendanceId: string;          // Associated attendance record ID
+  userId: string;                // Employee ID
+  managerId: string;             // Manager ID
+  type: 'late' | 'early-leave' | 'overtime' | 'break-extension';  // Approval type
+  reason: string;                // Reason for approval request
+  status: 'pending' | 'approved' | 'rejected';  // Approval status
+  requestedAt: string;           // Request timestamp
+  approvedAt?: string;           // Approval timestamp
+  notes?: string;                // Manager notes
+}
+
+/**
+ * Attendance statistics for reporting
+ */
+export interface AttendanceStats {
+  totalDays: number;             // Total working days
+  presentDays: number;           // Days present
+  absentDays: number;            // Days absent
+  lateDays: number;              // Days late
+  overtimeHours: number;         // Total overtime hours
+  averageWorkHours: number;      // Average work hours per day
+  attendanceRate: number;        // Attendance rate percentage
+}
+
+// ============================================================================
+// SCHEDULE MANAGEMENT TYPES
+// ============================================================================
+
+/**
+ * Employee work schedule for specific dates
+ */
+export interface EmployeeSchedule {
+  id: string;                    // Schedule ID
+  userId: string;                // Employee ID
+  date: string;                  // Schedule date (YYYY-MM-DD)
+  startTime: string;             // Scheduled start time (HH:MM)
+  endTime: string;               // Scheduled end time (HH:MM)
+  isWorkDay: boolean;            // Whether this is a scheduled work day
+  shiftId?: string;              // Associated shift ID
+  notes?: string;                // Schedule notes
+  createdBy: string;             // Who created this schedule
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Default work schedule for employees
+ */
+export interface DefaultWorkSchedule {
+  id: string;                    // Default schedule ID
+  userId: string;                // Employee ID
+  name: string;                  // Schedule name (e.g., "Regular Schedule", "Part-time")
+  startTime: string;             // Default start time (HH:MM)
+  endTime: string;               // Default end time (HH:MM)
+  workDays: number[];            // Days of week (0=Sunday, 1=Monday, etc.)
+  isActive: boolean;             // Whether this default schedule is active
+  shiftId?: string;              // Associated shift ID
+  notes?: string;                // Schedule notes
+  createdBy: string;             // Who created this schedule
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Schedule change request
+ */
+export interface ScheduleChangeRequest {
+  id: string;                    // Request ID
+  userId: string;                // Employee ID
+  type: 'schedule-change' | 'leave-request' | 'overtime-request';  // Request type
+  date: string;                  // Requested date (YYYY-MM-DD)
+  startTime?: string;            // Requested start time (HH:MM)
+  endTime?: string;              // Requested end time (HH:MM)
+  reason: string;                // Reason for request
+  status: 'pending' | 'approved' | 'rejected';  // Request status
+  requestedAt: string;           // Request timestamp
+  approvedBy?: string;           // Approver's user ID
+  approvedAt?: string;           // Approval timestamp
+  notes?: string;                // Additional notes
+  attachments?: string[];        // Supporting documents
+}
+
+/**
+ * Schedule template for batch operations
+ */
+export interface ScheduleTemplate {
+  id: string;                    // Template ID
+  name: string;                  // Template name
+  description: string;           // Template description
+  fields: ScheduleTemplateField[];  // Template fields
+  isActive: boolean;             // Whether template is active
+  createdBy: string;             // Who created this template
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Schedule template field
+ */
+export interface ScheduleTemplateField {
+  id: string;                    // Field ID
+  name: string;                  // Field name
+  type: 'text' | 'date' | 'time' | 'select' | 'number';  // Field type
+  required: boolean;             // Whether field is required
+  options?: string[];            // Options for select fields
+  defaultValue?: string;         // Default value
+}
+
+/**
+ * Batch schedule import result
+ */
+export interface BatchScheduleImport {
+  id: string;                    // Import ID
+  fileName: string;              // Uploaded file name
+  totalRows: number;             // Total rows in file
+  processedRows: number;         // Successfully processed rows
+  failedRows: number;            // Failed rows
+  errors: BatchImportError[];    // Import errors
+  status: 'processing' | 'completed' | 'failed';  // Import status
+  createdBy: string;             // Who initiated the import
+  createdAt: string;             // Import timestamp
+  completedAt?: string;          // Completion timestamp
+}
+
+/**
+ * Batch import error
+ */
+export interface BatchImportError {
+  row: number;                   // Row number in file
+  field: string;                 // Field name
+  error: string;                 // Error message
+}
+
+// ============================================================================
+// SCHEDULED WORKDAYS PUNCH-IN TYPES
+// ============================================================================
+
+/**
+ * Scheduled workdays punch-in settings configuration
+ */
+export interface ScheduledWorkdaysSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether punch-in only on scheduled workdays is enabled
+  allowPunchInAtAnyTime: boolean;  // Whether employees can punch in at any time during scheduled workdays
+  punchInAdvanceMinutes: number;   // Minutes before scheduled start time when punch-in is allowed (0 = no advance)
+  requireScheduleRegistration: boolean;  // Whether individual schedules must be registered
+  targetType: 'all-employees' | 'specific-groups' | 'specific-employees';  // Target configuration type
+  targetGroups?: string[];       // Specific group IDs (if targetType is 'specific-groups')
+  targetJobTitles?: string[];    // Specific job titles (if targetType is 'specific-groups')
+  targetEmployees?: string[];    // Specific employee IDs (if targetType is 'specific-employees')
+  createdBy: string;             // Admin who configured this
+  createdAt: string;             // Configuration timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Employee work schedule for specific dates
+ */
+export interface EmployeeSchedule {
+  id: string;                    // Schedule ID
+  userId: string;                // Employee ID
+  date: string;                  // Schedule date (YYYY-MM-DD)
+  startTime: string;             // Scheduled start time (HH:MM)
+  endTime: string;               // Scheduled end time (HH:MM)
+  isWorkDay: boolean;            // Whether this is a scheduled work day
+  shiftId?: string;              // Associated shift ID
+  notes?: string;                // Schedule notes
+  createdBy: string;             // Who created this schedule
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Punch-in validation result
+ */
+export interface PunchInValidation {
+  isAllowed: boolean;            // Whether punch-in is allowed
+  reason: string;                // Reason for allowance/denial
+  scheduledStartTime?: string;   // Scheduled start time (if applicable)
+  earliestAllowedTime?: string;  // Earliest allowed punch-in time
+  latestAllowedTime?: string;    // Latest allowed punch-in time
+}
+
+// ============================================================================
+// TEMPORARY WORKPLACE TYPES
+// ============================================================================
+
+/**
+ * Temporary workplace settings configuration
+ */
+export interface TemporaryWorkplaceSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether temporary workplace punch in/out is enabled
+  targetType: 'all-employees' | 'specific-groups' | 'specific-employees';  // Target configuration type
+  targetGroups?: string[];       // Specific group IDs (if targetType is 'specific-groups')
+  targetJobTitles?: string[];    // Specific job titles (if targetType is 'specific-groups')
+  targetEmployees?: string[];    // Specific employee IDs (if targetType is 'specific-employees')
+  requireReason: boolean;        // Whether reason is required for temporary workplace punch in/out
+  requirePhoto: boolean;         // Whether photo is required for temporary workplace punch in/out
+  requireLocation: boolean;      // Whether GPS location is required
+  maxDistanceFromWorkplace?: number;  // Maximum distance from registered workplace (meters)
+  createdBy: string;             // Admin who configured this
+  createdAt: string;             // Configuration timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Temporary workplace record for tracking punch in/out from unregistered locations
+ */
+export interface TemporaryWorkplaceRecord {
+  id: string;                    // Record ID
+  userId: string;                // Employee ID
+  date: string;                  // Date of punch in/out (YYYY-MM-DD)
+  type: 'clock-in' | 'clock-out';  // Type of punch action
+  time: string;                  // Punch time (HH:MM)
+  location: {                    // Temporary workplace location
+    lat: number;                 // Latitude
+    lng: number;                 // Longitude
+    address: string;             // Human-readable address
+    placeName?: string;          // Place name (e.g., "Client Office", "Coffee Shop")
+  };
+  reason: string;                // Reason for temporary workplace punch in/out
+  photos?: {                     // Photo evidence
+    punchIn?: string;            // Punch-in photo URL
+    punchOut?: string;           // Punch-out photo URL
+  };
+  notes?: string;                // Additional notes
+  isReusable: boolean;           // Whether this location can be reused
+  reusableName?: string;         // Name for reusable location
+  distanceFromNearestWorkplace?: number;  // Distance from nearest registered workplace (meters)
+  nearestWorkplaceId?: string;   // ID of nearest registered workplace
+  deviceInfo?: {                 // Device information
+    deviceId: string;
+    deviceType: string;
+    appVersion: string;
+  };
+  createdAt: string;             // Record creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Reusable temporary workplace location saved by employee
+ */
+export interface ReusableTemporaryWorkplace {
+  id: string;                    // Reusable location ID
+  userId: string;                // Employee ID who saved this location
+  name: string;                  // Location name (e.g., "Client Office", "Home Office")
+  location: {                    // Location coordinates
+    lat: number;                 // Latitude
+    lng: number;                 // Longitude
+    address: string;             // Full address
+    placeName?: string;          // Place name from maps
+  };
+  reason: string;                // Default reason for this location
+  isActive: boolean;             // Whether this location is active
+  usageCount: number;            // Number of times this location has been used
+  lastUsedAt?: string;           // Last time this location was used
+  createdAt: string;             // When this location was saved
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Temporary workplace statistics for reporting
+ */
+export interface TemporaryWorkplaceStats {
+  totalRecords: number;          // Total temporary workplace records
+  uniqueLocations: number;       // Number of unique temporary locations used
+  mostUsedLocations: {           // Most frequently used temporary locations
+    locationId: string;
+    name: string;
+    address: string;
+    usageCount: number;
+  }[];
+  averageDistance: number;       // Average distance from registered workplaces
+  topReasons: {                  // Most common reasons for temporary workplace usage
+    reason: string;
+    count: number;
+  }[];
 }
 
 // ============================================================================
@@ -142,6 +488,40 @@ export interface LeaveBalance {
   totalDays: number;             // Total days allocated
   usedDays: number;              // Days used
   remainingDays: number;         // Days remaining
+}
+
+// ============================================================================
+// LEAVE GRANT TYPES
+// ============================================================================
+
+/**
+ * Leave grant for accrued leave types
+ */
+export interface LeaveGrant {
+  id: string;                    // Grant ID
+  title: string;                 // Grant title (e.g., "Annual Leave 2025 - Sales Team")
+  leaveTypeId: string;           // Leave type ID
+  employees: string[];           // Employee IDs
+  grantType: 'same' | 'individual';  // Grant type
+  daysGranted?: number;          // Days granted (for 'same' type)
+  periodStart: string;           // Period start date
+  periodEnd: string;             // Period end date
+  carryoverType: 'months' | 'days' | 'nextYear' | 'specificDate';  // Carryover type
+  carryoverValue?: number | string;  // Carryover value
+  createdBy: string;             // Admin who created the grant
+  createdAt: string;             // Creation timestamp
+  details?: LeaveGrantDetail[];  // Individual details (for 'individual' type)
+}
+
+/**
+ * Individual leave grant detail for Excel upload
+ */
+export interface LeaveGrantDetail {
+  userId: string;                // Employee ID
+  daysGranted: number;           // Days granted to this employee
+  periodStart: string;           // Period start date
+  periodEnd: string;             // Period end date
+  carryoverExpiration: string;   // Carryover expiration date
 }
 
 // ============================================================================
@@ -428,4 +808,102 @@ export interface ChartData {
     backgroundColor?: string;    // Background color
     borderColor?: string;        // Border color
   }[];
+}
+
+/**
+ * Face verification settings and configuration
+ */
+export interface FaceVerificationSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether face verification is enabled
+  requireFaceVerification: boolean;  // Whether face verification is required
+  maxRetryAttempts: number;      // Maximum retry attempts before re-registration
+  imageQuality: 'low' | 'medium' | 'high';  // Image quality setting
+  allowedImageFormats: string[]; // Allowed image formats
+  maxImageSize: number;          // Maximum image size in bytes
+  retentionDays: number;         // How long to keep face images
+  createdBy: string;             // Admin who configured this
+  createdAt: string;             // Configuration timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Face image record for employee authentication
+ */
+export interface FaceImage {
+  id: string;                    // Face image ID
+  userId: string;                // Employee ID
+  imageUrl: string;              // Stored image URL
+  imageHash: string;             // Image hash for verification
+  imageType: 'registration' | 'verification' | 'attendance';  // Image type
+  attendanceId?: string;         // Associated attendance record
+  capturedAt: string;            // When image was captured
+  location?: {                   // Location where image was captured
+    lat: number;
+    lng: number;
+    address: string;
+  };
+  deviceInfo?: {                 // Device information
+    deviceId: string;
+    deviceType: string;
+    appVersion: string;
+  };
+  verificationResult?: {         // Verification result
+    success: boolean;
+    confidence: number;          // Confidence score (0-100)
+    matchedWith?: string;        // Matched face image ID
+    failureReason?: string;      // Reason for failure
+  };
+  isActive: boolean;             // Whether this is the active face image
+  expiresAt?: string;            // When image expires
+}
+
+/**
+ * Face verification attempt record
+ */
+export interface FaceVerificationAttempt {
+  id: string;                    // Attempt ID
+  userId: string;                // Employee ID
+  attendanceId: string;          // Associated attendance record
+  attemptNumber: number;         // Attempt number (1, 2, 3, etc.)
+  capturedImageUrl: string;      // Captured image URL
+  verificationResult: {          // Verification result
+    success: boolean;
+    confidence: number;
+    matchedWith?: string;
+    failureReason?: string;
+  };
+  timestamp: string;             // Attempt timestamp
+  location?: {                   // Location of attempt
+    lat: number;
+    lng: number;
+    address: string;
+  };
+  deviceInfo?: {                 // Device information
+    deviceId: string;
+    deviceType: string;
+    appVersion: string;
+  };
+}
+
+/**
+ * Face verification session for real-time processing
+ */
+export interface FaceVerificationSession {
+  id: string;                    // Session ID
+  userId: string;                // Employee ID
+  attendanceId: string;          // Associated attendance record
+  sessionType: 'clock-in' | 'clock-out';  // Session type
+  status: 'pending' | 'capturing' | 'verifying' | 'completed' | 'failed';  // Session status
+  currentAttempt: number;        // Current attempt number
+  maxAttempts: number;           // Maximum allowed attempts
+  attempts: FaceVerificationAttempt[];  // All attempts in this session
+  startedAt: string;             // Session start time
+  completedAt?: string;          // Session completion time
+  result?: {                     // Final session result
+    success: boolean;
+    finalImageUrl?: string;
+    totalAttempts: number;
+    averageConfidence?: number;
+  };
 }

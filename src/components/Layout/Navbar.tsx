@@ -2,7 +2,6 @@
  * Navbar Component - Workforce Management Platform
  * 
  * Top navigation bar component that provides:
- * - Responsive mobile menu toggle
  * - Global search functionality
  * - User notifications dropdown
  * - User profile dropdown with logout
@@ -10,7 +9,7 @@
  * 
  * Features:
  * - Sticky positioning for always-visible navigation
- * - Mobile-responsive design with hamburger menu
+ * - Mobile-responsive design
  * - Animated dropdowns using Framer Motion
  * - Real-time notification indicators
  * - User authentication state management
@@ -27,8 +26,6 @@ import {
   User, 
   Settings, 
   LogOut, 
-  Menu, 
-  X,
   ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,8 +34,8 @@ import { useAuth } from '../../contexts/AuthContext';
  * Navbar component props interface
  */
 interface NavbarProps {
-  onSidebarToggle: () => void;    // Function to toggle sidebar visibility
-  sidebarOpen: boolean;           // Current sidebar open state
+  onSidebarToggle?: () => void;    // Optional function to toggle sidebar visibility
+  sidebarOpen?: boolean;           // Optional current sidebar open state
 }
 
 /**
@@ -47,8 +44,8 @@ interface NavbarProps {
  * Main navigation bar that provides global navigation, search, notifications,
  * and user profile management. Includes responsive design for mobile devices.
  * 
- * @param onSidebarToggle - Function to toggle mobile sidebar
- * @param sidebarOpen - Current sidebar state
+ * @param onSidebarToggle - Optional function to toggle mobile sidebar
+ * @param sidebarOpen - Optional current sidebar state
  * @returns JSX element with complete navigation bar
  */
 const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
@@ -70,19 +67,10 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
       <div className="flex items-center justify-between">
-        {/* Left side - Logo and mobile menu */}
+        {/* Left side - Logo */}
         <div className="flex items-center space-x-4">
-          {/* Mobile menu toggle button */}
-          <button
-            onClick={onSidebarToggle}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
-            aria-label="Toggle sidebar menu"
-          >
-            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          
           {/* Application logo and branding */}
-          <div className="hidden sm:flex items-center space-x-2">
+          <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">WM</span>
             </div>
@@ -199,7 +187,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
                   >
                     <LogOut size={16} />
-                    <span>Sign out</span>
+                    <span>Logout</span>
                   </button>
                 </div>
               </motion.div>

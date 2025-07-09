@@ -1,19 +1,19 @@
 /**
  * Sidebar Component - Workforce Management Platform
  * 
- * Collapsible sidebar navigation component that provides:
+ * Always-visible sidebar navigation component that provides:
  * - Main application navigation menu
  * - Role-based menu item filtering
- * - Responsive mobile design with overlay
- * - Animated transitions using Framer Motion
+ * - Responsive design that stays visible
+ * - Smooth transitions and hover effects
  * - Badge indicators for notifications
  * - Admin section for administrative functions
  * 
  * Features:
  * - Permission-based menu visibility
  * - Active route highlighting
- * - Mobile overlay for touch interaction
- * - Smooth animations and transitions
+ * - Always visible navigation
+ * - Smooth hover animations
  * - Version information in footer
  * 
  * @author Workforce Management Team
@@ -22,9 +22,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
-  LayoutDashboard,
   Clock,
   Calendar,
   FileText,
@@ -37,9 +35,9 @@ import {
   Settings,
   UserCheck,
   Mail,
-  Bot
+  Bot,
+  Gift
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * Sidebar component props interface
@@ -49,25 +47,16 @@ interface SidebarProps {
   onClose: () => void;            // Function to close sidebar
 }
 
-/**
- * Menu item interface for navigation items
- */
-interface MenuItem {
-  title: string;                  // Menu item display text
-  path: string;                   // Route path
-  icon: React.ReactNode;          // Menu item icon
-  permission: string;             // Required permission to view
-  badge?: number;                 // Optional notification badge
-}
+
 
 /**
  * Sidebar Component
  * 
  * Main navigation sidebar that provides access to all application features.
- * Includes role-based filtering, responsive design, and smooth animations.
+ * Always visible with role-based filtering and responsive design.
  * 
- * @param isOpen - Current sidebar open state
- * @param onClose - Function to close sidebar
+ * @param isOpen - Current sidebar open state (not used for visibility)
+ * @param onClose - Function to close sidebar (not used)
  * @returns JSX element with complete sidebar navigation
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
@@ -80,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { title: 'Attendance', path: '/attendance', icon: <Clock size={20} /> },
         { title: 'Schedule', path: '/schedule', icon: <Calendar size={20} /> },
         { title: 'Leave', path: '/leave', icon: <FileText size={20} /> },
+        { title: 'Grant Leave', path: '/grant-leave', icon: <Gift size={20} /> },
         { title: 'Overtime', path: '/overtime', icon: <Clock size={20} /> },
         { title: 'Journey Plan', path: '/journey', icon: <Map size={20} /> },
       ],
@@ -133,22 +123,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   return (
     <>
-      {/* Mobile overlay - closes sidebar when clicked */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onClose}
-          aria-label="Close sidebar"
-        />
-      )}
-
-      {/* Main sidebar */}
-      <motion.aside
-        initial={{ x: -280 }}
-        animate={{ x: isOpen ? 0 : -280 }}
-        transition={{ type: 'spring', damping: 20 }}
-        className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-50 lg:translate-x-0 lg:static lg:inset-0`}
-      >
+      {/* Always visible sidebar */}
+      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-50 shadow-sm">
         <div className="flex flex-col h-full">
           {/* Sidebar header with logo */}
           <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
@@ -156,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">WM</span>
               </div>
-              <div className="hidden lg:block">
+              <div>
                 <h1 className="text-xl font-bold text-gray-900">Workforce</h1>
                 <p className="text-xs text-gray-500">Management</p>
               </div>
@@ -175,7 +151,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     <NavLink
                       key={item.path}
                       to={item.path}
-                      onClick={onClose}
                       className={({ isActive }) =>
                         `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative ${
                           isActive
@@ -199,14 +174,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
                 <UserCheck size={16} className="text-white" />
               </div>
-              <div className="hidden lg:block">
+              <div>
                 <p className="text-sm font-medium text-gray-900">Workforce Manager</p>
                 <p className="text-xs text-gray-500">v1.0.0</p>
               </div>
             </div>
           </div>
         </div>
-      </motion.aside>
+      </aside>
     </>
   );
 };

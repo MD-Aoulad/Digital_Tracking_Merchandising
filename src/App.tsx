@@ -22,6 +22,7 @@ import AttendancePage from './components/Attendance/AttendancePage';
 import SchedulePage from './components/Schedule/SchedulePage';
 import TasksPage from './components/Tasks/TasksPage';
 import LeavePage from './components/Leave/LeavePage';
+import GrantLeavePage from './components/Leave/GrantLeavePage';
 import ChatPage from './components/Chat/ChatPage';
 import OperationsPage from './components/Operations/OperationsPage';
 import ComingSoonPage from './components/ComingSoonPage';
@@ -216,6 +217,7 @@ const AppContent: React.FC = () => {
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="leave" element={<LeavePage />} />
+          <Route path="grant-leave" element={<GrantLeavePage />} />
           <Route path="tasks" element={<TasksPage />} />
           <Route path="operations" element={<OperationsPage />} />
           <Route path="chat" element={<ChatPage />} />
