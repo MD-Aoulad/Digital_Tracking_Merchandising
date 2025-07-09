@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { title: 'Notice & Survey', path: '/notice-survey', icon: <Mail size={20} /> },
         { title: 'Report', path: '/reports', icon: <BarChart3 size={20} /> },
         { title: 'Posting Board', path: '/posting-board', icon: <ClipboardList size={20} /> },
-        { title: 'To-Do', path: '/to-do', icon: <ClipboardList size={20} /> },
+        { title: 'To-Do', path: '/todo', icon: <ClipboardList size={20} /> },
         { title: 'Chat', path: '/chat', icon: <MessageSquare size={20} /> },
         { title: 'AI Chatbot', path: '/ai-chatbot', icon: <Bot size={20} /> },
       ],

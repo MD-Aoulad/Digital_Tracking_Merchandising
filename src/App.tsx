@@ -15,6 +15,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { UserRole } from './types';
 import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -26,6 +27,11 @@ import GrantLeavePage from './components/Leave/GrantLeavePage';
 import ChatPage from './components/Chat/ChatPage';
 import OperationsPage from './components/Operations/OperationsPage';
 import ComingSoonPage from './components/ComingSoonPage';
+import JourneyPlanPage from './components/Journey/JourneyPlanPage';
+import JourneyPlanSettings from './components/Journey/JourneyPlanSettings';
+import ReportPage from './components/Report/ReportPage';
+import PostingBoardPage from './components/PostingBoard/PostingBoardPage';
+import TodoPage from './components/Todo/TodoPage';
 
 /**
  * ProtectedRoute Component
@@ -59,41 +65,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-/**
- * Reports & Analytics Page Component
- * 
- * Placeholder component for reporting and analytics functionality.
- * Will include performance metrics, attendance reports, and data visualization.
- */
-const ReportsPage: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-      <p className="text-gray-600 mt-1">Generate and view detailed reports</p>
-    </div>
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <p className="text-gray-600">Reporting features coming soon...</p>
-    </div>
-  </div>
-);
 
-/**
- * Journey Planning Page Component
- * 
- * Placeholder component for field team route planning.
- * Will include map integration, route optimization, and location tracking.
- */
-const JourneyPage: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Journey Planning</h1>
-      <p className="text-gray-600 mt-1">Plan and track field team routes</p>
-    </div>
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <p className="text-gray-600">Journey planning features coming soon...</p>
-    </div>
-  </div>
-);
+
+
 
 /**
  * Document Management Page Component
@@ -221,8 +195,11 @@ const AppContent: React.FC = () => {
           <Route path="tasks" element={<TasksPage />} />
           <Route path="operations" element={<OperationsPage />} />
           <Route path="chat" element={<ChatPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="journey" element={<JourneyPage />} />
+          <Route path="reports" element={<ReportPage />} />
+          <Route path="posting-board" element={<PostingBoardPage userRole={UserRole.ADMIN} />} />
+          <Route path="journey" element={<JourneyPlanPage />} />
+          <Route path="journey/settings" element={<JourneyPlanSettings />} />
+          <Route path="todo" element={<TodoPage userRole={UserRole.ADMIN} />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="surveys" element={<SurveysPage />} />
           <Route path="ai-assistant" element={<AIAssistantPage />} />
@@ -231,7 +208,7 @@ const AppContent: React.FC = () => {
           {/* Shoplworks extra features */}
           <Route path="overtime" element={<ComingSoonPage feature="Overtime" />} />
           <Route path="notice-survey" element={<ComingSoonPage feature="Notice & Survey" />} />
-          <Route path="posting-board" element={<ComingSoonPage feature="Posting Board" />} />
+
           <Route path="to-do" element={<ComingSoonPage feature="To-Do" />} />
           <Route path="ai-chatbot" element={<ComingSoonPage feature="AI Chatbot" />} />
           <Route path="e-documents" element={<ComingSoonPage feature="E-documents" />} />

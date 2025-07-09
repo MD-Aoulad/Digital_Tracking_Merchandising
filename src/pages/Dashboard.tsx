@@ -30,10 +30,12 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardStats } from '../types';
+import JourneyPlanManagement from '../components/Journey/JourneyPlanManagement';
 
 /**
  * Dashboard Component
@@ -117,6 +119,13 @@ const Dashboard: React.FC = () => {
       icon: <FileText size={24} />,
       color: 'bg-purple-500',
       href: '/tasks'
+    },
+    {
+      title: 'To-Do Management',
+      description: 'Assign and track tasks',
+      icon: <ClipboardList size={24} />,
+      color: 'bg-indigo-500',
+      href: '/todo'
     },
     {
       title: 'Team Chat',
@@ -364,6 +373,15 @@ const Dashboard: React.FC = () => {
             <p className="text-sm text-gray-600">Active Reports</p>
           </div>
         </div>
+      </motion.div>
+
+      {/* Journey Plans Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <JourneyPlanManagement />
       </motion.div>
     </div>
   );

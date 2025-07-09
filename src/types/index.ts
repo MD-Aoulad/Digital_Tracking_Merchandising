@@ -525,6 +525,225 @@ export interface LeaveGrantDetail {
 }
 
 // ============================================================================
+// JOURNEY PLAN TYPES
+// ============================================================================
+
+/**
+ * Journey plan location/stop
+ */
+export interface JourneyLocation {
+  id: string;                    // Location ID
+  name: string;                  // Location name
+  address: string;               // Full address
+  latitude: number;              // GPS latitude
+  longitude: number;             // GPS longitude
+  contactPerson?: string;        // Contact person at location
+  contactPhone?: string;         // Contact phone number
+  notes?: string;                // Additional notes
+  estimatedDuration: number;     // Estimated duration in minutes
+  priority: 'high' | 'medium' | 'low';  // Visit priority
+}
+
+// ============================================================================
+// REPORT TYPES
+// ============================================================================
+
+/**
+ * Report template for creating standardized reports
+ */
+export interface ReportTemplate {
+  id: string;                    // Template ID
+  name: string;                  // Template name (e.g., "Visit Report", "Work Log")
+  description: string;           // Template description
+  category: 'daily' | 'weekly' | 'monthly' | 'custom' | 'application';  // Report category
+  fields: ReportField[];         // Array of form fields
+  isActive: boolean;             // Whether template is active
+  isRecurring: boolean;          // Whether this is a recurring report
+  recurrencePattern?: {          // Recurrence pattern for recurring reports
+    frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+    interval: number;            // Every X days/weeks/months
+    startDate: string;           // When to start recurring
+    endDate?: string;            // When to end recurring (optional)
+  };
+  assignedRoles: string[];       // Roles that can submit this report
+  assignedEmployees?: string[];  // Specific employees assigned (if any)
+  requiresApproval: boolean;     // Whether submission requires approval
+  approvalWorkflow?: string[];   // Approval workflow steps
+  createdBy: string;             // Admin who created the template
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Report field definition
+ */
+export interface ReportField {
+  id: string;                    // Field ID
+  name: string;                  // Field name
+  label: string;                 // Display label
+  type: 'text' | 'textarea' | 'number' | 'date' | 'time' | 'select' | 'multiselect' | 'file' | 'image' | 'location' | 'signature';  // Field type
+  required: boolean;             // Whether field is required
+  placeholder?: string;          // Placeholder text
+  options?: string[];            // Options for select/multiselect fields
+  validation?: {                 // Field validation rules
+    minLength?: number;
+    maxLength?: number;
+    minValue?: number;
+    maxValue?: number;
+    pattern?: string;            // Regex pattern
+    customMessage?: string;      // Custom validation message
+  };
+  defaultValue?: any;            // Default value
+  order: number;                 // Field order in form
+  isVisible: boolean;            // Whether field is visible
+}
+
+/**
+ * Report submission instance
+ */
+export interface ReportSubmission {
+  id: string;                    // Submission ID
+  templateId: string;            // Associated template ID
+  title: string;                 // Report title
+  submittedBy: string;           // Employee who submitted
+  submittedAt: string;           // Submission timestamp
+  dueDate?: string;              // Due date (if applicable)
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'overdue';  // Submission status
+  data: Record<string, any>;     // Submitted form data
+  attachments?: string[];        // File attachments
+  location?: {                   // Submission location
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  notes?: string;                // Additional notes
+  approvedBy?: string;           // Approver's user ID
+  approvedAt?: string;           // Approval timestamp
+  rejectionReason?: string;      // Reason for rejection
+  version: number;               // Submission version
+  isRecurring: boolean;          // Whether this is a recurring submission
+  recurringInstance?: number;    // Instance number for recurring reports
+}
+
+/**
+ * Report request for employees
+ */
+export interface ReportRequest {
+  id: string;                    // Request ID
+  templateId: string;            // Template to be filled
+  title: string;                 // Request title
+  description: string;           // Request description
+  assignedTo: string[];          // Employees assigned to submit
+  dueDate: string;               // Due date for submission
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Request priority
+  status: 'pending' | 'in-progress' | 'completed' | 'overdue';  // Request status
+  createdBy: string;             // Admin who created the request
+  createdAt: string;             // Creation timestamp
+  reminders: {                   // Reminder settings
+    enabled: boolean;
+    frequency: 'daily' | 'weekly' | 'custom';
+    lastSent?: string;
+  };
+  notifications: {               // Notification settings
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+  };
+}
+
+/**
+ * Report settings configuration
+ */
+export interface ReportSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether report feature is enabled
+  allowDraftSaving: boolean;     // Allow employees to save drafts
+  autoSaveInterval: number;      // Auto-save interval in minutes
+  maxFileSize: number;           // Maximum file size in MB
+  allowedFileTypes: string[];    // Allowed file types for uploads
+  requireLocation: boolean;      // Require GPS location for submissions
+  requireSignature: boolean;     // Require digital signature
+  approvalWorkflow: {            // Default approval workflow
+    enabled: boolean;
+    approvers: string[];         // Default approvers
+    autoApprove: boolean;        // Auto-approve certain reports
+  };
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    reminderNotifications: boolean;
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Journey plan assignment for an employee
+ */
+export interface JourneyPlan {
+  id: string;                    // Journey plan ID
+  title: string;                 // Journey plan title
+  employeeId: string;            // Assigned employee ID
+  date: string;                  // Journey date (YYYY-MM-DD)
+  startTime: string;             // Start time (HH:MM)
+  endTime: string;               // End time (HH:MM)
+  locations: JourneyLocation[];  // List of locations to visit
+  status: 'pending' | 'in-progress' | 'completed' | 'cancelled';  // Journey status
+  totalDistance: number;         // Total distance in kilometers
+  estimatedDuration: number;     // Total estimated duration in minutes
+  actualStartTime?: string;      // Actual start time
+  actualEndTime?: string;        // Actual end time
+  notes?: string;                // Journey notes
+  createdBy: string;             // Admin who created the plan
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Journey plan visit record
+ */
+export interface JourneyVisit {
+  id: string;                    // Visit ID
+  journeyPlanId: string;         // Associated journey plan ID
+  locationId: string;            // Location ID
+  employeeId: string;            // Employee ID
+  plannedArrivalTime: string;    // Planned arrival time
+  plannedDepartureTime: string;  // Planned departure time
+  actualArrivalTime?: string;    // Actual arrival time
+  actualDepartureTime?: string;  // Actual departure time
+  status: 'pending' | 'in-progress' | 'completed' | 'skipped';  // Visit status
+  notes?: string;                // Visit notes
+  photos?: string[];             // Photos taken at location
+  gpsData?: {                    // GPS data for verification
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    timestamp: string;
+  };
+}
+
+/**
+ * Journey plan settings configuration
+ */
+export interface JourneyPlanSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether journey plan feature is enabled
+  requireGpsVerification: boolean;  // Require GPS verification for visits
+  allowRouteOptimization: boolean;  // Allow automatic route optimization
+  maxLocationsPerDay: number;    // Maximum locations per day per employee
+  defaultVisitDuration: number;  // Default visit duration in minutes
+  autoAssignRoutes: boolean;     // Auto-assign optimal routes
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+// ============================================================================
 // TASK MANAGEMENT TYPES
 // ============================================================================
 
@@ -634,63 +853,13 @@ export interface Report {
   approvedAt?: string;           // Approval timestamp
 }
 
-/**
- * Report template for consistent reporting
- */
-export interface ReportTemplate {
-  id: string;                    // Template ID
-  name: string;                  // Template name
-  description: string;           // Template description
-  fields: ReportField[];         // Array of form fields
-  category: string;              // Template category
-}
 
-/**
- * Individual field in a report template
- */
-export interface ReportField {
-  id: string;                    // Field ID
-  name: string;                  // Field name
-  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file';  // Field type
-  required: boolean;             // Whether field is required
-  options?: string[];            // Options for select fields
-  validation?: string;           // Validation rules
-}
 
 // ============================================================================
 // JOURNEY PLAN TYPES
 // ============================================================================
 
-/**
- * Field team journey plan
- */
-export interface JourneyPlan {
-  id: string;                    // Journey plan ID
-  userId: string;                // Employee assigned to journey
-  date: string;                  // Journey date
-  visits: Visit[];               // Array of planned visits
-  totalDistance: number;         // Total journey distance (km)
-  estimatedDuration: number;     // Estimated duration (minutes)
-  status: 'planned' | 'in-progress' | 'completed';  // Journey status
-}
 
-/**
- * Individual visit in a journey plan
- */
-export interface Visit {
-  id: string;                    // Visit ID
-  location: {                    // Visit location
-    name: string;                // Location name
-    address: string;             // Full address
-    lat: number;                 // Latitude
-    lng: number;                 // Longitude
-  };
-  scheduledTime: string;         // Scheduled visit time
-  actualTime?: string;           // Actual visit time
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';  // Visit status
-  notes?: string;                // Visit notes
-  kpis?: Record<string, any>;    // Key Performance Indicators
-}
 
 // ============================================================================
 // DOCUMENT MANAGEMENT TYPES
@@ -906,4 +1075,334 @@ export interface FaceVerificationSession {
     totalAttempts: number;
     averageConfidence?: number;
   };
+}
+
+// ============================================================================
+// POSTING BOARD TYPES
+// ============================================================================
+
+/**
+ * Posting board for team communication
+ */
+export interface PostingBoard {
+  id: string;                    // Board ID
+  name: string;                  // Board name
+  description: string;           // Board description
+  type: 'general' | 'issue-resolution';  // Board type
+  category: 'end-of-day' | 'handover' | 'voice-of-customer' | 'team-social' | 'custom';  // Board category
+  isActive: boolean;             // Whether board is active
+  isDefault: boolean;            // Whether this is the default board
+  allowFileUploads: boolean;     // Whether file uploads are allowed
+  allowedFileTypes: string[];    // Allowed file types
+  maxFileSize: number;           // Maximum file size in MB
+  requireApproval: boolean;      // Whether posts require approval
+  allowComments: boolean;        // Whether comments are allowed
+  allowReactions: boolean;       // Whether reactions are allowed
+  assignedRoles: string[];       // Roles that can post to this board
+  assignedEmployees?: string[];  // Specific employees assigned (if any)
+  moderators: string[];          // Board moderators
+  createdBy: string;             // Admin who created the board
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Post on a posting board
+ */
+export interface PostingBoardPost {
+  id: string;                    // Post ID
+  boardId: string;               // Associated board ID
+  title: string;                 // Post title
+  content: string;               // Post content
+  authorId: string;              // Author's user ID
+  authorName: string;            // Author's name
+  authorAvatar?: string;         // Author's avatar URL
+  type: 'general' | 'issue' | 'resolution';  // Post type
+  status: 'draft' | 'published' | 'pending-approval' | 'rejected' | 'archived';  // Post status
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Post priority (for issues)
+  attachments: PostingBoardAttachment[]; // File attachments
+  tags: string[];                // Post tags
+  location?: {                   // Post location
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  isPinned: boolean;             // Whether post is pinned
+  isAnonymous: boolean;          // Whether post is anonymous
+  views: number;                 // Number of views
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+  publishedAt?: string;          // Publication timestamp
+  approvedBy?: string;           // Approver's user ID
+  approvedAt?: string;           // Approval timestamp
+  rejectionReason?: string;      // Reason for rejection
+}
+
+/**
+ * Post attachment (file or image)
+ */
+export interface PostingBoardAttachment {
+  id: string;                    // Attachment ID
+  fileName: string;              // Original file name
+  fileUrl: string;               // File URL
+  fileType: string;              // File MIME type
+  fileSize: number;              // File size in bytes
+  thumbnailUrl?: string;         // Thumbnail URL for images
+  uploadedAt: string;            // Upload timestamp
+}
+
+/**
+ * Comment on a post
+ */
+export interface PostingBoardComment {
+  id: string;                    // Comment ID
+  postId: string;                // Associated post ID
+  authorId: string;              // Author's user ID
+  authorName: string;            // Author's name
+  authorAvatar?: string;         // Author's avatar URL
+  content: string;               // Comment content
+  parentCommentId?: string;      // Parent comment ID for replies
+  isAnonymous: boolean;          // Whether comment is anonymous
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Reaction on a post or comment
+ */
+export interface PostingBoardReaction {
+  id: string;                    // Reaction ID
+  postId: string;                // Associated post ID
+  commentId?: string;            // Associated comment ID (if reacting to comment)
+  userId: string;                // User who reacted
+  reactionType: 'like' | 'love' | 'laugh' | 'wow' | 'sad' | 'angry' | 'thumbs-up' | 'thumbs-down';  // Reaction type
+  createdAt: string;             // Reaction timestamp
+}
+
+/**
+ * Issue tracking for issue-resolution boards
+ */
+export interface PostingBoardIssue {
+  id: string;                    // Issue ID
+  postId: string;                // Associated post ID
+  title: string;                 // Issue title
+  description: string;           // Issue description
+  status: 'open' | 'in-progress' | 'resolved' | 'closed';  // Issue status
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Issue priority
+  category: string;              // Issue category
+  assignedTo?: string;           // Assigned employee ID
+  reportedBy: string;            // Reporter's user ID
+  reportedAt: string;            // Report timestamp
+  resolvedBy?: string;           // Resolver's user ID
+  resolvedAt?: string;           // Resolution timestamp
+  resolution?: string;           // Resolution details
+  estimatedResolutionTime?: string;  // Estimated time to resolve
+  actualResolutionTime?: string;     // Actual time taken to resolve
+  attachments: PostingBoardAttachment[]; // Issue attachments
+  tags: string[];                // Issue tags
+}
+
+/**
+ * Posting board settings configuration
+ */
+export interface PostingBoardSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether posting board feature is enabled
+  allowAnonymousPosts: boolean;  // Allow anonymous posts
+  requirePostApproval: boolean;  // Require approval for all posts
+  allowFileUploads: boolean;     // Allow file uploads globally
+  maxFileSize: number;           // Maximum file size in MB
+  allowedFileTypes: string[];    // Allowed file types globally
+  allowComments: boolean;        // Allow comments globally
+  allowReactions: boolean;       // Allow reactions globally
+  autoArchiveDays: number;       // Days after which posts are auto-archived
+  maxPostsPerDay: number;        // Maximum posts per user per day
+  maxCommentsPerPost: number;    // Maximum comments per post
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    mentionNotifications: boolean;
+  };
+  moderationSettings: {          // Moderation preferences
+    enableAutoModeration: boolean;
+    keywordFilter: string[];     // Keywords to filter
+    spamProtection: boolean;     // Enable spam protection
+    profanityFilter: boolean;    // Enable profanity filter
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+// ============================================================================
+// TODO FEATURE TYPES
+// ============================================================================
+
+/**
+ * Todo task for employee assignment
+ */
+export interface TodoTask {
+  id: string;                    // Task ID
+  title: string;                 // Task title
+  description: string;           // Task description
+  assignedBy: string;            // User who assigned the task
+  assignedTo: string[];          // Employee IDs assigned to this task
+  assignedWorkplaces?: string[]; // Workplace IDs (if assigned by workplace)
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Task priority
+  status: 'pending' | 'in-progress' | 'completed' | 'overdue' | 'cancelled';  // Task status
+  category: string;              // Task category
+  dueDate: string;               // Due date (YYYY-MM-DD)
+  dueTime?: string;              // Due time (HH:MM)
+  estimatedDuration: number;     // Estimated duration in minutes
+  actualDuration?: number;       // Actual time taken in minutes
+  isRepeating: boolean;          // Whether task repeats
+  repeatPattern?: {              // Repeat pattern for recurring tasks
+    frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+    interval: number;            // Every X days/weeks/months
+    daysOfWeek?: number[];       // Days of week (0=Sunday, 1=Monday, etc.)
+    endDate?: string;            // When to stop repeating
+    maxOccurrences?: number;     // Maximum number of occurrences
+  };
+  reminders: TodoReminder[];     // Reminder settings
+  attachments: TodoAttachment[]; // File attachments
+  location?: {                   // Task location
+    latitude: number;
+    longitude: number;
+    address: string;
+    workplaceId?: string;        // Associated workplace ID
+  };
+  requiresPhoto: boolean;        // Whether photo completion is required
+  requiresLocation: boolean;     // Whether GPS location is required
+  requiresSignature: boolean;    // Whether digital signature is required
+  notes?: string;                // Additional notes
+  tags: string[];                // Task tags
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+  startedAt?: string;            // When task was started
+  completedAt?: string;          // When task was completed
+  cancelledAt?: string;          // When task was cancelled
+  cancelledBy?: string;          // Who cancelled the task
+  cancellationReason?: string;   // Reason for cancellation
+}
+
+/**
+ * Todo task completion record
+ */
+export interface TodoCompletion {
+  id: string;                    // Completion ID
+  taskId: string;                // Associated task ID
+  employeeId: string;            // Employee who completed the task
+  completedAt: string;           // Completion timestamp
+  status: 'completed' | 'rework-requested' | 'approved' | 'rejected';  // Completion status
+  actualDuration: number;        // Actual time taken in minutes
+  notes?: string;                // Completion notes
+  photos?: string[];             // Completion photos
+  location?: {                   // Completion location
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  signature?: string;            // Digital signature data
+  attachments?: string[];        // Additional attachments
+  approvedBy?: string;           // Approver's user ID
+  approvedAt?: string;           // Approval timestamp
+  rejectionReason?: string;      // Reason for rejection
+  reworkRequestedBy?: string;    // Who requested rework
+  reworkRequestedAt?: string;    // When rework was requested
+  reworkReason?: string;         // Reason for rework request
+}
+
+/**
+ * Todo reminder notification
+ */
+export interface TodoReminder {
+  id: string;                    // Reminder ID
+  taskId: string;                // Associated task ID
+  type: 'before-due' | 'at-due' | 'after-due' | 'custom';  // Reminder type
+  timeOffset: number;            // Time offset in minutes (negative for before, positive for after)
+  message: string;               // Reminder message
+  notificationMethods: {         // Notification methods
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    inApp: boolean;
+  };
+  isActive: boolean;             // Whether reminder is active
+  lastSent?: string;             // Last time reminder was sent
+  nextSend?: string;             // Next time reminder should be sent
+}
+
+/**
+ * Todo attachment (file or image)
+ */
+export interface TodoAttachment {
+  id: string;                    // Attachment ID
+  fileName: string;              // Original file name
+  fileUrl: string;               // File URL
+  fileType: string;              // File MIME type
+  fileSize: number;              // File size in bytes
+  uploadedAt: string;            // Upload timestamp
+  uploadedBy: string;            // User who uploaded the file
+}
+
+/**
+ * Todo task template for recurring tasks
+ */
+export interface TodoTemplate {
+  id: string;                    // Template ID
+  name: string;                  // Template name
+  description: string;           // Template description
+  category: string;              // Task category
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Default priority
+  estimatedDuration: number;     // Default estimated duration
+  isRepeating: boolean;          // Whether template creates repeating tasks
+  repeatPattern?: {              // Default repeat pattern
+    frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+    interval: number;
+    daysOfWeek?: number[];
+  };
+  defaultReminders: TodoReminder[];  // Default reminder settings
+  requiresPhoto: boolean;        // Whether photo completion is required
+  requiresLocation: boolean;     // Whether GPS location is required
+  requiresSignature: boolean;    // Whether digital signature is required
+  defaultNotes?: string;         // Default notes
+  defaultTags: string[];         // Default tags
+  createdBy: string;             // Admin who created the template
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Todo settings configuration
+ */
+export interface TodoSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether todo feature is enabled
+  allowLeadersToCreate: boolean; // Allow leaders to create todos
+  allowedLeaderRoles: string[];  // Specific leader roles that can create todos
+  defaultPriority: 'low' | 'medium' | 'high' | 'urgent';  // Default task priority
+  defaultReminders: {            // Default reminder settings
+    beforeDueMinutes: number;    // Minutes before due date
+    atDueTime: boolean;          // Remind at due time
+    afterDueMinutes: number;     // Minutes after due date
+  };
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    inAppNotifications: boolean;
+  };
+  completionSettings: {          // Completion requirements
+    requirePhoto: boolean;       // Require photo for completion
+    requireLocation: boolean;    // Require GPS location
+    requireSignature: boolean;   // Require digital signature
+    autoApprove: boolean;        // Auto-approve completions
+  };
+  reminderSettings: {            // Reminder configuration
+    maxRemindersPerTask: number; // Maximum reminders per task
+    reminderInterval: number;    // Minutes between reminders
+    escalationEnabled: boolean;  // Enable reminder escalation
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
 }
