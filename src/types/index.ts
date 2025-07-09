@@ -1406,3 +1406,688 @@ export interface TodoSettings {
   createdBy: string;             // Admin who configured settings
   updatedAt: string;             // Last update timestamp
 }
+
+// ============================================================================
+// MEMBER MANAGEMENT TYPES
+// ============================================================================
+
+/**
+ * Member role types for the workforce management system
+ */
+export enum MemberRole {
+  ADMIN = 'admin',               // Full system access and administrative rights
+  LEADER = 'leader',             // Group management and approval authority
+  EMPLOYEE = 'employee'          // Basic employee access
+}
+
+/**
+ * Group type enumeration
+ */
+export enum GroupType {
+  DEPARTMENT = 'department',     // Department-based group
+  TEAM = 'team',                 // Team-based group
+  PROJECT = 'project',           // Project-based group
+  LOCATION = 'location',         // Location-based group
+  FUNCTION = 'function',         // Function-based group
+  CUSTOM = 'custom'              // Custom group type
+}
+
+/**
+ * Group structure for organizing members
+ */
+export interface Group {
+  id: string;                    // Unique group ID
+  name: string;                  // Group name
+  description: string;           // Group description
+  parentGroupId?: string;        // Parent group ID (for hierarchical structure)
+  leaderId?: string;             // Group leader's member ID
+  members: string[];             // Array of member IDs in this group
+  depth: number;                 // Group depth (0 = top-level, 1-7 = subgroups)
+  isTopLevel: boolean;           // Whether this is the top-level group (company name)
+  isActive: boolean;             // Whether group is active
+  memberCount: number;           // Number of members in this group
+  leaderCount: number;           // Number of leaders in this group
+  workplaceIds: string[];        // Associated workplace IDs
+  settings: GroupSettings;       // Group-specific settings
+  createdBy: string;             // Admin who created the group
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Group settings for configuration and permissions
+ */
+export interface GroupSettings {
+  allowSubgroups: boolean;       // Whether subgroups can be created
+  maxDepth: number;              // Maximum allowed depth (1-7)
+  allowMemberReassignment: boolean; // Allow moving members between groups
+  requireLeaderApproval: boolean; // Require leader approval for certain actions
+  autoAssignNewMembers: boolean; // Auto-assign new members to this group
+  notificationSettings: {        // Group notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    memberChangeNotifications: boolean;
+    leaderChangeNotifications: boolean;
+  };
+}
+
+/**
+ * Group member assignment with role and permissions
+ */
+export interface GroupMember {
+  id: string;                    // Assignment ID
+  groupId: string;               // Group ID
+  memberId: string;              // Member ID
+  memberName: string;            // Member name
+  memberEmail: string;           // Member email
+  memberAvatar?: string;         // Member avatar URL
+  role: GroupMemberRole;         // Member role in the group
+  isLeader: boolean;             // Whether member is a leader
+  hasApprovalAuthority: boolean; // Whether leader has approval authority
+  assignedWorkplaces: string[];  // Workplaces assigned to this member
+  assignedAt: string;            // Assignment timestamp
+  assignedBy: string;            // Admin who made the assignment
+  isActive: boolean;             // Whether assignment is active
+  notes?: string;                // Assignment notes
+}
+
+/**
+ * Group member role enumeration
+ */
+export enum GroupMemberRole {
+  LEADER = 'leader',             // Group leader with management authority
+  MEMBER = 'member'              // Regular group member
+}
+
+/**
+ * Group leader with approval authority
+ */
+export interface GroupLeader {
+  id: string;                    // Leader assignment ID
+  groupId: string;               // Group ID
+  memberId: string;              // Member ID
+  memberName: string;            // Leader name
+  memberEmail: string;           // Leader email
+  approvalAuthority: ApprovalAuthority; // Approval authority settings
+  assignedWorkplaces: string[];  // Workplaces this leader manages
+  memberCount: number;           // Number of members this leader manages
+  isActive: boolean;             // Whether leader assignment is active
+  assignedAt: string;            // Assignment timestamp
+  assignedBy: string;            // Admin who assigned the leader
+  notes?: string;                // Assignment notes
+}
+
+/**
+ * Approval authority settings for group leaders
+ */
+export interface ApprovalAuthority {
+  canApproveScheduleChanges: boolean; // Can approve schedule change requests
+  canApproveLeaveRequests: boolean;   // Can approve leave requests
+  canApproveOvertime: boolean;        // Can approve overtime requests
+  canApproveAttendance: boolean;      // Can approve attendance corrections
+  canApproveReports: boolean;         // Can approve report submissions
+  canApproveTasks: boolean;           // Can approve task completions
+  canViewAllGroupData: boolean;       // Can view all group member data
+  canViewGroupReports: boolean;       // Can view group reports
+  canViewGroupAttendance: boolean;    // Can view group attendance
+  canViewGroupSchedules: boolean;     // Can view group schedules
+  canCreateGroupTasks: boolean;       // Can create tasks for group members
+  canManageGroupSettings: boolean;    // Can manage group-specific settings
+}
+
+/**
+ * Group hierarchy structure
+ */
+export interface GroupHierarchy {
+  id: string;                    // Group ID
+  name: string;                  // Group name
+  depth: number;                 // Group depth
+  isTopLevel: boolean;           // Whether this is top-level
+  memberCount: number;           // Total member count (including subgroups)
+  leaderCount: number;           // Total leader count (including subgroups)
+  children: GroupHierarchy[];    // Subgroups
+  path: string[];                // Path from root to this group
+}
+
+/**
+ * Group statistics and analytics
+ */
+export interface GroupStats {
+  totalGroups: number;           // Total number of groups
+  activeGroups: number;          // Number of active groups
+  topLevelGroups: number;        // Number of top-level groups
+  subgroups: number;             // Number of subgroups
+  totalMembers: number;          // Total members across all groups
+  totalLeaders: number;          // Total leaders across all groups
+  averageGroupSize: number;      // Average members per group
+  groupsByDepth: {               // Groups count by depth
+    depth: number;
+    count: number;
+  }[];
+  membersByGroup: {              // Member count by group
+    groupId: string;
+    groupName: string;
+    memberCount: number;
+    leaderCount: number;
+  }[];
+  recentActivity: {              // Recent group activity
+    groupId: string;
+    groupName: string;
+    activity: string;
+    timestamp: string;
+  }[];
+}
+
+/**
+ * Group filters for search and filtering
+ */
+export interface GroupFilters {
+  depth?: number;                // Filter by group depth
+  parentGroupId?: string;        // Filter by parent group
+  isActive?: boolean;            // Filter by active status
+  hasLeaders?: boolean;          // Filter groups with/without leaders
+  memberCount?: {                // Filter by member count range
+    min?: number;
+    max?: number;
+  };
+  searchTerm?: string;           // Search term for group name/description
+  workplaceId?: string;          // Filter by associated workplace
+}
+
+/**
+ * Group member filters
+ */
+export interface GroupMemberFilters {
+  groupId?: string;              // Filter by group
+  role?: GroupMemberRole;        // Filter by role
+  isLeader?: boolean;            // Filter by leader status
+  hasApprovalAuthority?: boolean; // Filter by approval authority
+  workplaceId?: string;          // Filter by assigned workplace
+  searchTerm?: string;           // Search term for member name/email
+}
+
+/**
+ * Group import data for bulk operations
+ */
+export interface GroupImportData {
+  name: string;                  // Group name
+  description?: string;          // Group description
+  parentGroupName?: string;      // Parent group name
+  depth?: number;                // Group depth
+  leaderEmails?: string[];       // Leader email addresses
+  memberEmails?: string[];       // Member email addresses
+  workplaceCodes?: string[];     // Associated workplace codes
+}
+
+/**
+ * Group management settings
+ */
+export interface GroupManagementSettings {
+  id: string;                    // Settings ID
+  allowGroupCreation: boolean;   // Allow creating new groups
+  requireApprovalForCreation: boolean; // Require approval for new groups
+  allowGroupEditing: boolean;    // Allow editing existing groups
+  requireApprovalForEditing: boolean; // Require approval for group edits
+  allowSubgroupCreation: boolean; // Allow creating subgroups
+  maxGroupDepth: number;         // Maximum allowed group depth (1-7)
+  allowMemberReassignment: boolean; // Allow moving members between groups
+  requireLeaderApproval: boolean; // Require leader approval for member changes
+  autoAssignNewMembers: boolean; // Auto-assign new members to default group
+  defaultGroupId?: string;       // Default group for new members
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    newGroupNotifications: boolean;
+    groupUpdateNotifications: boolean;
+    memberChangeNotifications: boolean;
+    leaderChangeNotifications: boolean;
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Group approval request
+ */
+export interface GroupApprovalRequest {
+  id: string;                    // Request ID
+  groupId: string;               // Associated group ID
+  requestType: 'group-creation' | 'group-editing' | 'member-reassignment' | 'leader-assignment'; // Request type
+  requesterId: string;           // User who made the request
+  requesterName: string;         // Requester name
+  requestData: any;              // Request data
+  status: 'pending' | 'approved' | 'rejected'; // Request status
+  requestedAt: string;           // Request timestamp
+  approvedBy?: string;           // Approver's user ID
+  approvedAt?: string;           // Approval timestamp
+  rejectionReason?: string;      // Reason for rejection
+  notes?: string;                // Additional notes
+}
+
+/**
+ * Group activity log
+ */
+export interface GroupActivity {
+  id: string;                    // Activity ID
+  groupId: string;               // Associated group ID
+  groupName: string;             // Group name
+  activityType: 'member-added' | 'member-removed' | 'leader-assigned' | 'leader-removed' | 'group-created' | 'group-updated' | 'group-deleted'; // Activity type
+  performedBy: string;           // User who performed the action
+  performedByName: string;       // Performer name
+  targetMemberId?: string;       // Target member ID (if applicable)
+  targetMemberName?: string;     // Target member name (if applicable)
+  details: any;                  // Activity details
+  timestamp: string;             // Activity timestamp
+  ipAddress?: string;            // IP address of performer
+  userAgent?: string;            // User agent of performer
+}
+
+/**
+ * Group workplace assignment
+ */
+export interface GroupWorkplaceAssignment {
+  id: string;                    // Assignment ID
+  groupId: string;               // Group ID
+  workplaceId: string;           // Workplace ID
+  workplaceName: string;         // Workplace name
+  assignmentType: 'primary' | 'secondary' | 'temporary'; // Assignment type
+  assignedAt: string;            // Assignment timestamp
+  assignedBy: string;            // Admin who made the assignment
+  isActive: boolean;             // Whether assignment is active
+  notes?: string;                // Assignment notes
+}
+
+/**
+ * Group member workplace assignment
+ */
+export interface GroupMemberWorkplaceAssignment {
+  id: string;                    // Assignment ID
+  groupMemberId: string;         // Group member assignment ID
+  workplaceId: string;           // Workplace ID
+  workplaceName: string;         // Workplace name
+  assignmentType: 'primary' | 'secondary' | 'temporary'; // Assignment type
+  assignedAt: string;            // Assignment timestamp
+  assignedBy: string;            // Admin who made the assignment
+  isActive: boolean;             // Whether assignment is active
+  notes?: string;                // Assignment notes
+}
+
+// ============================================================================
+// WORKPLACE MANAGEMENT TYPES
+// ============================================================================
+
+/**
+ * Workplace interface representing a registered workplace location
+ */
+export interface Workplace {
+  id: string;                    // Unique workplace ID
+  name: string;                  // Workplace name
+  code: string;                  // Workplace code/identifier
+  address: string;               // Full address
+  stateId?: string;              // Associated state/city ID
+  cityId?: string;               // Associated city ID
+  areaId?: string;               // Associated area ID
+  distributorId?: string;        // Associated distributor ID
+  district?: string;             // District information
+  representativePhoto?: string;  // Workplace representative photo URL
+  location: {                    // GPS coordinates
+    lat: number;                 // Latitude
+    lng: number;                 // Longitude
+  };
+  type: 'registered' | 'fixed' | 'temporary';  // Workplace type
+  isActive: boolean;             // Whether workplace is active
+  isDefault: boolean;            // Whether this is the default workplace
+  customProperties: WorkplaceCustomProperty[];  // Custom properties
+  createdBy: string;             // Admin who created the workplace
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * State/City information for workplace location
+ */
+export interface StateCity {
+  id: string;                    // State/City ID
+  name: string;                  // State/City name
+  type: 'state' | 'city';        // Whether this is a state or city
+  parentId?: string;             // Parent state ID (for cities)
+  countryCode: string;           // Country code (e.g., 'KR' for Korea)
+  isActive: boolean;             // Whether this state/city is active
+  createdBy: string;             // Admin who created this
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Area information for workplace location
+ */
+export interface Area {
+  id: string;                    // Area ID
+  name: string;                  // Area name
+  description?: string;          // Area description
+  isActive: boolean;             // Whether area is active
+  createdBy: string;             // Admin who created this area
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Distributor information for workplace
+ */
+export interface Distributor {
+  id: string;                    // Distributor ID
+  name: string;                  // Distributor name
+  description?: string;          // Distributor description
+  logoUrl?: string;              // Distributor logo URL
+  channelId?: string;            // Associated channel ID
+  contactInfo?: {                // Contact information
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
+  isActive: boolean;             // Whether distributor is active
+  createdBy: string;             // Admin who created this distributor
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Distributor channel information
+ */
+export interface DistributorChannel {
+  id: string;                    // Channel ID
+  name: string;                  // Channel name
+  description?: string;          // Channel description
+  isActive: boolean;             // Whether channel is active
+  createdBy: string;             // Admin who created this channel
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Custom property for workplaces
+ */
+export interface WorkplaceCustomProperty {
+  id: string;                    // Property ID
+  name: string;                  // Property name
+  dataType: 'select' | 'manual' | 'photo' | 'document';  // Data type
+  options?: string[];            // Options for select type
+  viewPermission: 'admin' | 'leader' | 'employee';  // View permission level
+  editPermission: 'admin' | 'leader' | 'employee';  // Edit permission level
+  isRequired: boolean;           // Whether property is required
+  isActive: boolean;             // Whether property is active
+  createdBy: string;             // Admin who created this property
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Custom property value for a specific workplace
+ */
+export interface WorkplaceCustomPropertyValue {
+  id: string;                    // Value ID
+  workplaceId: string;           // Associated workplace ID
+  propertyId: string;            // Associated property ID
+  value: string;                 // Property value
+  fileUrl?: string;              // File URL (for photo/document types)
+  fileName?: string;             // Original file name
+  fileSize?: number;             // File size in bytes
+  createdBy: string;             // User who set this value
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Workplace settings for system configuration
+ */
+export interface WorkplaceSettings {
+  id: string;                    // Settings ID
+  useArea: boolean;              // Whether to use area property
+  requireRepresentativePhoto: boolean;  // Whether representative photo is required
+  allowCustomProperties: boolean; // Whether custom properties are allowed
+  maxCustomProperties: number;   // Maximum number of custom properties per workplace
+  defaultViewPermission: 'admin' | 'leader' | 'employee';  // Default view permission
+  defaultEditPermission: 'admin' | 'leader' | 'employee';  // Default edit permission
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Workplace statistics for reporting
+ */
+export interface WorkplaceStats {
+  totalWorkplaces: number;       // Total number of workplaces
+  activeWorkplaces: number;      // Number of active workplaces
+  registeredWorkplaces: number;  // Number of registered workplaces
+  fixedWorkplaces: number;       // Number of fixed workplaces
+  temporaryWorkplaces: number;   // Number of temporary workplaces
+  workplacesByState: {           // Workplaces count by state
+    stateId: string;
+    stateName: string;
+    count: number;
+  }[];
+  workplacesByArea: {            // Workplaces count by area
+    areaId: string;
+    areaName: string;
+    count: number;
+  }[];
+  workplacesByDistributor: {     // Workplaces count by distributor
+    distributorId: string;
+    distributorName: string;
+    count: number;
+  }[];
+  recentActivity: {              // Recent workplace activity
+    workplaceId: string;
+    workplaceName: string;
+    activity: string;
+    timestamp: string;
+  }[];
+}
+
+/**
+ * Workplace filters for search and filtering
+ */
+export interface WorkplaceFilters {
+  type?: 'registered' | 'fixed' | 'temporary';  // Filter by workplace type
+  stateId?: string;              // Filter by state
+  cityId?: string;               // Filter by city
+  areaId?: string;               // Filter by area
+  distributorId?: string;        // Filter by distributor
+  isActive?: boolean;            // Filter by active status
+  searchTerm?: string;           // Search term for name/code/address
+}
+
+/**
+ * Workplace import data for bulk operations
+ */
+export interface WorkplaceImportData {
+  name: string;                  // Workplace name
+  code: string;                  // Workplace code
+  address: string;               // Full address
+  stateName?: string;            // State name
+  cityName?: string;             // City name
+  areaName?: string;             // Area name
+  distributorName?: string;      // Distributor name
+  district?: string;             // District
+  latitude?: number;             // GPS latitude
+  longitude?: number;            // GPS longitude
+  type: 'registered' | 'fixed' | 'temporary';  // Workplace type
+  customProperties?: Record<string, any>;  // Custom property values
+}
+
+/**
+ * Workplace management settings
+ */
+export interface WorkplaceManagementSettings {
+  id: string;                    // Settings ID
+  allowWorkplaceCreation: boolean; // Allow creating new workplaces
+  requireApprovalForCreation: boolean; // Require approval for new workplaces
+  allowWorkplaceEditing: boolean; // Allow editing existing workplaces
+  requireApprovalForEditing: boolean; // Require approval for workplace edits
+  allowCustomProperties: boolean; // Allow custom properties
+  maxCustomProperties: number;   // Maximum custom properties per workplace
+  requireRepresentativePhoto: boolean; // Require representative photo
+  allowTemporaryWorkplaces: boolean; // Allow temporary workplace registration
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    newWorkplaceNotifications: boolean;
+    workplaceUpdateNotifications: boolean;
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Member information with role and group assignments
+ */
+export interface Member {
+  id: string;                    // Member ID
+  userId: string;                // Associated user ID
+  name: string;                  // Member's full name
+  email: string;                 // Member's email address
+  phone?: string;                // Member's phone number
+  avatar?: string;               // Profile picture URL
+  role: MemberRole;              // Member's role in the system
+  department?: string;           // Department assignment
+  position?: string;             // Job position/title
+  employeeId?: string;           // Employee ID number
+  hireDate: string;              // Date of hire (YYYY-MM-DD)
+  groups: string[];              // Array of group IDs the member belongs to
+  isLeader: boolean;             // Whether member is a leader
+  isAdmin: boolean;              // Whether member is an admin
+  approvalAuthority: boolean;    // Whether leader has approval authority
+  status: 'active' | 'inactive' | 'suspended' | 'terminated';  // Member status
+  managerId?: string;            // Direct manager's member ID
+  workplaceId?: string;          // Primary workplace assignment
+  emergencyContact?: {           // Emergency contact information
+    name: string;
+    relationship: string;
+    phone: string;
+    email?: string;
+  };
+  permissions: MemberPermissions;  // Member's permissions
+  lastLoginAt?: string;          // Last login timestamp
+  createdAt: string;             // Member creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Member permissions based on role
+ */
+export interface MemberPermissions {
+  // Admin permissions
+  canManageAllGroups: boolean;   // Can manage all groups
+  canManageAllMembers: boolean;  // Can manage all members
+  canViewAllData: boolean;       // Can view all company data
+  canApproveAllRequests: boolean; // Can approve all requests
+  canManageSystemSettings: boolean; // Can manage system settings
+  
+  // Leader permissions
+  canManageAssignedGroups: boolean; // Can manage assigned groups
+  canViewGroupMembers: boolean;  // Can view members in managed groups
+  canViewGroupReports: boolean;  // Can view reports for managed groups
+  canViewGroupAttendance: boolean; // Can view attendance for managed groups
+  canViewGroupSchedules: boolean; // Can view schedules for managed groups
+  canApproveGroupRequests: boolean; // Can approve requests from group members
+  canCreateGroupTasks: boolean;  // Can create tasks for group members
+  canManageGroupSettings: boolean; // Can manage group-specific settings
+  
+  // Employee permissions
+  canViewOwnData: boolean;       // Can view own data
+  canSubmitRequests: boolean;    // Can submit approval requests
+  canCreateReports: boolean;     // Can create reports
+  canUseAttendance: boolean;     // Can use attendance features
+  canViewOwnSchedule: boolean;   // Can view own schedule
+  canUseChat: boolean;           // Can use chat features
+  canUsePostingBoard: boolean;   // Can use posting board
+}
+
+/**
+ * Member statistics and metrics
+ */
+export interface MemberStats {
+  totalMembers: number;          // Total number of members
+  activeMembers: number;         // Number of active members
+  admins: number;                // Number of admins
+  leaders: number;               // Number of leaders
+  employees: number;             // Number of employees
+  membersByGroup: {              // Members count by group
+    groupId: string;
+    groupName: string;
+    memberCount: number;
+  }[];
+  recentActivity: {              // Recent member activity
+    memberId: string;
+    memberName: string;
+    activity: string;
+    timestamp: string;
+  }[];
+}
+
+/**
+ * Member search and filter options
+ */
+export interface MemberFilters {
+  role?: MemberRole;             // Filter by role
+  groupId?: string;              // Filter by group
+  status?: string;               // Filter by status
+  department?: string;           // Filter by department
+  position?: string;             // Filter by position
+  isLeader?: boolean;            // Filter by leader status
+  isAdmin?: boolean;             // Filter by admin status
+  hasApprovalAuthority?: boolean; // Filter by approval authority
+  searchTerm?: string;           // Search term for name/email
+}
+
+/**
+ * Member import/export data structure
+ */
+export interface MemberImportData {
+  name: string;                  // Member name
+  email: string;                 // Email address
+  phone?: string;                // Phone number
+  department?: string;           // Department
+  position?: string;             // Position
+  employeeId?: string;           // Employee ID
+  hireDate?: string;             // Hire date
+  role: MemberRole;              // Role
+  groups?: string[];             // Group assignments
+  managerId?: string;            // Manager ID
+  workplaceId?: string;          // Workplace ID
+  emergencyContactName?: string; // Emergency contact name
+  emergencyContactPhone?: string; // Emergency contact phone
+  emergencyContactRelationship?: string; // Emergency contact relationship
+}
+
+/**
+ * Member management settings
+ */
+export interface MemberManagementSettings {
+  id: string;                    // Settings ID
+  allowSelfRegistration: boolean; // Allow members to self-register
+  requireApprovalForRegistration: boolean; // Require approval for new registrations
+  defaultRole: MemberRole;       // Default role for new members
+  allowRoleChanges: boolean;     // Allow changing member roles
+  allowGroupChanges: boolean;    // Allow changing group assignments
+  requireApprovalForRoleChanges: boolean; // Require approval for role changes
+  autoAssignToDefaultGroup: boolean; // Auto-assign to default group
+  defaultGroupId?: string;       // Default group ID
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    newMemberNotifications: boolean;
+    roleChangeNotifications: boolean;
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}

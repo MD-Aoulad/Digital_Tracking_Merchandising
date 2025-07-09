@@ -128,6 +128,13 @@ const Dashboard: React.FC = () => {
       href: '/todo'
     },
     {
+      title: 'Member Management',
+      description: 'Manage team members and roles',
+      icon: <Users size={24} />,
+      color: 'bg-red-500',
+      href: '/members'
+    },
+    {
       title: 'Team Chat',
       description: 'Connect with colleagues',
       icon: <Users size={24} />,

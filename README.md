@@ -1,63 +1,48 @@
 # Workforce Management Platform
 
-A comprehensive, modern workforce management platform built with React, TypeScript, and Tailwind CSS. This application provides a complete solution for managing employee attendance, scheduling, tasks, and team collaboration.
+A comprehensive workforce management platform inspired by Shoplworks, built with React, TypeScript, and Tailwind CSS. This platform provides complete attendance management, employee scheduling, leave management, and administrative tools for modern organizations.
 
 ## 🚀 Features
 
-### Core Functionality
-- **📊 Dashboard** - Real-time overview with key metrics and quick actions
-- **⏰ Attendance Management** - GPS, QR code, and facial recognition clock in/out
-- **📅 Schedule Management** - Flexible shift planning and scheduling
-- **📋 Task Management** - Assign, track, and manage team tasks
-- **📝 Leave Management** - Automated leave request workflows
-- **🎁 Grant Leave** - Admin tool for granting accrued leave with Excel support
-- **💬 Team Communication** - Real-time chat and collaboration
-- **�� Reports & Analytics** - Comprehensive reporting and data visualization
-- **🗺️ Journey Planning** - Field team route optimization
-- **📄 Document Management** - Digital document signing and management
-- **📊 Surveys & Feedback** - Employee feedback collection
-- **🤖 AI Assistant** - Intelligent task automation and assistance
+### Core Features
+- **Attendance Management** - GPS and QR code authentication with facial recognition
+- **Face Verification** - Biometric authentication for secure attendance tracking
+- **Temporary Workplace Punch** - Support for remote and off-site work
+- **Schedule Management** - Rotation-based scheduling with approval workflows
+- **Leave Management** - Comprehensive leave application and approval system
+- **Journey Planning** - GPS-verified visit schedule management for remote workers
+- **Reporting & Analytics** - Real-time dashboards with Excel export capabilities
+- **To-Do Tasks** - Task management with notifications and templates
+- **Member Role Management** - Hierarchical role-based access control
 
-### Technical Features
-- **🔐 Role-Based Access Control** - Admin, Editor, and Viewer roles
-- **📱 Responsive Design** - Mobile-first approach
-- **⚡ Real-time Updates** - Live data synchronization
-- **🎨 Modern UI/UX** - Beautiful, intuitive interface
-- **🔒 Secure Authentication** - Protected routes and sessions
-- **�� Data Visualization** - Charts and analytics
-- **🔍 Advanced Search** - Global search with filters
-- **📤 Export Functionality** - Data export capabilities
+### Administrative Features
+- **Company Information Management** - Centralized company settings and configuration
+- **Group Management** - Hierarchical organizational structure management
+- **Admin Management** - Role-based administrative access control
+- **Workplace Management** - Multi-location workplace configuration
+- **User Management** - Comprehensive employee and user administration
 
-## 🛠️ Technology Stack
+## 🛠 Technology Stack
 
-### Frontend
-- **React 18** - Modern JavaScript library for building user interfaces
-- **TypeScript** - Static type checking and enhanced developer experience
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Production-ready motion library
-- **React Router** - Client-side routing
-- **React Hook Form** - Performant form management
-- **Yup** - Schema validation
-- **Lucide React** - Beautiful icon toolkit
-
-### Development Tools
-- **Create React App** - React application bootstrapping
-- **PostCSS** - CSS transformation
-- **ESLint** - Code linting
-- **Jest** - Testing framework
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **UI Components**: Lucide React Icons, Custom Components
+- **State Management**: React Hooks (useState, useEffect)
+- **Routing**: React Router v6
+- **Build Tool**: Create React App
+- **Package Manager**: npm
 
 ## 📦 Installation
 
 ### Prerequisites
-- Node.js 16.0 or higher
-- npm 8.0 or higher
+- Node.js (v16 or higher)
+- npm (v8 or higher)
 
 ### Setup Instructions
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/MD-Aoulad/Digital_Tracking_Merchandising.git
-   cd Digital_Tracking_Merchandising
+   git clone <repository-url>
+   cd workforce-management-platform
    ```
 
 2. **Install dependencies**
@@ -71,269 +56,178 @@ A comprehensive, modern workforce management platform built with React, TypeScri
    ```
 
 4. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+   Navigate to `http://localhost:3000`
 
-## 🔐 Authentication
-
-The application includes demo accounts for testing:
-
-### Demo Credentials
-- **Admin User**
-  - Email: `admin@company.com`
-  - Password: `password`
-  - Role: Full system access
-
-- **Editor User**
-  - Email: `editor@company.com`
-  - Password: `password`
-  - Role: Limited management access
-
-- **Viewer User**
-  - Email: `viewer@company.com`
-  - Password: `password`
-  - Role: Read-only access
-
-## 📁 Project Structure
+## 🏗 Project Structure
 
 ```
 src/
-├── components/           # Reusable UI components
-│   ├── Layout/          # Layout components (Navbar, Sidebar)
-│   └── Attendance/      # Attendance management components
-├── contexts/            # React Context providers
-│   └── AuthContext.tsx  # Authentication context
-├── pages/               # Page components
-│   ├── Login.tsx        # Authentication page
-│   └── Dashboard.tsx    # Main dashboard
-├── types/               # TypeScript type definitions
-│   └── index.ts         # Application types
-├── App.tsx              # Root application component
-└── index.tsx            # Application entry point
+├── components/           # React components
+│   ├── Admin/           # Administrative components
+│   ├── Attendance/      # Attendance management
+│   ├── Dashboard/       # Dashboard components
+│   ├── Leave/          # Leave management
+│   ├── Members/        # User and role management
+│   ├── Schedule/       # Scheduling components
+│   ├── Settings/       # Application settings
+│   ├── Todo/           # Task management
+│   └── Workplace/      # Workplace management
+├── types/              # TypeScript type definitions
+├── utils/              # Utility functions
+├── App.tsx             # Main application component
+└── index.tsx           # Application entry point
 ```
 
 ## 🎯 Key Components
 
-### Authentication System
-- **Protected Routes** - Route-level authentication guards
-- **Role-Based Permissions** - Granular access control
-- **Session Management** - Persistent user sessions
-- **Form Validation** - Real-time validation with Yup
-
-### Dashboard
-- **Real-time Statistics** - Live metrics and KPIs
-- **Quick Actions** - Fast access to common tasks
-- **Activity Feed** - Recent system activities
-- **Performance Overview** - Visual performance metrics
-
 ### Attendance Management
-- **Multiple Authentication Methods**
-  - GPS-based geolocation tracking
-  - QR code scanning
-  - Facial recognition
-- **Real-time Clock Display** - Live time tracking
-- **Attendance Records** - Comprehensive attendance history
-- **Filtering & Search** - Advanced record filtering
+- **GPS Authentication**: Location-based attendance verification
+- **QR Code Support**: Quick attendance scanning
+- **Face Recognition**: Biometric authentication
+- **Real-time Tracking**: Live attendance monitoring
+- **Excel Export**: Data export for HR tasks
 
-### Grant Leave Management
-- **6-Step Wizard Interface** - Guided process for leave grant configuration
-- **Dual Grant Types** - Support for bulk and individual employee grants
-- **Excel Integration** - Template download and bulk upload capabilities
-- **Carryover Management** - Flexible expiration rules for unused leave
-- **Admin-Only Access** - Restricted to administrative users
-- **Real-time Validation** - Step-by-step form validation with clear feedback
+### Schedule Management
+- **Rotation Scheduling**: Optimized for shift-based work
+- **Approval Workflows**: Employee schedule change requests
+- **Manager Controls**: Schedule creation and modification
+- **Visual Interface**: Intuitive schedule display
 
-### Journey Plan Management
-- **Multi-location Assignment** - Assign employees to visit multiple locations in a single day
-- **Route Optimization** - Automatically optimize routes for the most efficient journey
-- **GPS Verification** - Require GPS verification for location visits with photo capture
-- **Real-time Tracking** - Monitor journey progress and status in real-time
-- **Status Management** - Track journey status (pending, in-progress, completed, cancelled)
-- **Notification System** - Email, push, and SMS notifications for journey updates
-- **Analytics & Reporting** - Comprehensive reporting on journey completion rates
-- **Admin Settings** - Configurable settings for GPS verification, route optimization, and notifications
+### Leave Management
+- **Multiple Leave Types**: Vacation, sick leave, personal time
+- **Approval System**: Admin and leader approval workflows
+- **Usage Tracking**: Leave balance monitoring
+- **Mobile Support**: Mobile-friendly leave requests
 
-### Navigation System
-- **Responsive Sidebar** - Collapsible navigation menu
-- **Sticky Navbar** - Always-visible top navigation
-- **Breadcrumb Navigation** - Context-aware navigation
-- **Search Functionality** - Global search capabilities
+### Company Information
+- **Admin-Only Access**: Secure company information management
+- **Multi-language Support**: 10+ language options
+- **Dashboard Customization**: Customizable dashboard names
+- **Regional Settings**: Timezone and currency configuration
 
-## 🎨 UI/UX Features
+## 🔐 Role-Based Access Control
 
-### Design System
-- **Consistent Color Palette** - Primary, secondary, and accent colors
-- **Typography Scale** - Consistent font sizes and weights
-- **Spacing System** - Uniform spacing throughout the app
-- **Component Library** - Reusable UI components
+### User Roles
+- **Admin**: Full system access and configuration
+- **Leader**: Team management and approval authority
+- **Employee**: Basic attendance and leave functionality
 
-### Responsive Design
-- **Mobile-First Approach** - Optimized for mobile devices
-- **Breakpoint System** - Responsive grid layouts
-- **Touch-Friendly Interface** - Optimized for touch interactions
-- **Progressive Enhancement** - Enhanced experience on larger screens
+### Permission Levels
+- **Company Info**: Admin only
+- **User Management**: Admin and Leaders
+- **Schedule Management**: Admin, Leaders, and Employees (view)
+- **Attendance**: All users with role-based restrictions
 
-### Animations & Transitions
-- **Smooth Page Transitions** - Framer Motion animations
-- **Loading States** - Skeleton screens and spinners
-- **Micro-interactions** - Subtle hover and focus effects
-- **Toast Notifications** - User feedback animations
+## 📱 Mobile Responsiveness
 
-## 🔧 Configuration
+The platform is fully responsive and optimized for:
+- Desktop computers
+- Tablets
+- Mobile devices
+- Touch interfaces
 
-### Environment Variables
-Create a `.env` file in the root directory:
+## 🚀 Deployment
 
-```env
-REACT_APP_API_URL=your_api_url_here
-REACT_APP_ENVIRONMENT=development
-```
-
-### Tailwind Configuration
-The application uses a custom Tailwind configuration with:
-- Custom color palette
-- Extended spacing scale
-- Custom component classes
-- Responsive breakpoints
-
-## 🧪 Testing
-
-### Running Tests
+### Development
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm test -- --watch
-
-# Generate coverage report
-npm test -- --coverage
+npm start
 ```
-
-### Test Structure
-- **Unit Tests** - Component and utility function tests
-- **Integration Tests** - Component interaction tests
-- **Snapshot Tests** - UI regression tests
-
-## 📦 Build & Deployment
 
 ### Production Build
 ```bash
 npm run build
 ```
 
-### Deployment Options
-- **Vercel** - Zero-config deployment
-- **Netlify** - Static site hosting
-- **AWS S3** - Cloud storage hosting
-- **Firebase Hosting** - Google's hosting platform
+### Testing
+```bash
+npm test
+```
 
-## 🔒 Security Features
+## 📊 Features Overview
 
-### Authentication Security
-- **Protected Routes** - Route-level access control
-- **Session Validation** - Secure session management
-- **Input Validation** - Client-side form validation
-- **XSS Protection** - React's built-in XSS protection
+### Shoplworks-Inspired Features
+1. **Attendance Management**
+   - GPS and QR code authentication
+   - Facial recognition support
+   - Real-time dashboard updates
+   - Excel export functionality
 
-### Data Security
-- **Type Safety** - TypeScript static type checking
-- **Input Sanitization** - Form input validation
-- **Secure Headers** - Security headers configuration
-- **CSRF Protection** - Token-based CSRF protection
+2. **Leave Management**
+   - Custom leave type configuration
+   - Mobile and dashboard management
+   - Employee self-service requests
+   - Usage status tracking
 
-## 🚀 Performance Optimizations
+3. **Schedule Management**
+   - Rotation-optimized scheduling
+   - Employee approval applications
+   - Manager schedule creation
+   - Work status monitoring
 
-### Code Optimization
-- **Code Splitting** - Route-based code splitting
-- **Lazy Loading** - Component lazy loading
-- **Bundle Optimization** - Webpack optimization
-- **Tree Shaking** - Unused code elimination
+4. **Overtime Management**
+   - Maximum working hours configuration
+   - Employee overtime applications
+   - Admin approval workflows
+   - Excel data export
 
-### Asset Optimization
-- **Image Optimization** - Compressed and responsive images
-- **Font Loading** - Optimized font loading
-- **CSS Optimization** - Purged unused CSS
-- **Caching Strategy** - Browser caching optimization
+5. **Journey Planning**
+   - Visit schedule management
+   - GPS verification
+   - Remote worker support
+   - Status tracking and statistics
 
-## 📊 Analytics & Monitoring
+## 🔧 Configuration
 
-### Performance Monitoring
-- **Core Web Vitals** - Performance metrics tracking
-- **Error Tracking** - Error monitoring and reporting
-- **User Analytics** - User behavior tracking
-- **Performance Budgets** - Performance constraints
+### Environment Variables
+Create a `.env` file in the root directory:
+```env
+REACT_APP_API_URL=your_api_url
+REACT_APP_COMPANY_NAME=Your Company Name
+```
 
-## 🔄 Version Control
+### Company Settings
+Access company settings through:
+1. Dashboard → Settings → Company Info
+2. Admin-only access required
+3. Configure language, timezone, and company details
 
-### Git Workflow
-- **Feature Branches** - Isolated feature development
-- **Pull Requests** - Code review process
-- **Semantic Versioning** - Version numbering system
-- **Changelog** - Release notes and updates
+## 📈 Future Enhancements
+
+- [ ] Real-time notifications
+- [ ] Advanced reporting analytics
+- [ ] Mobile app development
+- [ ] API integration
+- [ ] Multi-tenant support
+- [ ] Advanced security features
 
 ## 🤝 Contributing
 
-### Development Guidelines
-1. **Code Style** - Follow ESLint and Prettier configuration
-2. **TypeScript** - Use strict TypeScript configuration
-3. **Testing** - Write tests for new features
-4. **Documentation** - Update documentation for changes
-5. **Commit Messages** - Use conventional commit format
-
-### Pull Request Process
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
-5. Update documentation
-6. Submit a pull request
+4. Add tests if applicable
+5. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🆘 Support
 
-### Getting Help
-- **Documentation** - Check the documentation first
-- **Issues** - Search existing issues on GitHub
-- **Discussions** - Join community discussions
-- **Email Support** - Contact the development team
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
 
-### Reporting Bugs
-When reporting bugs, please include:
-- Browser and version
-- Operating system
-- Steps to reproduce
-- Expected vs actual behavior
-- Screenshots or videos
+## 📝 Changelog
 
-## 🔮 Roadmap
-
-### Upcoming Features
-- **Backend Integration** - Full-stack implementation
-- **Real-time Features** - WebSocket integration
-- **Mobile App** - React Native version
-- **Advanced Analytics** - Data visualization
-- **AI Integration** - Machine learning features
-- **Multi-language Support** - Internationalization
-
-### Long-term Goals
-- **Enterprise Features** - Advanced enterprise capabilities
-- **API Ecosystem** - Comprehensive API documentation
-- **Plugin System** - Extensible plugin architecture
-- **Cloud Integration** - Multi-cloud deployment options
+### Version 1.0.0
+- Initial release
+- Core attendance management
+- Basic scheduling features
+- User management system
+- Company information management
 
 ---
 
-## 🎉 Acknowledgments
-
-- **React Team** - For the amazing React framework
-- **Tailwind CSS** - For the utility-first CSS framework
-- **Framer Motion** - For the motion library
-- **Lucide** - For the beautiful icons
-- **Open Source Community** - For all the amazing tools and libraries
-
----
-
-*Built with ❤️ by the Workforce Management Team*
+**Built with ❤️ using React, TypeScript, and Tailwind CSS**
