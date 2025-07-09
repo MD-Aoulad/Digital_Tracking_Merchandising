@@ -71,104 +71,65 @@ interface MenuItem {
  * @returns JSX element with complete sidebar navigation
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { hasPermission } = useAuth();
-
-  /**
-   * Main navigation menu items
-   * Each item includes title, route, icon, and required permission
-   */
-  const menuItems: MenuItem[] = [
+  // Always show all features for admin
+  // Grouped as in Shoplworks UI
+  const menuGroups = [
     {
-      title: 'Dashboard',
-      path: '/dashboard',
-      icon: <LayoutDashboard size={20} />,
-      permission: 'dashboard:view'
+      label: 'Workforce Management',
+      items: [
+        { title: 'Attendance', path: '/attendance', icon: <Clock size={20} /> },
+        { title: 'Schedule', path: '/schedule', icon: <Calendar size={20} /> },
+        { title: 'Leave', path: '/leave', icon: <FileText size={20} /> },
+        { title: 'Overtime', path: '/overtime', icon: <Clock size={20} /> },
+        { title: 'Journey Plan', path: '/journey', icon: <Map size={20} /> },
+      ],
     },
     {
-      title: 'Attendance',
-      path: '/attendance',
-      icon: <Clock size={20} />,
-      permission: 'attendance:view'
+      label: 'Task & Communications',
+      items: [
+        { title: 'Notice & Survey', path: '/notice-survey', icon: <Mail size={20} /> },
+        { title: 'Report', path: '/reports', icon: <BarChart3 size={20} /> },
+        { title: 'Posting Board', path: '/posting-board', icon: <ClipboardList size={20} /> },
+        { title: 'To-Do', path: '/to-do', icon: <ClipboardList size={20} /> },
+        { title: 'Chat', path: '/chat', icon: <MessageSquare size={20} /> },
+        { title: 'AI Chatbot', path: '/ai-chatbot', icon: <Bot size={20} /> },
+      ],
     },
     {
-      title: 'Schedule',
-      path: '/schedule',
-      icon: <Calendar size={20} />,
-      permission: 'schedule:view'
+      label: 'Document',
+      items: [
+        { title: 'E-documents', path: '/e-documents', icon: <FileSignature size={20} /> },
+      ],
     },
     {
-      title: 'Leave Management',
-      path: '/leave',
-      icon: <FileText size={20} />,
-      permission: 'leave:view'
+      label: 'Approval',
+      items: [
+        { title: 'Approval', path: '/approval', icon: <UserCheck size={20} /> },
+      ],
     },
     {
-      title: 'Tasks',
-      path: '/tasks',
-      icon: <ClipboardList size={20} />,
-      permission: 'tasks:view'
+      label: 'In-store Data',
+      items: [
+        { title: 'In-store Data Collection', path: '/in-store-data', icon: <ClipboardList size={20} /> },
+      ],
     },
     {
-      title: 'Chat',
-      path: '/chat',
-      icon: <MessageSquare size={20} />,
-      permission: 'chat:view',
-      badge: 3  // Sample notification count
+      label: 'Administration',
+      items: [
+        { title: 'Groups', path: '/groups', icon: <Users size={20} /> },
+        { title: 'Workplaces', path: '/workplaces', icon: <Users size={20} /> },
+        { title: 'Members', path: '/members', icon: <Users size={20} /> },
+      ],
     },
     {
-      title: 'Reports',
-      path: '/reports',
-      icon: <BarChart3 size={20} />,
-      permission: 'reports:view'
+      label: 'Settings',
+      items: [
+        { title: 'Company', path: '/company', icon: <Settings size={20} /> },
+        { title: 'Employee', path: '/employee', icon: <Settings size={20} /> },
+        { title: 'Admin', path: '/admin', icon: <Settings size={20} /> },
+      ],
     },
-    {
-      title: 'Journey Plan',
-      path: '/journey',
-      icon: <Map size={20} />,
-      permission: 'attendance:view'
-    },
-    {
-      title: 'Documents',
-      path: '/documents',
-      icon: <FileSignature size={20} />,
-      permission: 'documents:view'
-    },
-    {
-      title: 'Surveys',
-      path: '/surveys',
-      icon: <Mail size={20} />,
-      permission: 'surveys:view'
-    },
-    {
-      title: 'AI Assistant',
-      path: '/ai-assistant',
-      icon: <Bot size={20} />,
-      permission: 'chat:view'
-    }
   ];
-
-  /**
-   * Administrative menu items
-   * Only visible to users with admin permissions
-   */
-  const adminItems: MenuItem[] = [
-    {
-      title: 'User Management',
-      path: '/users',
-      icon: <Users size={20} />,
-      permission: 'users:manage'
-    },
-    {
-      title: 'Settings',
-      path: '/settings',
-      icon: <Settings size={20} />,
-      permission: 'settings:manage'
-    }
-  ];
-
-  // Filter menu items based on user permissions
-  const filteredMenuItems = menuItems.filter(item => hasPermission(item.permission));
-  const filteredAdminItems = adminItems.filter(item => hasPermission(item.permission));
 
   return (
     <>
@@ -186,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         initial={{ x: -280 }}
         animate={{ x: isOpen ? 0 : -280 }}
         transition={{ type: 'spring', damping: 20 }}
-        className={`fixed left-0 top-0 h-full w-70 bg-white border-r border-gray-200 z-50 lg:translate-x-0 lg:static lg:inset-0`}
+        className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-50 lg:translate-x-0 lg:static lg:inset-0`}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar header with logo */}
@@ -204,49 +165,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           {/* Navigation menu */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {/* Main navigation items */}
-            <div className="space-y-1">
-              {filteredMenuItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative ${
-                      isActive
-                        ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }`
-                  }
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  <span className="flex-1">{item.title}</span>
-                  {/* Notification badge */}
-                  {item.badge && (
-                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-
-            {/* Administrative section */}
-            {filteredAdminItems.length > 0 && (
-              <>
-                <div className="pt-6 pb-2">
-                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Administration
-                  </h3>
+            {menuGroups.map(group => (
+              <div key={group.label} className="mb-4">
+                <div className="pt-2 pb-1">
+                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{group.label}</h3>
                 </div>
                 <div className="space-y-1">
-                  {filteredAdminItems.map((item) => (
+                  {group.items.map(item => (
                     <NavLink
                       key={item.path}
                       to={item.path}
                       onClick={onClose}
                       className={({ isActive }) =>
-                        `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative ${
                           isActive
                             ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600'
                             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -258,8 +189,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     </NavLink>
                   ))}
                 </div>
-              </>
-            )}
+              </div>
+            ))}
           </nav>
 
           {/* Sidebar footer with version info */}

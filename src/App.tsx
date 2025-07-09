@@ -19,6 +19,12 @@ import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AttendancePage from './components/Attendance/AttendancePage';
+import SchedulePage from './components/Schedule/SchedulePage';
+import TasksPage from './components/Tasks/TasksPage';
+import LeavePage from './components/Leave/LeavePage';
+import ChatPage from './components/Chat/ChatPage';
+import OperationsPage from './components/Operations/OperationsPage';
+import ComingSoonPage from './components/ComingSoonPage';
 
 /**
  * ProtectedRoute Component
@@ -51,78 +57,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   return <>{children}</>;
 };
-
-/**
- * Schedule Management Page Component
- * 
- * Placeholder component for the schedule management functionality.
- * Will be implemented to handle employee scheduling, shift management, and calendar views.
- */
-const SchedulePage: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Schedule Management</h1>
-      <p className="text-gray-600 mt-1">Manage employee schedules and shifts</p>
-    </div>
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <p className="text-gray-600">Schedule management features coming soon...</p>
-    </div>
-  </div>
-);
-
-/**
- * Leave Management Page Component
- * 
- * Placeholder component for leave request and approval functionality.
- * Will handle vacation requests, sick leave, and approval workflows.
- */
-const LeavePage: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
-      <p className="text-gray-600 mt-1">Manage employee leave requests and approvals</p>
-    </div>
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <p className="text-gray-600">Leave management features coming soon...</p>
-    </div>
-  </div>
-);
-
-/**
- * Task Management Page Component
- * 
- * Placeholder component for task assignment and tracking functionality.
- * Will include task creation, assignment, progress tracking, and completion workflows.
- */
-const TasksPage: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
-      <p className="text-gray-600 mt-1">Assign and track tasks across your team</p>
-    </div>
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <p className="text-gray-600">Task management features coming soon...</p>
-    </div>
-  </div>
-);
-
-/**
- * Team Chat Page Component
- * 
- * Placeholder component for real-time team communication.
- * Will include messaging, file sharing, and team collaboration features.
- */
-const ChatPage: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">Team Chat</h1>
-      <p className="text-gray-600 mt-1">Real-time communication with your team</p>
-    </div>
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <p className="text-gray-600">Chat features coming soon...</p>
-    </div>
-  </div>
-);
 
 /**
  * Reports & Analytics Page Component
@@ -283,6 +217,7 @@ const AppContent: React.FC = () => {
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="leave" element={<LeavePage />} />
           <Route path="tasks" element={<TasksPage />} />
+          <Route path="operations" element={<OperationsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="journey" element={<JourneyPage />} />
@@ -291,7 +226,21 @@ const AppContent: React.FC = () => {
           <Route path="ai-assistant" element={<AIAssistantPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="settings" element={<SettingsPage />} />
-        </Route>
+          {/* Shoplworks extra features */}
+          <Route path="overtime" element={<ComingSoonPage feature="Overtime" />} />
+          <Route path="notice-survey" element={<ComingSoonPage feature="Notice & Survey" />} />
+          <Route path="posting-board" element={<ComingSoonPage feature="Posting Board" />} />
+          <Route path="to-do" element={<ComingSoonPage feature="To-Do" />} />
+          <Route path="ai-chatbot" element={<ComingSoonPage feature="AI Chatbot" />} />
+          <Route path="e-documents" element={<ComingSoonPage feature="E-documents" />} />
+          <Route path="approval" element={<ComingSoonPage feature="Approval" />} />
+          <Route path="in-store-data" element={<ComingSoonPage feature="In-store Data Collection" />} />
+          <Route path="groups" element={<ComingSoonPage feature="Groups" />} />
+          <Route path="workplaces" element={<ComingSoonPage feature="Workplaces" />} />
+          <Route path="members" element={<ComingSoonPage feature="Members" />} />
+          <Route path="company" element={<ComingSoonPage feature="Company" />} />
+          <Route path="employee" element={<ComingSoonPage feature="Employee" />} />
+          <Route path="admin" element={<ComingSoonPage feature="Admin" />} />        </Route>
       </Routes>
     </Router>
   );

@@ -93,6 +93,8 @@ const rolePermissions: Record<UserRole, string[]> = {
     'reports:manage',
     'documents:view',
     'documents:manage',
+    'operations:view',
+    'operations:manage',
     'surveys:view',
     'surveys:manage',
     'users:manage',
@@ -115,7 +117,9 @@ const rolePermissions: Record<UserRole, string[]> = {
     'documents:view',
     'documents:manage',
     'surveys:view',
-    'surveys:manage'
+    'surveys:manage',
+    'operations:view',
+    'operations:manage'
   ],
   [UserRole.VIEWER]: [
     'dashboard:view',
@@ -152,6 +156,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
+    } else {
+      // Auto-login as admin for development/demo
+      const adminUser = mockUsers.find(u => u.role === UserRole.ADMIN);
+      if (adminUser) {
+        setUser(adminUser);
+        localStorage.setItem('user', JSON.stringify(adminUser));
+      }
     }
     setIsLoading(false);
   }, []);

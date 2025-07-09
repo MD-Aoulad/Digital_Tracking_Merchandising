@@ -29,7 +29,7 @@ import Sidebar from './Sidebar';
  */
 const Layout: React.FC = () => {
   // State to control sidebar visibility (mobile responsive)
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   /**
    * Toggle sidebar visibility
@@ -58,7 +58,7 @@ const Layout: React.FC = () => {
         <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
         
         {/* Main content area */}
-        <main className="flex-1 lg:ml-0">
+        <main className="flex-1 lg:ml-64">
           <div className="p-6">
             {/* React Router outlet for nested routes */}
             <Outlet />
