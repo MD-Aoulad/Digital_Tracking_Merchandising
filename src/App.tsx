@@ -128,24 +128,24 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
       current: location.pathname === '/leave'
     },
     // Grant leave - admin only feature
-    {
+    ...(currentUser?.role === UserRole.ADMIN ? [{
       name: t('nav.grantLeave'),
       href: '/grant-leave',
-      icon: FileSpreadsheet,
+      icon: CheckSquare,
       current: location.pathname === '/grant-leave'
-    },
+    }] : []),
     // Journey planning - for field workers and managers
     {
       name: t('nav.journey'),
       href: '/journey',
       icon: RouteIcon,
-      current: location.pathname === '/journey' || location.pathname.startsWith('/journey/')
+      current: location.pathname === '/journey'
     },
     // To-do tasks - all users
     {
       name: t('nav.tasks'),
       href: '/todo',
-      icon: CheckSquare,
+      icon: ClipboardList,
       current: location.pathname === '/todo'
     },
     // Member management - admin and leaders
@@ -165,313 +165,167 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
     // Workplace management - location configuration
     {
       name: t('nav.workplaces'),
-      href: '/workplaces',
+      href: '/workplace',
       icon: MapPin,
-      current: location.pathname === '/workplaces'
+      current: location.pathname === '/workplace'
     },
     // Settings - admin only
-    {
+    ...(currentUser?.role === UserRole.ADMIN ? [{
       name: t('nav.settings'),
       href: '/settings',
       icon: Settings,
       current: location.pathname === '/settings'
-    },
+    }] : []),
     // Admin panel - admin only
-    {
+    ...(currentUser?.role === UserRole.ADMIN ? [{
       name: t('nav.admin'),
       href: '/admin',
       icon: Shield,
       current: location.pathname === '/admin'
-    },
-    // Additional features (Shoplworks-inspired)
-    {
-      name: t('nav.postingBoard'),
-      href: '/posting-board',
-      icon: ClipboardList,
-      current: location.pathname === '/posting-board'
-    },
-    {
-      name: t('nav.aiAssistant'),
-      href: '/ai-assistant',
-      icon: Zap,
-      current: location.pathname === '/ai-assistant'
-    },
-    {
-    },
-    {
-      name: t('nav.overtime'),
-      href: '/overtime',
-      icon: Clock,
-      current: location.pathname === '/overtime'
-    },
-    {
-      name: t('nav.noticeSurvey'),
-      href: '/notice-survey',
-      icon: MessageSquare,
-      current: location.pathname === '/notice-survey'
-    },
-    {
-      name: t('nav.reports'),
-      href: '/reports',
-      icon: BarChart3,
-      current: location.pathname === '/reports'
-    }
+    }] : [])
   ];
 
-  /**
-   * Filter navigation items based on user role
-   * This ensures proper access control for different user types
-   */
-  const filteredNavigation = navigation.filter((item) => {
-    // Admin can see everything
-    if (currentUser.role === UserRole.ADMIN) {
-      return true;
-    }
-    
-    // Regular users can see basic features
-    const basicFeatures = ['/', '/attendance', '/schedule', '/leave', '/journey', '/todo'];
-    if (basicFeatures.includes(item.href)) {
-      return true;
-    }
-    
-    // Leaders can see member and group management
-    if (currentUser.role === MemberRole.LEADER) {
-      const leaderFeatures = ['/members', '/groups', '/workplaces'];
-      if (leaderFeatures.includes(item.href)) {
-        return true;
-      }
-    }
-    
-    return false;
-  });
-
   return (
-    <>
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
-          onClick={handleSidebarToggle}
-        />
-      )}
-
-      {/* Sidebar Navigation */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        {/* Sidebar Header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <Building2 className="w-8 h-8 text-blue-600" />
-            <span className="ml-2 text-xl font-semibold text-gray-900">
-              Workforce
-            </span>
+    <nav className="flex flex-col h-full">
+      <div className="flex-1 space-y-1">
+        {navigation.map((item) => (
+          <Link
+            key={item.name}
+            to={item.href}
+            className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+              item.current
+                ? 'bg-gray-100 text-gray-900'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <item.icon
+              className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                item.current ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500'
+              }`}
+            />
+            {item.name}
+            {item.badge && (
+              <span className="ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        ))}
+      </div>
+      
+      <div className="flex-shrink-0 border-t border-gray-200 p-4">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <User className="h-8 w-8 text-gray-400" />
+          </div>
+          <div className="ml-3 flex-1">
+            <p className="text-sm font-medium text-gray-700">
+              {currentUser?.name || 'Unknown'}
+            </p>
+            <p className="text-xs text-gray-500">
+              {currentUser?.role || 'No Role'}
+            </p>
           </div>
           <button
-            onClick={handleSidebarToggle}
-            className="lg:hidden p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            onClick={handleLogout}
+            className="ml-3 flex-shrink-0 text-gray-400 hover:text-gray-500"
           >
-            <X className="w-6 h-6" />
+            <LogOut className="h-5 w-5" />
           </button>
         </div>
-
-        {/* Navigation Menu */}
-        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-          {filteredNavigation.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={`
-                group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                ${item.current 
-                  ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' 
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }
-              `}
-            >
-              <item.icon className={`
-                mr-3 h-5 w-5 transition-colors
-                ${item.current ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}
-              `} />
-              {item.name}
-              {item.badge && (
-                <span className="ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Sidebar Footer */}
-        <div className="flex-shrink-0 p-4 border-t border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              {currentUser.avatar ? (
-                <img
-                  className="h-8 w-8 rounded-full"
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                  <User className="h-4 w-4 text-gray-600" />
-                </div>
-              )}
-            </div>
-            <div className="ml-3 flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {t('common.adminUser')}
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {t('common.adminEmail')}
-              </p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="ml-2 p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-              title="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
       </div>
-    </>
+    </nav>
   );
 }
 
 /**
- * Main Application Component
- * 
- * Handles the overall application structure including:
- * - Sidebar navigation with role-based visibility
- * - Main content area with routing
- * - Top navigation bar with user controls
- * - Responsive design for mobile and desktop
+ * Main App component
  */
 function App() {
-  // State for sidebar visibility (mobile responsive)
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Use language change hook to trigger re-renders when language changes
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const currentLocale = useLanguageChange();
-  
-  // Mock user data - in real app this would come from authentication context
-  const currentUser = {
+  const [currentUser] = useState({
+    id: 1,
     name: 'Admin User',
-    email: 'admin@company.com',
-    role: UserRole.ADMIN,
-    avatar: null
-  };
+    email: 'admin@example.com',
+    role: UserRole.ADMIN
+  });
 
-  /**
-   * Handle sidebar toggle for mobile responsiveness
-   */
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  /**
-   * Handle user logout
-   * In a real application, this would clear authentication tokens and redirect
-   */
   const handleLogout = () => {
-    // TODO: Implement proper logout logic
-    console.log('User logged out');
+    // Handle logout logic here
+    console.log('Logout clicked');
   };
 
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50 flex">
-          <Navigation 
-            currentUser={currentUser}
-            sidebarOpen={sidebarOpen}
-            handleSidebarToggle={handleSidebarToggle}
-            handleLogout={handleLogout}
-          />
-
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Top Navigation Bar */}
-            <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow">
+        <div className="h-screen flex overflow-hidden bg-gray-100">
+          {/* Sidebar */}
+          <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 lg:static lg:inset-0`}>
+            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+              <h1 className="text-xl font-semibold text-gray-900">
+                Workforce Management
+              </h1>
               <button
                 onClick={handleSidebarToggle}
-                className="lg:hidden px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <Navigation
+              currentUser={currentUser}
+              sidebarOpen={sidebarOpen}
+              handleSidebarToggle={handleSidebarToggle}
+              handleLogout={handleLogout}
+            />
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Top bar */}
+            <div className="flex items-center justify-between h-16 bg-white shadow-sm px-4 lg:px-6">
+              <button
+                onClick={handleSidebarToggle}
+                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
               >
                 <Menu className="h-6 w-6" />
               </button>
               
-              <div className="flex-1 px-4 flex justify-between">
-                <div className="flex-1 flex">
-                  {/* Search Bar */}
-                  <div className="w-full flex md:ml-0">
-                    <div className="relative w-full text-gray-400 focus-within:text-gray-600">
-                      <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5" />
-                      </div>
-                      <input
-                        className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm"
-                        placeholder={t('common.search') + '...'}
-                        type="search"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="ml-4 flex items-center md:ml-6 space-x-4">
-                  {/* Notifications */}
-                  <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
-                    <Bell className="h-6 w-6" />
-                  </button>
-                  
-                  {/* Language Selector */}
-                  <LanguageSelector />
-                  
-                  {/* Help */}
-                  <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
-                    <HelpCircle className="h-6 w-6" />
-                  </button>
-                </div>
+              <div className="flex-1 flex items-center justify-center lg:justify-end space-x-4">
+                <LanguageSelector />
+                <button className="p-2 text-gray-400 hover:text-gray-500">
+                  <Bell className="h-6 w-6" />
+                </button>
+                <button className="p-2 text-gray-400 hover:text-gray-500">
+                  <Search className="h-6 w-6" />
+                </button>
               </div>
             </div>
 
-            {/* Page Content */}
-            <main className="flex-1 overflow-auto">
+            {/* Page content */}
+            <main className="flex-1 overflow-y-auto">
               <Routes>
-                {/* Main Dashboard */}
                 <Route path="/" element={<DashboardPage />} />
-                
-                {/* Core Features */}
-                <Route path="attendance" element={<AttendancePage />} />
-                <Route path="schedule" element={<SchedulePage />} />
-                <Route path="leave" element={<LeavePage />} />
-                <Route path="grant-leave" element={<GrantLeavePage />} />
-                <Route path="journey" element={<JourneyPlanPage />} />
-                <Route path="journey/settings" element={<JourneyPlanSettings />} />
-                <Route path="todo" element={<TodoPage userRole={UserRole.ADMIN} />} />
-                
-                {/* Management Features */}
-                <Route path="members" element={<MembersPage userRole={MemberRole.ADMIN} />} />
-                <Route path="groups" element={<GroupPage />} />
-                <Route path="workplaces" element={<WorkplacePage />} />
-                <Route path="posting-board" element={<PostingBoardPage userRole={UserRole.ADMIN} />} />
-                
-                {/* Administrative Features */}
-                <Route path="settings" element={<SettingsPage userRole={MemberRole.ADMIN} />} />
-                <Route path="admin" element={<AdminTab currentUserRole={MemberRole.ADMIN} />} />
-                <Route path="ai-assistant" element={<ComingSoonPage feature="AI Assistant" />} />
-                
-                {/* Shoplworks extra features */}
-                <Route path="overtime" element={<ComingSoonPage feature="Overtime" />} />
-                <Route path="notice-survey" element={<ComingSoonPage feature="Notice & Survey" />} />
-                <Route path="reports" element={<ComingSoonPage feature="Reports & Analytics" />} />
-                
-                {/* Default redirect */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="/attendance" element={<AttendancePage />} />
+                <Route path="/schedule" element={<SchedulePage />} />
+                <Route path="/leave" element={<LeavePage />} />
+                <Route path="/grant-leave" element={<GrantLeavePage />} />
+                <Route path="/journey" element={<JourneyPlanPage />} />
+                <Route path="/journey/settings" element={<JourneyPlanSettings />} />
+                <Route path="/todo" element={<TodoPage userRole={currentUser.role} />} />
+                <Route path="/members" element={<MembersPage userRole={currentUser.role} />} />
+                <Route path="/groups" element={<GroupPage />} />
+                <Route path="/workplace" element={<WorkplacePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/admin" element={<AdminTab currentUserRole={currentUser.role as any} />} />
+                <Route path="/posting-board" element={<PostingBoardPage userRole={currentUser.role} />} />
+                <Route path="*" element={<ComingSoonPage feature="coming soon" />} />
               </Routes>
             </main>
           </div>
