@@ -57,6 +57,7 @@ import AdminTab from './components/Admin/AdminTab';
 import WorkplacePage from './components/Workplace/WorkplacePage';
 import GroupPage from './components/Groups/GroupPage';
 import PostingBoardPage from './components/PostingBoard/PostingBoardPage';
+import ReportPage from './components/Report/ReportPage';
 import ComingSoonPage from './components/ComingSoonPage';
 
 // Import type definitions
@@ -148,6 +149,13 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
       icon: ClipboardList,
       current: location.pathname === '/todo'
     },
+    // Reports - admin only (as per retail manager requirements)
+    ...(currentUser?.role === UserRole.ADMIN ? [{
+      name: 'Reports',
+      href: '/reports',
+      icon: FileText,
+      current: location.pathname === '/reports'
+    }] : []),
     // Member management - admin and leaders
     {
       name: t('nav.members'),
@@ -319,6 +327,7 @@ function App() {
                 <Route path="/journey" element={<JourneyPlanPage />} />
                 <Route path="/journey/settings" element={<JourneyPlanSettings />} />
                 <Route path="/todo" element={<TodoPage userRole={currentUser.role} />} />
+                <Route path="/reports" element={<ReportPage />} />
                 <Route path="/members" element={<MembersPage userRole={currentUser.role} />} />
                 <Route path="/groups" element={<GroupPage />} />
                 <Route path="/workplace" element={<WorkplacePage />} />
