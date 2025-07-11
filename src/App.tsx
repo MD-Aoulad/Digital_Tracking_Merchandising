@@ -197,10 +197,6 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
       current: location.pathname === '/ai-assistant'
     },
     {
-      name: t('nav.users'),
-      href: '/users',
-      icon: User,
-      current: location.pathname === '/users'
     },
     {
       name: t('nav.overtime'),
@@ -468,7 +464,6 @@ function App() {
                 <Route path="settings" element={<SettingsPage userRole={MemberRole.ADMIN} />} />
                 <Route path="admin" element={<AdminTab currentUserRole={MemberRole.ADMIN} />} />
                 <Route path="ai-assistant" element={<ComingSoonPage feature="AI Assistant" />} />
-                <Route path="users" element={<ComingSoonPage feature="User Management" />} />
                 
                 {/* Shoplworks extra features */}
                 <Route path="overtime" element={<ComingSoonPage feature="Overtime" />} />
