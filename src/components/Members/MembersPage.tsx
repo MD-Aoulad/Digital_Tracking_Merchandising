@@ -4,12 +4,18 @@ import MemberManagement from './MemberManagement';
 import GroupManagement from './GroupManagement';
 import RoleManagement from './RoleManagement';
 import AdminTab from '../Admin/AdminTab';
+import { t } from '../../lib/i18n';
+import { useLanguageChange } from '../../lib/i18n-hooks';
 
 interface MembersPageProps {
   userRole: string;
 }
 
 const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
+  // Use language change hook to trigger re-renders when language changes
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const currentLocale = useLanguageChange();
+  
   const [activeTab, setActiveTab] = useState<'members' | 'groups' | 'roles' | 'admin'>('members');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -381,9 +387,9 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Member Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('members.title')}</h1>
           <p className="mt-2 text-gray-600">
-            Manage employee roles, groups, and administrative rights. Admins have full access, leaders manage their groups, and employees have basic access.
+            {t('members.description')}
           </p>
         </div>
 
@@ -399,7 +405,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Members</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.totalMembers')}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.totalMembers}</p>
               </div>
             </div>
@@ -415,7 +421,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Admins</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.admins')}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.admins}</p>
               </div>
             </div>
@@ -431,7 +437,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Leaders</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.leaders')}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.leaders}</p>
               </div>
             </div>
@@ -447,7 +453,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Employees</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.employees')}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.employees}</p>
               </div>
             </div>
@@ -465,7 +471,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Members
+              {t('members.tabMembers')}
             </button>
             <button
               onClick={() => setActiveTab('groups')}
@@ -475,7 +481,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Groups
+              {t('members.tabGroups')}
             </button>
             <button
               onClick={() => setActiveTab('roles')}
@@ -485,7 +491,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Role Management
+              {t('members.tabRoleManagement')}
             </button>
             <button
               onClick={() => setActiveTab('admin')}
@@ -495,7 +501,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Admin
+              {t('members.tabAdmin')}
             </button>
           </nav>
         </div>
@@ -509,7 +515,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
                   <input
                     type="text"
-                    placeholder="Search members..."
+                    placeholder={t('members.searchPlaceholder')}
                     value={filters.searchTerm || ''}
                     onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -519,21 +525,21 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                     onChange={(e) => setFilters({ ...filters, role: e.target.value as MemberRole || undefined })}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">All Roles</option>
-                    <option value={MemberRole.ADMIN}>Admin</option>
-                    <option value={MemberRole.LEADER}>Leader</option>
-                    <option value={MemberRole.EMPLOYEE}>Employee</option>
+                    <option value="">{t('members.allRoles')}</option>
+                    <option value={MemberRole.ADMIN}>{t('members.roleAdmin')}</option>
+                    <option value={MemberRole.LEADER}>{t('members.roleLeader')}</option>
+                    <option value={MemberRole.EMPLOYEE}>{t('members.roleEmployee')}</option>
                   </select>
                   <select
                     value={filters.status || ''}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value || undefined })}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="terminated">Terminated</option>
+                    <option value="">{t('members.allStatus')}</option>
+                    <option value="active">{t('members.statusActive')}</option>
+                    <option value="inactive">{t('members.statusInactive')}</option>
+                    <option value="suspended">{t('members.statusSuspended')}</option>
+                    <option value="terminated">{t('members.statusTerminated')}</option>
                   </select>
                 </div>
                 <button
@@ -543,7 +549,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Add Member
+                  {t('members.addMember')}
                 </button>
               </div>
             </div>

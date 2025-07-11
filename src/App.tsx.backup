@@ -64,9 +64,6 @@ import { UserRole, MemberRole } from './types';
 
 // Import AuthProvider
 import { AuthProvider } from './contexts/AuthContext';
-import { t } from './lib/i18n';
-import { useLanguageChange } from './lib/i18n-hooks';
-import LanguageSelector from './components/LanguageSelector';
 
 /**
  * Navigation item interface for sidebar menu
@@ -90,132 +87,129 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
   handleLogout: () => void;
 }) {
   const location = useLocation();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const currentLocale = useLanguageChange(); // This will trigger re-renders when language changes
   
   /**
    * Navigation items configuration
    * Items are filtered based on user role for proper access control
-   * Navigation will be recreated when language changes
    */
   const navigation: NavItem[] = [
     // Main dashboard - accessible to all users
     {
-      name: t('nav.dashboard'),
+      name: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
       current: location.pathname === '/'
     },
     // Attendance management - core feature for all employees
     {
-      name: t('nav.attendance'),
+      name: 'Attendance',
       href: '/attendance',
       icon: Clock,
       current: location.pathname === '/attendance'
     },
     // Schedule management - managers and admins
     {
-      name: t('nav.schedule'),
+      name: 'Schedule',
       href: '/schedule',
       icon: Calendar,
       current: location.pathname === '/schedule'
     },
     // Leave management - all users can view, admins can manage
     {
-      name: t('nav.leave'),
+      name: 'Leave',
       href: '/leave',
       icon: FileText,
       current: location.pathname === '/leave'
     },
     // Grant leave - admin only feature
     {
-      name: t('nav.grantLeave'),
+      name: 'Grant Leave',
       href: '/grant-leave',
       icon: FileSpreadsheet,
       current: location.pathname === '/grant-leave'
     },
     // Journey planning - for field workers and managers
     {
-      name: t('nav.journey'),
+      name: 'Journey Plan',
       href: '/journey',
       icon: RouteIcon,
       current: location.pathname === '/journey' || location.pathname.startsWith('/journey/')
     },
     // To-do tasks - all users
     {
-      name: t('nav.tasks'),
+      name: 'To-Do',
       href: '/todo',
       icon: CheckSquare,
       current: location.pathname === '/todo'
     },
     // Member management - admin and leaders
     {
-      name: t('nav.members'),
+      name: 'Members',
       href: '/members',
       icon: Users,
       current: location.pathname === '/members'
     },
     // Group management - organizational structure
     {
-      name: t('nav.groups'),
+      name: 'Groups',
       href: '/groups',
       icon: Building2,
       current: location.pathname === '/groups'
     },
     // Workplace management - location configuration
     {
-      name: t('nav.workplaces'),
+      name: 'Workplaces',
       href: '/workplaces',
       icon: MapPin,
       current: location.pathname === '/workplaces'
     },
     // Settings - admin only
     {
-      name: t('nav.settings'),
+      name: 'Settings',
       href: '/settings',
       icon: Settings,
       current: location.pathname === '/settings'
     },
     // Admin panel - admin only
     {
-      name: t('nav.admin'),
+      name: 'Admin',
       href: '/admin',
       icon: Shield,
       current: location.pathname === '/admin'
     },
     // Additional features (Shoplworks-inspired)
     {
-      name: t('nav.postingBoard'),
+      name: 'Posting Board',
       href: '/posting-board',
       icon: ClipboardList,
       current: location.pathname === '/posting-board'
     },
     {
-      name: t('nav.aiAssistant'),
+      name: 'AI Assistant',
       href: '/ai-assistant',
       icon: Zap,
       current: location.pathname === '/ai-assistant'
     },
     {
-      name: t('nav.users'),
+      name: 'Users',
       href: '/users',
       icon: User,
       current: location.pathname === '/users'
     },
     {
-      name: t('nav.overtime'),
+      name: 'Overtime',
       href: '/overtime',
       icon: Clock,
       current: location.pathname === '/overtime'
     },
     {
-      name: t('nav.noticeSurvey'),
+      name: 'Notice & Survey',
       href: '/notice-survey',
       icon: MessageSquare,
       current: location.pathname === '/notice-survey'
     },
     {
-      name: t('nav.reports'),
+      name: 'Reports',
       href: '/reports',
       icon: BarChart3,
       current: location.pathname === '/reports'
@@ -326,10 +320,10 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
             </div>
             <div className="ml-3 flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {t('common.adminUser')}
+                {currentUser.name}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {t('common.adminEmail')}
+                {currentUser.email}
               </p>
             </div>
             <button
@@ -358,10 +352,6 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
 function App() {
   // State for sidebar visibility (mobile responsive)
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Use language change hook to trigger re-renders when language changes
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const currentLocale = useLanguageChange();
   
   // Mock user data - in real app this would come from authentication context
   const currentUser = {
@@ -419,7 +409,7 @@ function App() {
                       </div>
                       <input
                         className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm"
-                        placeholder={t('common.search') + '...'}
+                        placeholder="Search..."
                         type="search"
                       />
                     </div>
@@ -431,9 +421,6 @@ function App() {
                   <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
                     <Bell className="h-6 w-6" />
                   </button>
-                  
-                  {/* Language Selector */}
-                  <LanguageSelector />
                   
                   {/* Help */}
                   <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">

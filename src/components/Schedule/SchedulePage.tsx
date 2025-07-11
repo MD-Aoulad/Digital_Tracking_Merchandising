@@ -34,6 +34,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { Shift, ShiftTemplate } from '../../types';
 import toast from 'react-hot-toast';
+import { t } from '../../lib/i18n';
+import { useLanguageChange } from '../../lib/i18n-hooks';
 
 /**
  * SchedulePage Component
@@ -45,6 +47,10 @@ import toast from 'react-hot-toast';
  */
 const SchedulePage: React.FC = () => {
   const { user, hasPermission } = useAuth();
+  // Use language change hook to trigger re-renders when language changes
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const currentLocale = useLanguageChange();
+  
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -251,8 +257,8 @@ const SchedulePage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Schedule Management</h1>
-          <p className="text-gray-600 mt-1">Manage employee schedules and shifts with drag & drop</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('schedule.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('schedule.description')}</p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center space-x-2">
           <button

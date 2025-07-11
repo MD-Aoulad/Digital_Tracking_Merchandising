@@ -20,6 +20,8 @@ import {
   Download,
   Bell
 } from 'lucide-react';
+import { t } from '../../lib/i18n';
+import { useLanguageChange } from '../../lib/i18n-hooks';
 
 /**
  * Dashboard Page Component
@@ -31,31 +33,35 @@ import {
  * - System status indicators
  */
 const DashboardPage: React.FC = () => {
+  // Use language change hook to trigger re-renders when language changes
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const currentLocale = useLanguageChange();
+  
   // Mock data - in real app this would come from API
   const stats = [
     {
-      name: 'Total Employees',
+      name: t('dashboard.totalEmployees'),
       value: '156',
       change: '+12%',
       changeType: 'positive',
       icon: Users
     },
     {
-      name: 'Present Today',
+      name: t('dashboard.presentToday'),
       value: '142',
       change: '+5%',
       changeType: 'positive',
       icon: Clock
     },
     {
-      name: 'On Leave',
+      name: t('dashboard.onLeave'),
       value: '8',
       change: '-2%',
       changeType: 'negative',
       icon: Calendar
     },
     {
-      name: 'Tasks Completed',
+      name: t('dashboard.tasksCompleted'),
       value: '89',
       change: '+18%',
       changeType: 'positive',
@@ -65,22 +71,22 @@ const DashboardPage: React.FC = () => {
 
   const quickActions = [
     {
-      name: 'Add Employee',
-      description: 'Register new team member',
+      name: t('dashboard.addEmployee'),
+      description: t('dashboard.registerNewMember'),
       icon: Plus,
       href: '/members',
       color: 'bg-blue-500'
     },
     {
-      name: 'Export Report',
-      description: 'Download attendance data',
+      name: t('dashboard.exportReport'),
+      description: t('dashboard.downloadAttendanceData'),
       icon: Download,
       href: '/reports',
       color: 'bg-green-500'
     },
     {
-      name: 'Send Notification',
-      description: 'Notify team members',
+      name: t('dashboard.sendNotification'),
+      description: t('dashboard.notifyTeamMembers'),
       icon: Bell,
       href: '/notifications',
       color: 'bg-purple-500'
@@ -123,8 +129,8 @@ const DashboardPage: React.FC = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('dashboard.welcomeBack')}</p>
         </div>
         <div className="flex items-center space-x-3">
           <span className="text-sm text-gray-500">
@@ -166,7 +172,7 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.quickActions')}</h2>
           <div className="space-y-3">
             {quickActions.map((action) => (
               <button
@@ -187,7 +193,7 @@ const DashboardPage: React.FC = () => {
 
         {/* Recent Activity */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.recentActivity')}</h2>
           <div className="space-y-4">
             {recentActivity.map((activity) => (
               <div key={activity.id} className="flex items-center space-x-3">

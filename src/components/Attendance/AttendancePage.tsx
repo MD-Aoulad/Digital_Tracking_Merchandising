@@ -54,6 +54,8 @@ import {
   StopCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { t } from '../../lib/i18n';
+import { useLanguageChange } from '../../lib/i18n-hooks';
 import { 
   AttendanceRecord, 
   Break, 
@@ -85,6 +87,9 @@ import toast from 'react-hot-toast';
  */
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();
+  // Use language change hook to trigger re-renders when language changes
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const currentLocale = useLanguageChange();
   
   // State management
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -891,8 +896,8 @@ const AttendancePage: React.FC = () => {
       {/* Page header with view toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance Management</h1>
-          <p className="text-gray-600 mt-1">Track employee attendance with advanced features</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('attendance.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('attendance.description')}</p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center space-x-2">
           {/* View mode toggle */}
@@ -905,7 +910,7 @@ const AttendancePage: React.FC = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Personal
+              {t('attendance.personal')}
             </button>
             <button
               onClick={() => setViewMode('team')}
@@ -915,12 +920,12 @@ const AttendancePage: React.FC = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Team
+              {t('attendance.team')}
             </button>
           </div>
           <button className="btn-secondary flex items-center space-x-2">
             <Download size={16} />
-            <span>Export</span>
+            <span>{t('common.export')}</span>
           </button>
         </div>
       </div>
@@ -937,7 +942,7 @@ const AttendancePage: React.FC = () => {
               <CheckCircle size={20} className="text-green-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Attendance Rate</p>
+              <p className="text-sm font-medium text-gray-600">{t('attendance.attendanceRate')}</p>
               <p className="text-lg font-semibold text-gray-900">{attendanceStats.attendanceRate}%</p>
             </div>
           </div>
@@ -954,7 +959,7 @@ const AttendancePage: React.FC = () => {
               <Clock size={20} className="text-blue-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Avg Work Hours</p>
+              <p className="text-sm font-medium text-gray-600">{t('attendance.avgWorkHours')}</p>
               <p className="text-lg font-semibold text-gray-900">{attendanceStats.averageWorkHours}h</p>
             </div>
           </div>
@@ -971,7 +976,7 @@ const AttendancePage: React.FC = () => {
               <AlertCircle size={20} className="text-orange-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Overtime Hours</p>
+              <p className="text-sm font-medium text-gray-600">{t('attendance.overtimeHours')}</p>
               <p className="text-lg font-semibold text-gray-900">{attendanceStats.overtimeHours}h</p>
             </div>
           </div>
@@ -988,7 +993,7 @@ const AttendancePage: React.FC = () => {
               <Users size={20} className="text-purple-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Present Today</p>
+              <p className="text-sm font-medium text-gray-600">{t('attendance.presentToday')}</p>
               <p className="text-lg font-semibold text-gray-900">{attendanceStats.presentDays}</p>
             </div>
           </div>
