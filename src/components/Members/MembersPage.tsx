@@ -429,9 +429,9 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{t('members.title')}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('members.title') || 'Member Management'}</h1>
           <p className="mt-2 text-gray-600">
-            {t('members.description')}
+            {t('members.description') || 'Manage employee roles, groups, and administrative rights.'}
           </p>
         </div>
 
@@ -447,7 +447,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">{t('members.totalMembers')}</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.totalMembers') || 'Total Members'}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.totalMembers}</p>
               </div>
             </div>
@@ -463,7 +463,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">{t('members.admins')}</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.admins') || 'Admins'}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.admins}</p>
               </div>
             </div>
@@ -479,7 +479,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">{t('members.leaders')}</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.leaders') || 'Leaders'}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.leaders}</p>
               </div>
             </div>
@@ -495,7 +495,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">{t('members.employees')}</p>
+                <p className="text-sm font-medium text-gray-500">{t('members.employees') || 'Employees'}</p>
                 <p className="text-2xl font-semibold text-gray-900">{mockStats.employees}</p>
               </div>
             </div>
@@ -513,7 +513,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {t('members.tabMembers')}
+              {t('members.tabMembers') || 'Members'}
             </button>
             <button
               onClick={() => setActiveTab('groups')}
@@ -523,7 +523,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {t('members.tabGroups')}
+              {t('members.tabGroups') || 'Groups'}
             </button>
             <button
               onClick={() => setActiveTab('roles')}
@@ -533,7 +533,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {t('members.tabRoleManagement')}
+              {t('members.tabRoleManagement') || 'Role Management'}
             </button>
             <button
               onClick={() => setActiveTab('admin')}
@@ -543,7 +543,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {t('members.tabAdmin')}
+              {t('members.tabAdmin') || 'Admin'}
             </button>
           </nav>
         </div>
@@ -557,7 +557,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                 <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
                   <input
                     type="text"
-                    placeholder={t('members.searchPlaceholder')}
+                    placeholder={t('members.searchPlaceholder') || 'Search members...'}
                     value={filters.searchTerm || ''}
                     onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -591,7 +591,7 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
                   <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  {t('members.addMember')}
+                  {t('members.addMember') || 'Add Member'}
                 </button>
               </div>
             </div>
