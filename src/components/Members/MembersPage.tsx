@@ -7,21 +7,36 @@ import AdminTab from '../Admin/AdminTab';
 import { t } from '../../lib/i18n';
 import { useLanguageChange } from '../../lib/i18n-hooks';
 
+/**
+ * MembersPage Component
+ * 
+ * A comprehensive member management interface that provides:
+ * - Multi-tab navigation (Members, Groups, Roles, Admin)
+ * - Advanced filtering and search capabilities
+ * - Real-time statistics and metrics
+ * - Full internationalization support
+ * - Role-based access control
+ * 
+ * @param userRole - The current user's role for access control
+ */
 interface MembersPageProps {
   userRole: string;
 }
 
 const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
   // Use language change hook to trigger re-renders when language changes
+  // This ensures the component updates when the user switches languages
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const currentLocale = useLanguageChange();
   
+  // State management for tab navigation and member operations
   const [activeTab, setActiveTab] = useState<'members' | 'groups' | 'roles' | 'admin'>('members');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [filters, setFilters] = useState<MemberFilters>({});
 
-  // Mock data for demonstration
+  // Mock data for demonstration purposes
+  // In production, this would be fetched from an API
   const mockMembers: Member[] = [
     {
       id: '1',
@@ -316,6 +331,11 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
     ]
   };
 
+  /**
+   * Generates CSS classes for role badges with appropriate colors
+   * @param role - The member's role
+   * @returns CSS classes for styling the role badge
+   */
   const getRoleBadge = (role: MemberRole) => {
     const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full';
     switch (role) {
@@ -330,6 +350,11 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
     }
   };
 
+  /**
+   * Generates CSS classes for status badges with appropriate colors
+   * @param status - The member's status
+   * @returns CSS classes for styling the status badge
+   */
   const getStatusBadge = (status: string) => {
     const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full';
     switch (status) {
@@ -346,6 +371,11 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
     }
   };
 
+  /**
+   * Filters members based on applied filter criteria
+   * Supports filtering by role, status, department, position, leadership status,
+   * admin status, approval authority, and text search
+   */
   const filteredMembers = mockMembers.filter(member => {
     if (filters.role && member.role !== filters.role) return false;
     if (filters.status && member.status !== filters.status) return false;
@@ -365,17 +395,29 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
     return true;
   });
 
+  /**
+   * Handles saving a new or updated member
+   * @param member - The member data to save
+   */
   const handleSaveMember = (member: Member) => {
     console.log('Saving member:', member);
     setShowMemberModal(false);
     setSelectedMember(null);
   };
 
+  /**
+   * Opens the member modal for editing an existing member
+   * @param member - The member to edit
+   */
   const handleEditMember = (member: Member) => {
     setSelectedMember(member);
     setShowMemberModal(true);
   };
 
+  /**
+   * Handles member deletion with confirmation
+   * @param memberId - The ID of the member to delete
+   */
   const handleDeleteMember = (memberId: string) => {
     if (window.confirm('Are you sure you want to delete this member?')) {
       console.log('Deleting member:', memberId);
