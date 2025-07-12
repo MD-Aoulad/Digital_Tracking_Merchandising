@@ -1332,6 +1332,25 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
    */
   const handleSaveMember = (member: Member) => {
     console.log('Saving member:', member);
+    
+    // If this is a new member (no id), add it to the mock data
+    if (!member.id) {
+      const newMember: Member = {
+        ...member,
+        id: `member-${Date.now()}`,
+        userId: `user-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastLoginAt: undefined
+      };
+      
+      // Add to mock members array (in a real app, this would be handled by state management)
+      mockMembers.push(newMember);
+      
+      // Show success message
+      alert('User created successfully! You can now log in to the mobile app with this account.');
+    }
+    
     setShowMemberModal(false);
     setSelectedMember(null);
   };

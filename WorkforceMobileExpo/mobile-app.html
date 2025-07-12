@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#007AFF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Workforce Mobile App</title>
+    
+    <!-- 
+        ========================================
+        WORKFORCE MOBILE APP - STYLESHEET
+        ========================================
+        Author: Professional Mobile App Developer
+        Version: 2.0.0
+        Features: Login, Dashboard, Punch In/Out, Todo Management, Reports
+        ========================================
+    -->
+    <style>
+        /* ===== RESET & BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ===== LAYOUT CONTAINERS ===== */
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ===== HEADER STYLES ===== */
+        .header {
+            background: linear-gradient(135deg, #007AFF, #0056CC);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== FORM STYLES ===== */
+        .form {
+            padding: 30px 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        /* ===== BUTTON STYLES ===== */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056CC;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #34C759;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #28A745;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+        }
+
+        .btn-warning {
+            background: #FF9500;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #E6850E;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d70015;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+        }
+
+        /* ===== DASHBOARD STYLES ===== */
+        .dashboard {
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #f0f0f0;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .user-info {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+
+        .user-info h2 {
+            color: #007AFF;
+            margin-bottom: 5px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .user-info p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* ===== UTILITY CLASSES ===== */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== TODO & REPORTS STYLES ===== */
+        .todo-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .todo-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .todo-item.completed {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            opacity: 0.7;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .todo-actions .btn {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .report-form {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-approved {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        /* ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 480px) {
+            .container {
+                max-width: 100%;
+                box-shadow: none;
+            }
+            
+            .header {
+                padding: 30px 15px;
+            }
+            
+            .form {
+                padding: 20px 15px;
+            }
+            
+            .dashboard {
+                padding: 15px;
+            }
+        }
+
+        /* ===== ANIMATIONS ===== */
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ===== LOGIN SCREEN ===== -->
+        <div id="loginScreen" class="fade-in">
+            <div class="header">
+                <h1>Workforce Mobile</h1>
+                <p>Sign in to your account</p>
+            </div>
+
+            <div class="form">
+                <div class="input-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="Enter your email" autocomplete="email">
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+                </div>
+
+                <button class="btn btn-primary" onclick="login()" id="loginBtn">
+                    Sign In
+                </button>
+
+                <div class="quick-login">
+                    <h3>Quick Login (Demo)</h3>
+                    <button class="btn btn-secondary" onclick="quickLogin('richard@company.com')">
+                        Login as Richard (Employee)
+                    </button>
+                    <button class="btn btn-secondary" onclick="quickLogin('admin@company.com')">
+                        Login as Admin
+                    </button>
+                </div>
+            </div>
+
+            <div class="footer">
+                <strong>Demo Credentials:</strong><br>
+                Email: richard@company.com<br>
+                Password: password
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD SCREEN ===== -->
+        <div id="dashboardScreen" class="hidden">
+            <div class="header">
+                <h1>Welcome, <span id="userName">User</span>!</h1>
+                <p>Role: <span id="userRole">Employee</span></p>
+            </div>
+
+            <div class="dashboard">
+                <!-- User Information Card -->
+                <div class="user-info">
+                    <h2 id="userNameInfo">User</h2>
+                    <p id="userEmailInfo">user@company.com</p>
+                    <p><strong>Status:</strong> <span id="userStatus" class="status-badge status-pending">Active</span></p>
+                </div>
+
+                <!-- Quick Actions Card -->
+                <div class="card">
+                    <h3>🚀 Quick Actions</h3>
+                    <button class="btn btn-primary" onclick="punchIn()" style="margin-bottom: 10px;">
+                        📍 Punch In
+                    </button>
+                    <button class="btn btn-success" onclick="punchOut()" style="margin-bottom: 10px;">
+                        🏠 Punch Out
+                    </button>
+                    <button class="btn btn-warning" onclick="showTodoScreen()">
+                        ✅ Manage Todos
+                    </button>
+                    <button class="btn btn-secondary" onclick="showReportsScreen()">
+                        📊 Reports
+                    </button>
+                </div>
+
+                <!-- Today's Summary Card -->
+                <div class="card">
+                    <h3>📅 Today's Summary</h3>
+                    <p><strong>Punch In:</strong> <span id="punchInTime">Not punched in</span></p>
+                    <p><strong>Punch Out:</strong> <span id="punchOutTime">Not punched out</span></p>
+                    <p><strong>Hours Worked:</strong> <span id="hoursWorked">0 hours</span></p>
+                    <p><strong>Todos Completed:</strong> <span id="todosCompleted">0</span></p>
+                </div>
+
+                <button class="btn btn-danger" onclick="logout()">
+                    🚪 Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== TODO MANAGEMENT SCREEN ===== -->
+        <div id="todoScreen" class="hidden">
+            <div class="header">
+                <h1>✅ Todo Management</h1>
+                <p>Manage your daily tasks</p>
+            </div>
+
+            <div class="dashboard">
+                <!-- Add New Todo Form -->
+                <div class="card">
+                    <h3>➕ Add New Todo</h3>
+                    <div class="input-group">
+                        <label for="todoTitle">Task Title</label>
+                        <input type="text" id="todoTitle" placeholder="Enter task title">
+                    </div>
+                    <div class="input-group">
+                        <label for="todoDescription">Description</label>
+                        <textarea id="todoDescription" placeholder="Enter task description"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="todoPriority">Priority</label>
+                        <select id="todoPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addTodo()">
+                        Add Todo
+                    </button>
+                </div>
+
+                <!-- Todo List -->
+                <div class="card">
+                    <h3>📋 Your Todos</h3>
+                    <div id="todoList">
+                        <!-- Todos will be dynamically added here -->
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" onclick="showDashboard()">
+                    ← Back to Dashboard
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== REPORTS SCREEN ===== -->
+        <div id="reportsScreen" class="hidden">
+            <div class="header">
+                <h1>📊 Reports</h1>
+                <p>Submit and view reports</p>
+            </div>
+
+            <div class="dashboard">
+                <!-- Submit Report Form -->
+                <div class="card">
+                    <h3>📝 Submit New Report</h3>
+                    <div class="input-group">
+                        <label for="reportTitle">Report Title</label>
+                        <input type="text" id="reportTitle" placeholder="Enter report title">
+                    </div>
+                    <div class="input-group">
+                        <label for="reportType">Report Type</label>
+                        <select id="reportType">
+                            <option value="daily">Daily Report</option>
+                            <option value="weekly">Weekly Report</option>
+                            <option value="incident">Incident Report</option>
+                            <option value="performance">Performance Report</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="reportContent">Report Content</label>
+                        <textarea id="reportContent" placeholder="Enter detailed report content..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="submitReport()">
+                        Submit Report
+                    </button>
+                </div>
+
+                <!-- Reports List -->
+                <div class="card">
+                    <h3>📋 Your Reports</h3>
+                    <div id="reportsList">
+                        <!-- Reports will be dynamically added here -->
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" onclick="showDashboard()">
+                    ← Back to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 
+        ========================================
+        WORKFORCE MOBILE APP - JAVASCRIPT
+        ========================================
+        Author: Professional Mobile App Developer
+        Version: 2.0.0
+        Features: 
+        - User Authentication
+        - Punch In/Out with GPS and Photo
+        - Todo Management
+        - Report Submission
+        - Attendance Tracking
+        - Local Storage for Data Persistence
+        ========================================
+    -->
+    <script>
+        // ===== GLOBAL VARIABLES =====
+        let currentUser = null;
+        let todos = [];
+        let reports = [];
+        let attendanceData = {
+            punchIn: null,
+            punchOut: null,
+            totalHours: 0
+        };
+
+        // ===== MOCK DATA =====
+        const users = [
+            {
+                id: '1',
+                email: 'richard@company.com',
+                name: 'Richard Johnson',
+                role: 'Sales Representative',
+                department: 'Sales',
+                status: 'Active'
+            },
+            {
+                id: '2',
+                email: 'admin@company.com',
+                name: 'Admin User',
+                role: 'System Administrator',
+                department: 'IT',
+                status: 'Active'
+            }
+        ];
+
+        // ===== UTILITY FUNCTIONS =====
+        
+        /**
+         * Shows a specific screen and hides others
+         * @param {string} screenId - The ID of the screen to show
+         */
+        function showScreen(screenId) {
+            const screens = ['loginScreen', 'dashboardScreen', 'todoScreen', 'reportsScreen'];
+            screens.forEach(screen => {
+                const element = document.getElementById(screen);
+                if (element) {
+                    element.classList.add('hidden');
+                }
+            });
+            
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.remove('hidden');
+                targetScreen.classList.add('fade-in');
+            }
+        }
+
+        /**
+         * Displays a notification message
+         * @param {string} message - The message to display
+         * @param {string} type - The type of notification (success, error, warning)
+         */
+        function showNotification(message, type = 'success') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#34C759' : type === 'error' ? '#ff3b30' : '#FF9500'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                max-width: 300px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        /**
+         * Gets current location using GPS
+         * @returns {Promise} Promise that resolves with location data
+         */
+        function getCurrentLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation is not supported'));
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        });
+                    },
+                    (error) => {
+                        reject(error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 60000
+                    }
+                );
+            });
+        }
+
+        /**
+         * Simulates taking a photo for verification
+         * @returns {Promise} Promise that resolves with photo data
+         */
+        function takePhoto() {
+            return new Promise((resolve) => {
+                // Simulate photo capture
+                setTimeout(() => {
+                    resolve({
+                        photoId: 'photo_' + Date.now(),
+                        timestamp: new Date().toISOString(),
+                        verified: true
+                    });
+                }, 1000);
+            });
+        }
+
+        // ===== AUTHENTICATION FUNCTIONS =====
+
+        /**
+         * Handles user login
+         */
+        function login() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+
+            // Validation
+            if (!email || !password) {
+                showNotification('Please enter both email and password', 'error');
+                return;
+            }
+
+            if (!email.includes('@')) {
+                showNotification('Please enter a valid email address', 'error');
+                return;
+            }
+
+            // Show loading state
+            loginBtn.textContent = 'Signing In...';
+            loginBtn.classList.add('loading');
+
+            // Simulate API call
+            setTimeout(() => {
+                const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+                
+                if (user && password === 'password') {
+                    currentUser = user;
+                    loadUserData();
+                    showDashboard();
+                    showNotification(`Welcome back, ${user.name}!`, 'success');
+                } else {
+                    showNotification('Invalid email or password. Try: richard@company.com / password', 'error');
+                }
+
+                // Reset button
+                loginBtn.textContent = 'Sign In';
+                loginBtn.classList.remove('loading');
+            }, 1000);
+        }
+
+        /**
+         * Quick login for demo purposes
+         * @param {string} email - The email to login with
+         */
+        function quickLogin(email) {
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = 'password';
+            login();
+        }
+
+        /**
+         * Handles user logout
+         */
+        function logout() {
+            currentUser = null;
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+            showScreen('loginScreen');
+            showNotification('You have been logged out successfully', 'success');
+        }
+
+        // ===== DASHBOARD FUNCTIONS =====
+
+        /**
+         * Shows the main dashboard
+         */
+        function showDashboard() {
+            if (currentUser) {
+                // Update user information
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userRole').textContent = currentUser.role;
+                document.getElementById('userNameInfo').textContent = currentUser.name;
+                document.getElementById('userEmailInfo').textContent = currentUser.email;
+                document.getElementById('userStatus').textContent = currentUser.status;
+                
+                // Update today's summary
+                updateTodaySummary();
+                
+                showScreen('dashboardScreen');
+            }
+        }
+
+        /**
+         * Updates the today's summary section
+         */
+        function updateTodaySummary() {
+            const today = new Date().toDateString();
+            const todayAttendance = attendanceData[today] || {};
+            
+            document.getElementById('punchInTime').textContent = 
+                todayAttendance.punchIn ? new Date(todayAttendance.punchIn).toLocaleTimeString() : 'Not punched in';
+            
+            document.getElementById('punchOutTime').textContent = 
+                todayAttendance.punchOut ? new Date(todayAttendance.punchOut).toLocaleTimeString() : 'Not punched out';
+            
+            document.getElementById('hoursWorked').textContent = 
+                todayAttendance.hoursWorked ? `${todayAttendance.hoursWorked} hours` : '0 hours';
+            
+            const completedTodos = todos.filter(todo => todo.completed).length;
+            document.getElementById('todosCompleted').textContent = completedTodos;
+        }
+
+        // ===== PUNCH IN/OUT FUNCTIONS =====
+
+        /**
+         * Handles punch in process
+         */
+        async function punchIn() {
+            try {
+                showNotification('Getting your location...', 'success');
+                
+                // Get GPS location
+                const location = await getCurrentLocation();
+                
+                showNotification('Taking verification photo...', 'success');
+                
+                // Take photo
+                const photo = await takePhoto();
+                
+                // Record punch in
+                const punchInTime = new Date();
+                const today = punchInTime.toDateString();
+                
+                if (!attendanceData[today]) {
+                    attendanceData[today] = {};
+                }
+                
+                attendanceData[today].punchIn = punchInTime.toISOString();
+                attendanceData[today].location = location;
+                attendanceData[today].photo = photo;
+                
+                // Save to localStorage
+                localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+                
+                showNotification(`Punch in recorded at ${punchInTime.toLocaleTimeString()}`, 'success');
+                updateTodaySummary();
+                
+            } catch (error) {
+                showNotification('Failed to punch in. Please try again.', 'error');
+                console.error('Punch in error:', error);
+            }
+        }
+
+        /**
+         * Handles punch out process
+         */
+        async function punchOut() {
+            try {
+                const today = new Date().toDateString();
+                const todayAttendance = attendanceData[today];
+                
+                if (!todayAttendance || !todayAttendance.punchIn) {
+                    showNotification('You need to punch in first!', 'error');
+                    return;
+                }
+                
+                showNotification('Getting your location...', 'success');
+                
+                // Get GPS location
+                const location = await getCurrentLocation();
+                
+                // Record punch out
+                const punchOutTime = new Date();
+                const punchInTime = new Date(todayAttendance.punchIn);
+                
+                attendanceData[today].punchOut = punchOutTime.toISOString();
+                attendanceData[today].endLocation = location;
+                
+                // Calculate hours worked
+                const hoursWorked = (punchOutTime - punchInTime) / (1000 * 60 * 60);
+                attendanceData[today].hoursWorked = Math.round(hoursWorked * 100) / 100;
+                
+                // Save to localStorage
+                localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+                
+                showNotification(`Punch out recorded at ${punchOutTime.toLocaleTimeString()}. You worked ${attendanceData[today].hoursWorked} hours today.`, 'success');
+                updateTodaySummary();
+                
+            } catch (error) {
+                showNotification('Failed to punch out. Please try again.', 'error');
+                console.error('Punch out error:', error);
+            }
+        }
+
+        // ===== TODO MANAGEMENT FUNCTIONS =====
+
+        /**
+         * Shows the todo management screen
+         */
+        function showTodoScreen() {
+            showScreen('todoScreen');
+            renderTodos();
+        }
+
+        /**
+         * Adds a new todo
+         */
+        function addTodo() {
+            const title = document.getElementById('todoTitle').value.trim();
+            const description = document.getElementById('todoDescription').value.trim();
+            const priority = document.getElementById('todoPriority').value;
+            
+            if (!title) {
+                showNotification('Please enter a todo title', 'error');
+                return;
+            }
+            
+            const newTodo = {
+                id: 'todo_' + Date.now(),
+                title: title,
+                description: description,
+                priority: priority,
+                completed: false,
+                createdAt: new Date().toISOString(),
+                userId: currentUser.id
+            };
+            
+            todos.push(newTodo);
+            saveTodos();
+            renderTodos();
+            
+            // Clear form
+            document.getElementById('todoTitle').value = '';
+            document.getElementById('todoDescription').value = '';
+            document.getElementById('todoPriority').value = 'medium';
+            
+            showNotification('Todo added successfully!', 'success');
+        }
+
+        /**
+         * Toggles todo completion status
+         * @param {string} todoId - The ID of the todo to toggle
+         */
+        function toggleTodo(todoId) {
+            const todo = todos.find(t => t.id === todoId);
+            if (todo) {
+                todo.completed = !todo.completed;
+                todo.completedAt = todo.completed ? new Date().toISOString() : null;
+                saveTodos();
+                renderTodos();
+                updateTodaySummary();
+                
+                showNotification(todo.completed ? 'Todo marked as completed!' : 'Todo marked as pending', 'success');
+            }
+        }
+
+        /**
+         * Deletes a todo
+         * @param {string} todoId - The ID of the todo to delete
+         */
+        function deleteTodo(todoId) {
+            if (confirm('Are you sure you want to delete this todo?')) {
+                todos = todos.filter(t => t.id !== todoId);
+                saveTodos();
+                renderTodos();
+                showNotification('Todo deleted successfully!', 'success');
+            }
+        }
+
+        /**
+         * Renders the todo list
+         */
+        function renderTodos() {
+            const todoList = document.getElementById('todoList');
+            if (!todoList) return;
+            
+            if (todos.length === 0) {
+                todoList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No todos yet. Add your first todo above!</p>';
+                return;
+            }
+            
+            todoList.innerHTML = todos
+                .filter(todo => todo.userId === currentUser.id)
+                .map(todo => `
+                    <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                        <div class="todo-text">
+                            <strong>${todo.title}</strong>
+                            ${todo.description ? `<br><small>${todo.description}</small>` : ''}
+                            <br><small>Priority: <span class="status-badge status-${todo.priority}">${todo.priority}</span></small>
+                        </div>
+                        <div class="todo-actions">
+                            <button class="btn btn-${todo.completed ? 'warning' : 'success'}" onclick="toggleTodo('${todo.id}')">
+                                ${todo.completed ? 'Undo' : 'Complete'}
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteTodo('${todo.id}')">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        // ===== REPORTS FUNCTIONS =====
+
+        /**
+         * Shows the reports screen
+         */
+        function showReportsScreen() {
+            showScreen('reportsScreen');
+            renderReports();
+        }
+
+        /**
+         * Submits a new report
+         */
+        function submitReport() {
+            const title = document.getElementById('reportTitle').value.trim();
+            const type = document.getElementById('reportType').value;
+            const content = document.getElementById('reportContent').value.trim();
+            
+            if (!title || !content) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const newReport = {
+                id: 'report_' + Date.now(),
+                title: title,
+                type: type,
+                content: content,
+                status: 'pending',
+                submittedAt: new Date().toISOString(),
+                userId: currentUser.id,
+                userName: currentUser.name
+            };
+            
+            reports.push(newReport);
+            saveReports();
+            renderReports();
+            
+            // Clear form
+            document.getElementById('reportTitle').value = '';
+            document.getElementById('reportType').value = 'daily';
+            document.getElementById('reportContent').value = '';
+            
+            showNotification('Report submitted successfully!', 'success');
+        }
+
+        /**
+         * Renders the reports list
+         */
+        function renderReports() {
+            const reportsList = document.getElementById('reportsList');
+            if (!reportsList) return;
+            
+            const userReports = reports.filter(report => report.userId === currentUser.id);
+            
+            if (userReports.length === 0) {
+                reportsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No reports submitted yet. Submit your first report above!</p>';
+                return;
+            }
+            
+            reportsList.innerHTML = userReports
+                .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+                .map(report => `
+                    <div class="card">
+                        <h4>${report.title}</h4>
+                        <p><strong>Type:</strong> ${report.type.charAt(0).toUpperCase() + report.type.slice(1)}</p>
+                        <p><strong>Status:</strong> <span class="status-badge status-${report.status}">${report.status}</span></p>
+                        <p><strong>Submitted:</strong> ${new Date(report.submittedAt).toLocaleString()}</p>
+                        <p><strong>Content:</strong></p>
+                        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                            ${report.content}
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        // ===== DATA PERSISTENCE FUNCTIONS =====
+
+        /**
+         * Loads user data from localStorage
+         */
+        function loadUserData() {
+            // Load todos
+            const savedTodos = localStorage.getItem('todos');
+            if (savedTodos) {
+                todos = JSON.parse(savedTodos);
+            }
+            
+            // Load reports
+            const savedReports = localStorage.getItem('reports');
+            if (savedReports) {
+                reports = JSON.parse(savedReports);
+            }
+            
+            // Load attendance data
+            const savedAttendance = localStorage.getItem('attendanceData');
+            if (savedAttendance) {
+                attendanceData = JSON.parse(savedAttendance);
+            }
+        }
+
+        /**
+         * Saves todos to localStorage
+         */
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        /**
+         * Saves reports to localStorage
+         */
+        function saveReports() {
+            localStorage.setItem('reports', JSON.stringify(reports));
+        }
+
+        // ===== LEGACY FUNCTIONS (for backward compatibility) =====
+
+        /**
+         * Legacy function for viewing attendance
+         */
+        function viewAttendance() {
+            const today = new Date().toDateString();
+            const todayAttendance = attendanceData[today];
+            
+            let message = 'Attendance History:\n\n';
+            
+            if (todayAttendance) {
+                if (todayAttendance.punchIn) {
+                    message += `Today: Punch In - ${new Date(todayAttendance.punchIn).toLocaleTimeString()}\n`;
+                }
+                if (todayAttendance.punchOut) {
+                    message += `Today: Punch Out - ${new Date(todayAttendance.punchOut).toLocaleTimeString()}\n`;
+                }
+                if (todayAttendance.hoursWorked) {
+                    message += `Today: ${todayAttendance.hoursWorked} hours worked\n`;
+                }
+            } else {
+                message += 'Today: No attendance recorded\n';
+            }
+            
+            message += '\nYesterday: Punch In - 8:55 AM, Punch Out - 5:30 PM\n';
+            message += 'Last Week: 40 hours total';
+            
+            alert(message);
+        }
+
+        // ===== INITIALIZATION =====
+        
+        /**
+         * Initializes the application
+         */
+        function initApp() {
+            showScreen('loginScreen');
+            
+            // Add keyboard event listeners
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    if (document.getElementById('loginScreen').classList.contains('hidden')) {
+                        // Handle enter key in forms
+                        const activeElement = document.activeElement;
+                        if (activeElement && activeElement.tagName === 'INPUT') {
+                            const form = activeElement.closest('.form');
+                            if (form) {
+                                const submitBtn = form.querySelector('.btn-primary');
+                                if (submitBtn) {
+                                    submitBtn.click();
+                                }
+                            }
+                        }
+                    } else {
+                        // Handle enter key in login
+                        login();
+                    }
+                }
+            });
+            
+            console.log('Workforce Mobile App initialized successfully!');
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html> 

@@ -8,7 +8,7 @@
  * - User authentication and session management
  * - Role-based access control (RBAC)
  * - Permission checking for UI components
- * - Mock user data for demonstration
+ * - Backend API integration
  * 
  * @author Workforce Management Team
  * @version 1.0.0
@@ -16,6 +16,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '../types';
+import { authAPI, User as ApiUser } from '../services/api';
 
 /**
  * Authentication Context Type Definition
@@ -28,46 +29,12 @@ interface AuthContextType {
   logout: () => void;                   // Logout function
   isLoading: boolean;                   // Loading state for auth operations
   hasPermission: (permission: string) => boolean;  // Permission checker
+  error: string | null;                 // Error message
+  clearError: () => void;               // Clear error message
 }
 
 // Create the authentication context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-/**
- * Mock User Data
- * 
- * Sample user data for demonstration purposes. In production, this would be
- * replaced with actual API calls to a backend authentication service.
- */
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@company.com',
-    name: 'Admin User',
-    role: UserRole.ADMIN,
-    department: 'Management',
-    position: 'System Administrator',
-    phone: '+1234567890'
-  },
-  {
-    id: '2',
-    email: 'editor@company.com',
-    name: 'Editor User',
-    role: UserRole.EDITOR,
-    department: 'Operations',
-    position: 'Operations Manager',
-    phone: '+1234567891'
-  },
-  {
-    id: '3',
-    email: 'viewer@company.com',
-    name: 'Viewer User',
-    role: UserRole.VIEWER,
-    department: 'Sales',
-    position: 'Sales Representative',
-    phone: '+1234567892'
-  }
-];
 
 /**
  * Role-Based Permission Mapping
@@ -135,6 +102,23 @@ const rolePermissions: Record<UserRole, string[]> = {
 };
 
 /**
+ * Convert API User to App User
+ */
+const convertApiUserToAppUser = (apiUser: ApiUser): User => {
+  return {
+    id: apiUser.id,
+    email: apiUser.email,
+    name: apiUser.name,
+    role: apiUser.role === 'admin' ? UserRole.ADMIN : 
+          apiUser.role === 'employee' ? UserRole.EDITOR : UserRole.VIEWER,
+    department: apiUser.department,
+    position: apiUser.role === 'admin' ? 'System Administrator' : 
+              apiUser.role === 'employee' ? 'Employee' : 'Viewer',
+    phone: '+1234567890' // Default phone for now
+  };
+};
+
+/**
  * AuthProvider Component
  * 
  * Context provider that wraps the application and provides authentication
@@ -146,25 +130,40 @@ const rolePermissions: Record<UserRole, string[]> = {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   /**
    * Initialize authentication state on component mount
-   * Checks for existing user session in localStorage
+   * Checks for existing user session and validates with backend
    */
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      // Auto-login as admin for development/demo
-      const adminUser = mockUsers.find(u => u.role === UserRole.ADMIN);
-      if (adminUser) {
-        setUser(adminUser);
-        localStorage.setItem('user', JSON.stringify(adminUser));
+    const initializeAuth = async () => {
+      try {
+        // Check if user is already authenticated
+        if (authAPI.isAuthenticated()) {
+          const profile = await authAPI.getProfile();
+          const appUser = convertApiUserToAppUser(profile.user);
+          setUser(appUser);
+        } else {
+          // Auto-login as admin for development/demo if no session exists
+          try {
+            const loginResult = await authAPI.login('admin@company.com', 'password');
+            const appUser = convertApiUserToAppUser(loginResult.user);
+            setUser(appUser);
+          } catch (error) {
+            console.log('Auto-login failed, user needs to login manually');
+          }
+        }
+      } catch (error) {
+        console.error('Authentication initialization failed:', error);
+        // Clear invalid session
+        authAPI.logout();
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   /**
@@ -176,22 +175,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    setError(null);
     
-    // Simulate API call delay for realistic UX
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication logic - in production, this would call an API
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser && password === 'password') { // Simple mock password for demo
-      setUser(foundUser);
-      localStorage.setItem('user', JSON.stringify(foundUser));
+    try {
+      const loginResult = await authAPI.login(email, password);
+      const appUser = convertApiUserToAppUser(loginResult.user);
+      setUser(appUser);
       setIsLoading(false);
       return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      setError(errorMessage);
+      setIsLoading(false);
+      return false;
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
   /**
@@ -200,7 +197,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    setError(null);
+    authAPI.logout();
   };
 
   /**
@@ -214,13 +212,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return rolePermissions[user.role].includes(permission);
   };
 
+  /**
+   * Clear error message
+   */
+  const clearError = () => {
+    setError(null);
+  };
+
   // Context value object
   const value: AuthContextType = {
     user,
     login,
     logout,
     isLoading,
-    hasPermission
+    hasPermission,
+    error,
+    clearError
   };
 
   return (

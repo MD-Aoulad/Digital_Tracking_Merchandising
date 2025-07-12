@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workforce Management - Mobile App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-light: 0 8px 32px rgba(31, 38, 135, 0.37);
+            --shadow-medium: 0 12px 40px rgba(31, 38, 135, 0.37);
+            --shadow-heavy: 0 20px 60px rgba(31, 38, 135, 0.37);
+            --border-radius: 16px;
+            --border-radius-small: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            min-height: 100vh;
+            box-shadow: var(--shadow-heavy);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 1rem;
+            font-weight: 400;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 25px;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid rgba(102, 126, 234, 0.1);
+            border-radius: var(--border-radius-small);
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-group::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+            transition: var(--transition);
+            transform: translateX(-50%);
+        }
+
+        .form-group:focus-within::after {
+            width: 100%;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: var(--border-radius-small);
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 12px;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: var(--transition);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-light);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            border: 2px solid #667eea;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success-gradient);
+            color: white;
+            box-shadow: var(--shadow-light);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .btn-danger {
+            background: var(--danger-gradient);
+            color: white;
+            box-shadow: var(--shadow-light);
+        }
+
+        .btn-warning {
+            background: var(--warning-gradient);
+            color: white;
+            box-shadow: var(--shadow-light);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-light);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: var(--transition);
+        }
+
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .card h3 {
+            margin-bottom: 20px;
+            color: #1f2937;
+            font-size: 1.3rem;
+            font-weight: 700;
+            position: relative;
+        }
+
+        .card h3::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background: var(--primary-gradient);
+            border-radius: 2px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            border-radius: var(--border-radius-small);
+            margin-bottom: 12px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .todo-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--primary-gradient);
+            transform: scaleY(0);
+            transition: var(--transition);
+        }
+
+        .todo-item:hover::before {
+            transform: scaleY(1);
+        }
+
+        .todo-item:hover {
+            transform: translateX(5px);
+            box-shadow: var(--shadow-light);
+        }
+
+        .todo-item.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .todo-item.completed::before {
+            background: var(--success-gradient);
+            transform: scaleY(1);
+        }
+
+        .todo-item input[type="checkbox"] {
+            margin-right: 16px;
+            transform: scale(1.3);
+            accent-color: #667eea;
+        }
+
+        .todo-content {
+            flex: 1;
+        }
+
+        .todo-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #1f2937;
+            transition: var(--transition);
+        }
+
+        .todo-item.completed .todo-title {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+
+        .todo-description {
+            font-size: 0.9rem;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        .todo-priority {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .priority-high { 
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+        .priority-medium { 
+            background: linear-gradient(135deg, #feca57, #ff9ff3);
+            color: white;
+            box-shadow: 0 2px 8px rgba(254, 202, 87, 0.3);
+        }
+        .priority-low { 
+            background: linear-gradient(135deg, #48dbfb, #0abde3);
+            color: white;
+            box-shadow: 0 2px 8px rgba(72, 219, 251, 0.3);
+        }
+
+        .report-item {
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            border-radius: var(--border-radius-small);
+            padding: 20px;
+            margin-bottom: 16px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+        }
+
+        .report-item:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-light);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .report-title {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1.1rem;
+        }
+
+        .report-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pending { 
+            background: linear-gradient(135deg, #feca57, #ff9ff3);
+            color: white;
+            box-shadow: 0 2px 8px rgba(254, 202, 87, 0.3);
+        }
+        .status-approved { 
+            background: linear-gradient(135deg, #48dbfb, #0abde3);
+            color: white;
+            box-shadow: 0 2px 8px rgba(72, 219, 251, 0.3);
+        }
+        .status-rejected { 
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+
+        .attendance-card {
+            text-align: center;
+            padding: 30px;
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: var(--border-radius);
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-medium);
+        }
+
+        .attendance-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .attendance-time {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .attendance-date {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            font-weight: 500;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius-small);
+            padding: 6px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-light);
+            border: 1px solid var(--glass-border);
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            border-radius: var(--border-radius-small);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            font-size: 0.9rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: var(--transition);
+            z-index: -1;
+        }
+
+        .nav-tab.active {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-light);
+            transform: translateY(-2px);
+        }
+
+        .nav-tab.active::before {
+            transform: scaleX(1);
+        }
+
+        .nav-tab:not(.active) {
+            color: #6b7280;
+        }
+
+        .nav-tab:not(.active):hover {
+            color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            padding: 16px;
+            border-radius: var(--border-radius-small);
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: var(--shadow-light);
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .success {
+            background: linear-gradient(135deg, #48dbfb, #0abde3);
+            color: white;
+            padding: 16px;
+            border-radius: var(--border-radius-small);
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: var(--shadow-light);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #6b7280;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #667eea;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .user-info {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 24px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-light);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+        }
+
+        .user-name {
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 6px;
+            font-size: 1.2rem;
+        }
+
+        .user-role {
+            color: #6b7280;
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .logout-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--border-radius-small);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: var(--shadow-light);
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .forgot-password-link {
+            color: #667eea;
+            font-size: 0.95rem;
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            display: inline-block;
+            margin-top: 16px;
+        }
+
+        .forgot-password-link:hover {
+            color: #764ba2;
+            transform: translateY(-1px);
+        }
+
+        .demo-info {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 16px;
+            border-radius: var(--border-radius-small);
+            margin-top: 20px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .demo-info p {
+            color: #6b7280;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .demo-info strong {
+            color: #1f2937;
+        }
+
+        .tab-content {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .quick-actions .btn {
+            margin-bottom: 0;
+            padding: 14px 16px;
+            font-size: 0.9rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .summary-value {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                max-width: 100%;
+                box-shadow: none;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Floating animation for cards */
+        .card:nth-child(odd) {
+            animation: floatCard 6s ease-in-out infinite;
+        }
+
+        .card:nth-child(even) {
+            animation: floatCard 6s ease-in-out infinite reverse;
+        }
+
+        @keyframes floatCard {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* Ripple effect for buttons */
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div id="loginScreen">
+            <div class="header">
+                <h1><i class="fas fa-users"></i> Workforce Management</h1>
+                <p>Professional Mobile Solution</p>
+            </div>
+            <div class="content">
+                <div id="loginError" class="error hidden"></div>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email"><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="email" required placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="password"><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="password" required placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+                <div style="text-align: right;">
+                    <a href="#" id="forgotPasswordLink" class="forgot-password-link">
+                        <i class="fas fa-key"></i> Forgot Password?
+                    </a>
+                </div>
+                <div id="resetPasswordSection" class="hidden" style="margin-top: 20px;">
+                    <form id="resetPasswordForm">
+                        <div class="form-group">
+                            <label for="resetEmail"><i class="fas fa-envelope"></i> Email</label>
+                            <input type="email" id="resetEmail" required placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label for="resetNewPassword"><i class="fas fa-lock"></i> New Password</label>
+                            <input type="password" id="resetNewPassword" required minlength="6" placeholder="Enter new password (min 6 chars)">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Reset Password
+                        </button>
+                        <button type="button" id="cancelResetBtn" class="btn btn-secondary" style="margin-top: 10px;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </form>
+                    <div id="resetPasswordMsg" style="margin-top: 10px;"></div>
+                </div>
+                <div class="demo-info">
+                    <p>
+                        <strong><i class="fas fa-info-circle"></i> Demo Users:</strong><br>
+                        <i class="fas fa-user"></i> Employee: richard@company.com / password<br>
+                        <i class="fas fa-user-shield"></i> Admin: admin@company.com / password
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="hidden">
+            <div class="header">
+                <h1><i class="fas fa-users"></i> Workforce Management</h1>
+                <p id="userInfo">Welcome back!</p>
+            </div>
+            <div class="content">
+                <div class="user-info">
+                    <div class="user-name" id="userName">User Name</div>
+                    <div class="user-role" id="userRole">Role</div>
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="nav-tabs">
+                    <div class="nav-tab active" onclick="showTab('dashboard')">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </div>
+                    <div class="nav-tab" onclick="showTab('attendance')">
+                        <i class="fas fa-clock"></i> Attendance
+                    </div>
+                    <div class="nav-tab" onclick="showTab('todos')">
+                        <i class="fas fa-tasks"></i> Todos
+                    </div>
+                    <div class="nav-tab" onclick="showTab('reports')">
+                        <i class="fas fa-chart-bar"></i> Reports
+                    </div>
+                </div>
+
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content">
+                    <div class="card">
+                        <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                        <div class="quick-actions">
+                            <button class="btn btn-success" onclick="punchIn()">
+                                <i class="fas fa-sign-in-alt"></i> Punch In
+                            </button>
+                            <button class="btn btn-warning" onclick="punchOut()">
+                                <i class="fas fa-sign-out-alt"></i> Punch Out
+                            </button>
+                            <button class="btn btn-primary" onclick="showTab('todos')">
+                                <i class="fas fa-plus"></i> Add Todo
+                            </button>
+                            <button class="btn btn-secondary" onclick="showTab('reports')">
+                                <i class="fas fa-file-alt"></i> Submit Report
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-chart-line"></i> Today's Summary</h3>
+                        <div id="todaySummary">
+                            <p>Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Tab -->
+                <div id="attendanceTab" class="tab-content hidden">
+                    <div class="attendance-card">
+                        <div class="attendance-time" id="currentTime">--:--</div>
+                        <div class="attendance-date" id="currentDate">Loading...</div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-calendar-check"></i> Today's Attendance</h3>
+                        <div id="attendanceStatus">
+                            <p>Loading attendance data...</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-history"></i> Attendance History</h3>
+                        <div id="attendanceHistory">
+                            <p>Loading history...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Todos Tab -->
+                <div id="todosTab" class="tab-content hidden">
+                    <div class="card">
+                        <h3><i class="fas fa-plus-circle"></i> Add New Todo</h3>
+                        <form id="todoForm">
+                            <div class="form-group">
+                                <label for="todoTitle"><i class="fas fa-heading"></i> Title</label>
+                                <input type="text" id="todoTitle" required placeholder="Enter todo title">
+                            </div>
+                            <div class="form-group">
+                                <label for="todoDescription"><i class="fas fa-align-left"></i> Description</label>
+                                <textarea id="todoDescription" rows="3" placeholder="Enter description"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="todoPriority"><i class="fas fa-exclamation-triangle"></i> Priority</label>
+                                <select id="todoPriority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Todo
+                            </button>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-list-check"></i> My Todos</h3>
+                        <div id="todosList">
+                            <p>Loading todos...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reportsTab" class="tab-content hidden">
+                    <div class="card">
+                        <h3><i class="fas fa-file-medical"></i> Submit New Report</h3>
+                        <form id="reportForm">
+                            <div class="form-group">
+                                <label for="reportTitle"><i class="fas fa-heading"></i> Title</label>
+                                <input type="text" id="reportTitle" required placeholder="Enter report title">
+                            </div>
+                            <div class="form-group">
+                                <label for="reportType"><i class="fas fa-tag"></i> Type</label>
+                                <select id="reportType">
+                                    <option value="daily">Daily Report</option>
+                                    <option value="weekly">Weekly Report</option>
+                                    <option value="incident">Incident Report</option>
+                                    <option value="feedback">Feedback</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="reportContent"><i class="fas fa-align-left"></i> Content</label>
+                                <textarea id="reportContent" rows="5" required placeholder="Enter report content"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Submit Report
+                            </button>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-file-alt"></i> My Reports</h3>
+                        <div id="reportsList">
+                            <p>Loading reports...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add ripple effect to buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn')) {
+                const ripple = document.createElement('span');
+                const rect = e.target.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple');
+                
+                e.target.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            }
+        });
+
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        // Global variables
+        let currentUser = null;
+        let authToken = localStorage.getItem('authToken');
+        let currentTab = 'dashboard';
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            if (authToken) {
+                checkAuthAndLoadUser();
+            } else {
+                showLoginScreen();
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+        });
+
+        // Authentication functions
+        async function login(email, password) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('userData', JSON.stringify(currentUser));
+                    showMainApp();
+                    loadDashboardData();
+                } else {
+                    showError(data.error || 'Login failed');
+                }
+            } catch (error) {
+                showError('Network error. Please check your connection.');
+            }
+        }
+
+        async function checkAuthAndLoadUser() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                    showMainApp();
+                    loadDashboardData();
+                } else {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('userData');
+                    showLoginScreen();
+                }
+            } catch (error) {
+                showError('Network error. Please check your connection.');
+                showLoginScreen();
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
+            showLoginScreen();
+        }
+
+        // UI functions
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            updateUserInfo();
+        }
+
+        function updateUserInfo() {
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userRole').textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
+                document.getElementById('userInfo').textContent = `Welcome, ${currentUser.name}!`;
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(navTab => {
+                navTab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            
+            // Add active class to selected nav tab
+            event.target.classList.add('active');
+            
+            currentTab = tabName;
+            
+            // Load tab-specific data
+            switch(tabName) {
+                case 'dashboard':
+                    loadDashboardData();
+                    break;
+                case 'attendance':
+                    loadAttendanceData();
+                    break;
+                case 'todos':
+                    loadTodos();
+                    break;
+                case 'reports':
+                    loadReports();
+                    break;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = message;
+            document.querySelector('.content').insertBefore(successDiv, document.querySelector('.content').firstChild);
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
+
+        // Time functions
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+            document.getElementById('currentDate').textContent = now.toLocaleDateString();
+        }
+
+        // Dashboard functions
+        async function loadDashboardData() {
+            try {
+                const [todosResponse, reportsResponse, attendanceResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}/todos`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`${API_BASE_URL}/reports`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`${API_BASE_URL}/attendance`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    })
+                ]);
+
+                const todosData = await todosResponse.json();
+                const reportsData = await reportsResponse.json();
+                const attendanceData = await attendanceResponse.json();
+
+                const today = new Date().toDateString();
+                const todayTodos = todosData.todos.filter(todo => 
+                    new Date(todo.createdAt).toDateString() === today
+                );
+                const todayReports = reportsData.reports.filter(report => 
+                    new Date(report.submittedAt).toDateString() === today
+                );
+
+                const summary = `
+                    <p><strong>Todos:</strong> ${todayTodos.length} created today</p>
+                    <p><strong>Reports:</strong> ${todayReports.length} submitted today</p>
+                    <p><strong>Status:</strong> ${getAttendanceStatus(attendanceData.attendance)}</p>
+                `;
+
+                document.getElementById('todaySummary').innerHTML = summary;
+            } catch (error) {
+                document.getElementById('todaySummary').innerHTML = '<p>Error loading data</p>';
+            }
+        }
+
+        function getAttendanceStatus(attendance) {
+            const today = new Date().toDateString();
+            const todayAttendance = attendance[today];
+            
+            if (!todayAttendance) return 'Not punched in';
+            if (!todayAttendance.punchOut) return 'Punched in';
+            return 'Completed';
+        }
+
+        // Attendance functions
+        async function loadAttendanceData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/attendance`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                displayAttendanceData(data.attendance);
+            } catch (error) {
+                document.getElementById('attendanceStatus').innerHTML = '<p>Error loading attendance data</p>';
+            }
+        }
+
+        function displayAttendanceData(attendance) {
+            const today = new Date().toDateString();
+            const todayAttendance = attendance[today];
+            
+            let statusHtml = '<p>No attendance record for today</p>';
+            if (todayAttendance) {
+                statusHtml = `
+                    <p><strong>Punch In:</strong> ${todayAttendance.punchIn ? new Date(todayAttendance.punchIn).toLocaleTimeString() : 'Not recorded'}</p>
+                    <p><strong>Punch Out:</strong> ${todayAttendance.punchOut ? new Date(todayAttendance.punchOut).toLocaleTimeString() : 'Not recorded'}</p>
+                    <p><strong>Hours Worked:</strong> ${todayAttendance.hoursWorked || 0} hours</p>
+                `;
+            }
+            
+            document.getElementById('attendanceStatus').innerHTML = statusHtml;
+
+            // Display history
+            const historyHtml = Object.keys(attendance).map(date => {
+                const record = attendance[date];
+                return `
+                    <div class="report-item">
+                        <div class="report-header">
+                            <span class="report-title">${new Date(date).toLocaleDateString()}</span>
+                            <span class="report-status status-${record.punchOut ? 'approved' : 'pending'}">
+                                ${record.punchOut ? 'Completed' : 'In Progress'}
+                            </span>
+                        </div>
+                        <p><strong>In:</strong> ${record.punchIn ? new Date(record.punchIn).toLocaleTimeString() : 'N/A'}</p>
+                        <p><strong>Out:</strong> ${record.punchOut ? new Date(record.punchOut).toLocaleTimeString() : 'N/A'}</p>
+                        <p><strong>Hours:</strong> ${record.hoursWorked || 0} hours</p>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('attendanceHistory').innerHTML = historyHtml || '<p>No attendance history</p>';
+        }
+
+        async function punchIn() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/attendance/punch-in`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        location: 'Office',
+                        photo: 'data:image/jpeg;base64,mock-photo-data'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess('Punch in recorded successfully!');
+                    loadAttendanceData();
+                    loadDashboardData();
+                } else {
+                    showError(data.error || 'Punch in failed');
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+            }
+        }
+
+        async function punchOut() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/attendance/punch-out`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        location: 'Office'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess('Punch out recorded successfully!');
+                    loadAttendanceData();
+                    loadDashboardData();
+                } else {
+                    showError(data.error || 'Punch out failed');
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+            }
+        }
+
+        // Todo functions
+        async function loadTodos() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/todos`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                displayTodos(data.todos);
+            } catch (error) {
+                document.getElementById('todosList').innerHTML = '<p>Error loading todos</p>';
+            }
+        }
+
+        function displayTodos(todos) {
+            if (todos.length === 0) {
+                document.getElementById('todosList').innerHTML = '<p>No todos found</p>';
+                return;
+            }
+
+            const todosHtml = todos.map(todo => `
+                <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                    <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo('${todo.id}', this.checked)">
+                    <div class="todo-content">
+                        <div class="todo-title">${todo.title}</div>
+                        <div class="todo-description">${todo.description || ''}</div>
+                    </div>
+                    <span class="todo-priority priority-${todo.priority}">${todo.priority}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('todosList').innerHTML = todosHtml;
+        }
+
+        async function toggleTodo(todoId, completed) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/todos/${todoId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ completed })
+                });
+
+                if (response.ok) {
+                    loadTodos();
+                    loadDashboardData();
+                } else {
+                    showError('Failed to update todo');
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+            }
+        }
+
+        // Report functions
+        async function loadReports() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/reports`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                displayReports(data.reports);
+            } catch (error) {
+                document.getElementById('reportsList').innerHTML = '<p>Error loading reports</p>';
+            }
+        }
+
+        function displayReports(reports) {
+            if (reports.length === 0) {
+                document.getElementById('reportsList').innerHTML = '<p>No reports found</p>';
+                return;
+            }
+
+            const reportsHtml = reports.map(report => `
+                <div class="report-item">
+                    <div class="report-header">
+                        <span class="report-title">${report.title}</span>
+                        <span class="report-status status-${report.status}">${report.status}</span>
+                    </div>
+                    <p><strong>Type:</strong> ${report.type}</p>
+                    <p><strong>Content:</strong> ${report.content}</p>
+                    <p><strong>Submitted:</strong> ${new Date(report.submittedAt).toLocaleString()}</p>
+                </div>
+            `).join('');
+
+            document.getElementById('reportsList').innerHTML = reportsHtml;
+        }
+
+        // Event listeners
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            login(email, password);
+        });
+
+        document.getElementById('todoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const title = document.getElementById('todoTitle').value;
+            const description = document.getElementById('todoDescription').value;
+            const priority = document.getElementById('todoPriority').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/todos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ title, description, priority })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess('Todo created successfully!');
+                    document.getElementById('todoForm').reset();
+                    loadTodos();
+                    loadDashboardData();
+                } else {
+                    showError(data.error || 'Failed to create todo');
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+            }
+        });
+
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const title = document.getElementById('reportTitle').value;
+            const type = document.getElementById('reportType').value;
+            const content = document.getElementById('reportContent').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/reports`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ title, type, content })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess('Report submitted successfully!');
+                    document.getElementById('reportForm').reset();
+                    loadReports();
+                    loadDashboardData();
+                } else {
+                    showError(data.error || 'Failed to submit report');
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+            }
+        });
+
+        // Password reset logic
+        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+        const resetPasswordSection = document.getElementById('resetPasswordSection');
+        const resetPasswordForm = document.getElementById('resetPasswordForm');
+        const resetPasswordMsg = document.getElementById('resetPasswordMsg');
+        const cancelResetBtn = document.getElementById('cancelResetBtn');
+
+        forgotPasswordLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('loginForm').classList.add('hidden');
+            resetPasswordSection.classList.remove('hidden');
+            resetPasswordMsg.textContent = '';
+        });
+
+        cancelResetBtn.addEventListener('click', function() {
+            resetPasswordSection.classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            resetPasswordMsg.textContent = '';
+        });
+
+        resetPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            const newPassword = document.getElementById('resetNewPassword').value;
+            resetPasswordMsg.textContent = '';
+            
+            // Show loading state
+            resetPasswordMsg.style.color = '#667eea';
+            resetPasswordMsg.textContent = 'Resetting password...';
+            
+            try {
+                console.log('Attempting password reset for:', email);
+                const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, newPassword })
+                });
+                
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok) {
+                    resetPasswordMsg.style.color = '#2e7d32';
+                    resetPasswordMsg.textContent = 'Password reset successful! You can now log in.';
+                    setTimeout(() => {
+                        resetPasswordSection.classList.add('hidden');
+                        document.getElementById('loginForm').classList.remove('hidden');
+                        resetPasswordMsg.textContent = '';
+                    }, 2000);
+                } else {
+                    resetPasswordMsg.style.color = '#c62828';
+                    resetPasswordMsg.textContent = data.error || 'Password reset failed.';
+                }
+            } catch (error) {
+                console.error('Password reset error:', error);
+                resetPasswordMsg.style.color = '#c62828';
+                resetPasswordMsg.textContent = 'Network error. Please check your connection and try again.';
+            }
+        });
+    </script>
+</body>
+</html> 
