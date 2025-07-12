@@ -153,20 +153,17 @@ const Login: React.FC = () => {
    * @param email - Demo email
    * @param password - Demo password
    */
-  const quickLogin = (email: string, password: string) => {
-    const form = document.querySelector('form');
-    if (form) {
-      const emailInput = form.querySelector('input[name="email"]') as HTMLInputElement;
-      const passwordInput = form.querySelector('input[name="password"]') as HTMLInputElement;
-      if (emailInput && passwordInput) {
-        emailInput.value = email;
-        passwordInput.value = password;
-        // Trigger form submission
-        const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-        if (submitButton) {
-          submitButton.click();
-        }
+  const quickLogin = async (email: string, password: string) => {
+    try {
+      const success = await login(email, password);
+      if (success) {
+        toast.success('Login successful!');
+        navigate('/'); // Redirect to dashboard (home page)
+      } else {
+        toast.error('Invalid email or password');
       }
+    } catch (error) {
+      toast.error('Login failed. Please try again.');
     }
   };
 

@@ -9,8 +9,7 @@ import { useState, useCallback } from 'react';
 import { 
   Todo, 
   CreateTodoRequest, 
-  UpdateTodoRequest,
-  PaginatedResponse 
+  UpdateTodoRequest
 } from '../types';
 import { useApiQuery, useApiMutation, usePaginatedQuery } from '../api/hooks';
 import { 
@@ -24,8 +23,6 @@ import {
   getCompletedTodos,
   getIncompleteTodos,
   searchTodos,
-  getTodosDueToday,
-  getOverdueTodos,
   validateTodo,
   getPriorityColor,
   getPriorityIcon,
@@ -37,62 +34,16 @@ import {
 // ===== BASIC TODO HOOKS =====
 
 /**
- * Hook for fetching all todos with pagination
+ * Hook for fetching all todos
  */
-export const useTodos = (
-  page: number = 1,
-  limit: number = 10,
-  search?: string,
-  filters?: {
-    priority?: 'low' | 'medium' | 'high';
-    completed?: boolean;
-    userId?: string;
-  }
-) => {
-  const [queryParams, setQueryParams] = useState(() => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(search && { search }),
-      ...(filters?.priority && { priority: filters.priority }),
-      ...(filters?.completed !== undefined && { completed: filters.completed.toString() }),
-      ...(filters?.userId && { userId: filters.userId })
-    });
-    return params.toString();
-  });
-
-  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Todo>>(
-    `/todos?${queryParams}`,
-    [queryParams]
-  );
-
-  const updateQuery = useCallback((newParams: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    filters?: typeof filters;
-  }) => {
-    const params = new URLSearchParams({
-      page: (newParams.page || page).toString(),
-      limit: (newParams.limit || limit).toString(),
-      ...(newParams.search && { search: newParams.search }),
-      ...(newParams.filters?.priority && { priority: newParams.filters.priority }),
-      ...(newParams.filters?.completed !== undefined && { completed: newParams.filters.completed.toString() }),
-      ...(newParams.filters?.userId && { userId: newParams.filters.userId })
-    });
-    setQueryParams(params.toString());
-  }, [page, limit, search, filters]);
+export const useTodos = () => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
 
   return {
-    todos: data?.data || [],
-    total: data?.total || 0,
-    page: data?.page || page,
-    limit: data?.limit || limit,
-    totalPages: data?.totalPages || 0,
+    todos: data?.todos || [],
     loading,
     error,
-    refetch,
-    updateQuery
+    refetch
   };
 };
 
@@ -171,50 +122,86 @@ export const useIncompleteTodo = () => {
 /**
  * Hook for todos by priority
  */
-export const useTodosByPriority = (
-  priority: 'low' | 'medium' | 'high',
-  page: number = 1,
-  limit: number = 10
-) => {
-  return useTodos(page, limit, undefined, { priority });
+export const useTodosByPriority = (priority: 'low' | 'medium' | 'high') => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const filteredTodos = data?.todos?.filter(todo => todo.priority === priority) || [];
+
+  return {
+    todos: filteredTodos,
+    loading,
+    error,
+    refetch
+  };
 };
 
 /**
  * Hook for completed todos
  */
-export const useCompletedTodos = (page: number = 1, limit: number = 10) => {
-  return useTodos(page, limit, undefined, { completed: true });
+export const useCompletedTodos = () => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const completedTodos = data?.todos?.filter(todo => todo.completed) || [];
+
+  return {
+    todos: completedTodos,
+    loading,
+    error,
+    refetch
+  };
 };
 
 /**
  * Hook for incomplete todos
  */
-export const useIncompleteTodos = (page: number = 1, limit: number = 10) => {
-  return useTodos(page, limit, undefined, { completed: false });
+export const useIncompleteTodos = () => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const incompleteTodos = data?.todos?.filter(todo => !todo.completed) || [];
+
+  return {
+    todos: incompleteTodos,
+    loading,
+    error,
+    refetch
+  };
 };
 
 /**
  * Hook for searching todos
  */
-export const useSearchTodos = (searchTerm: string, page: number = 1, limit: number = 10) => {
-  return useTodos(page, limit, searchTerm);
+export const useSearchTodos = (searchTerm: string) => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const searchLower = searchTerm.toLowerCase();
+  const filteredTodos = data?.todos?.filter(todo => 
+    todo.title.toLowerCase().includes(searchLower) ||
+    todo.description.toLowerCase().includes(searchLower)
+  ) || [];
+
+  return {
+    todos: filteredTodos,
+    loading,
+    error,
+    refetch
+  };
 };
 
 /**
  * Hook for todos due today
  */
-export const useTodosDueToday = (page: number = 1, limit: number = 10) => {
-  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Todo>>(
-    `/todos?dueDate=${new Date().toISOString().split('T')[0]}&page=${page}&limit=${limit}`,
-    [page, limit]
-  );
+export const useTodosDueToday = () => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const today = new Date().toISOString().split('T')[0];
+  const dueTodayTodos = data?.todos?.filter(todo => {
+    if (!todo.dueDate) return false;
+    const todoDate = new Date(todo.dueDate).toISOString().split('T')[0];
+    return todoDate === today;
+  }) || [];
 
   return {
-    todos: data?.data || [],
-    total: data?.total || 0,
-    page: data?.page || page,
-    limit: data?.limit || limit,
-    totalPages: data?.totalPages || 0,
+    todos: dueTodayTodos,
     loading,
     error,
     refetch
@@ -224,18 +211,18 @@ export const useTodosDueToday = (page: number = 1, limit: number = 10) => {
 /**
  * Hook for overdue todos
  */
-export const useOverdueTodos = (page: number = 1, limit: number = 10) => {
-  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Todo>>(
-    `/todos?overdue=true&page=${page}&limit=${limit}`,
-    [page, limit]
-  );
+export const useOverdueTodos = () => {
+  const { data, loading, error, refetch } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const now = new Date();
+  const overdueTodos = data?.todos?.filter(todo => {
+    if (!todo.dueDate) return false;
+    const dueDate = new Date(todo.dueDate);
+    return dueDate < now && !todo.completed;
+  }) || [];
 
   return {
-    todos: data?.data || [],
-    total: data?.total || 0,
-    page: data?.page || page,
-    limit: data?.limit || limit,
-    totalPages: data?.totalPages || 0,
+    todos: overdueTodos,
     loading,
     error,
     refetch
@@ -248,16 +235,22 @@ export const useOverdueTodos = (page: number = 1, limit: number = 10) => {
  * Hook for todo statistics
  */
 export const useTodoStats = () => {
-  const { data: allTodos } = useApiQuery<Todo[]>('/todos?limit=1000');
-  const { data: completedTodos } = useApiQuery<Todo[]>('/todos?completed=true&limit=1000');
-  const { data: overdueTodos } = useApiQuery<Todo[]>('/todos?overdue=true&limit=1000');
+  const { data: allTodosData } = useApiQuery<{ todos: Todo[] }>('/todos');
+
+  const allTodos = allTodosData?.todos || [];
+  const completedTodos = allTodos.filter(todo => todo.completed);
+  const overdueTodos = allTodos.filter(todo => {
+    if (!todo.dueDate) return false;
+    const dueDate = new Date(todo.dueDate);
+    return dueDate < new Date() && !todo.completed;
+  });
 
   const stats = {
-    total: allTodos?.length || 0,
-    completed: completedTodos?.length || 0,
-    incomplete: (allTodos?.length || 0) - (completedTodos?.length || 0),
-    overdue: overdueTodos?.length || 0,
-    completionPercentage: calculateCompletionPercentage(allTodos || [])
+    total: allTodos.length,
+    completed: completedTodos.length,
+    incomplete: allTodos.length - completedTodos.length,
+    overdue: overdueTodos.length,
+    completionPercentage: calculateCompletionPercentage(allTodos)
   };
 
   return stats;

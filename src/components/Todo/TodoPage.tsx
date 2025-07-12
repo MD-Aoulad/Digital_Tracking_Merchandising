@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TodoTemplate, TodoSettings, UserRole } from '../../types';
-import { useTodos, useCreateTodo, useUpdateTodo, useDeleteTodo, Todo } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { createTodo, updateTodo, deleteTodo, getTodos } from '../../core/services/todo';
+import { Todo } from '../../core/types';
 import TodoSettingsComponent from './TodoSettings';
 import { Plus, Edit, Trash2, CheckCircle, Clock, AlertCircle, Calendar, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,29 +16,51 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [rateLimitRetry, setRateLimitRetry] = useState(false);
 
-  // API hooks for real data
-  const { data: todosData, loading: todosLoading, error: todosError, refetch: refetchTodos } = useTodos();
+  // Authentication and state
+  const { user } = useAuth();
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Load todos on component mount
+  useEffect(() => {
+    loadTodos();
+  }, []);
+  
+  const loadTodos = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await getTodos();
+      setTodos(response.todos || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load todos');
+      toast.error('Failed to load todos');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Add retry mechanism for rate limiting
   const handleRetry = () => {
-    if (todosError?.includes('Rate limit exceeded')) {
+    if (error?.includes('Rate limit exceeded')) {
       if (!rateLimitRetry) {
         setRateLimitRetry(true);
         toast.success('Retrying after rate limit... Please wait 1 minute.');
         setTimeout(() => {
-          refetchTodos();
+          loadTodos();
           setRateLimitRetry(false);
         }, 60000); // Wait 60 seconds before retrying
       } else {
         toast.error('Please wait before retrying again.');
       }
     } else {
-      refetchTodos();
+      loadTodos();
     }
   };
-  const { mutate: createTodo, loading: createLoading } = useCreateTodo();
-  const { mutate: updateTodo } = useUpdateTodo();
-  const { mutate: deleteTodo } = useDeleteTodo();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -59,7 +83,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
       toast.success('Todo created successfully!');
       setFormData({ title: '', description: '', priority: 'medium' });
       setShowCreateForm(false);
-      refetchTodos();
+      loadTodos();
     } catch (error) {
       toast.error('Failed to create todo');
     }
@@ -67,9 +91,9 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
 
   const handleUpdateTodo = async (id: string, updates: any) => {
     try {
-      await updateTodo({ id, ...updates });
+      await updateTodo(id, updates);
       toast.success('Todo updated successfully!');
-      refetchTodos();
+      loadTodos();
     } catch (error) {
       toast.error('Failed to update todo');
     }
@@ -81,9 +105,9 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
     }
 
     try {
-      await deleteTodo({ id });
+      await deleteTodo(id);
       toast.success('Todo deleted successfully!');
-      refetchTodos();
+      loadTodos();
     } catch (error) {
       toast.error('Failed to delete todo');
     }
@@ -91,9 +115,9 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
 
   const handleToggleComplete = async (todo: Todo) => {
     try {
-      await updateTodo({ id: todo.id, completed: !todo.completed });
+      await updateTodo(todo.id, { completed: !todo.completed });
       toast.success(todo.completed ? 'Todo marked as incomplete' : 'Todo completed!');
-      refetchTodos();
+      loadTodos();
     } catch (error) {
       toast.error('Failed to update todo');
     }
@@ -241,7 +265,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
 
 
   // Loading state
-  if (todosLoading) {
+  if (loading) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center h-64">
@@ -255,7 +279,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
   }
 
   // Error state
-  if (todosError) {
+  if (error) {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -263,7 +287,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
             <AlertCircle className="h-5 w-5 text-red-400" />
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">Error loading todos</h3>
-              <p className="mt-1 text-sm text-red-700">{todosError}</p>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
               <button
                 onClick={handleRetry}
                 className="mt-2 text-sm text-red-600 hover:text-red-500 font-medium"
@@ -277,7 +301,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
     );
   }
 
-  const todos = todosData?.todos || [];
+  const todosData = { todos };
 
   return (
     <div className="p-6">
@@ -488,10 +512,9 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
                   </button>
                   <button
                     type="submit"
-                    disabled={createLoading}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
                   >
-                    {createLoading ? 'Creating...' : 'Create Todo'}
+                    Create Todo
                   </button>
                 </div>
               </form>

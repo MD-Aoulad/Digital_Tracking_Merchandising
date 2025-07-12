@@ -9,8 +9,7 @@ import {
   Todo, 
   CreateTodoRequest, 
   UpdateTodoRequest, 
-  ApiResponse,
-  PaginatedResponse 
+  ApiResponse
 } from '../types';
 import { apiGet, apiPost, apiPut, apiDelete } from '../api/client';
 
@@ -31,29 +30,10 @@ const TODO_ENDPOINTS = {
 // ===== TODO API FUNCTIONS =====
 
 /**
- * Get all todos with optional pagination and filtering
+ * Get all todos for the current user
  */
-export const getTodos = async (
-  page: number = 1,
-  limit: number = 10,
-  search?: string,
-  filters?: {
-    priority?: 'low' | 'medium' | 'high';
-    completed?: boolean;
-    userId?: string;
-  }
-): Promise<PaginatedResponse<Todo>> => {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    limit: limit.toString(),
-    ...(search && { search }),
-    ...(filters?.priority && { priority: filters.priority }),
-    ...(filters?.completed !== undefined && { completed: filters.completed.toString() }),
-    ...(filters?.userId && { userId: filters.userId })
-  });
-
-  const url = `${TODO_ENDPOINTS.LIST}?${params.toString()}`;
-  return await apiGet<PaginatedResponse<Todo>>(url);
+export const getTodos = async (): Promise<{ todos: Todo[] }> => {
+  return await apiGet<{ todos: Todo[] }>(TODO_ENDPOINTS.LIST);
 };
 
 /**
@@ -129,77 +109,58 @@ export const bulkDeleteTodos = async (
  * Get todos by priority
  */
 export const getTodosByPriority = async (
-  priority: 'low' | 'medium' | 'high',
-  page: number = 1,
-  limit: number = 10
-): Promise<PaginatedResponse<Todo>> => {
-  return await getTodos(page, limit, undefined, { priority });
+  priority: 'low' | 'medium' | 'high'
+): Promise<{ todos: Todo[] }> => {
+  const response = await getTodos();
+  const filteredTodos = response.todos.filter(todo => todo.priority === priority);
+  return { todos: filteredTodos };
 };
 
 /**
  * Get completed todos
  */
-export const getCompletedTodos = async (
-  page: number = 1,
-  limit: number = 10
-): Promise<PaginatedResponse<Todo>> => {
-  return await getTodos(page, limit, undefined, { completed: true });
+export const getCompletedTodos = async (): Promise<{ todos: Todo[] }> => {
+  const response = await getTodos();
+  const completedTodos = response.todos.filter(todo => todo.completed);
+  return { todos: completedTodos };
 };
 
 /**
  * Get incomplete todos
  */
-export const getIncompleteTodos = async (
-  page: number = 1,
-  limit: number = 10
-): Promise<PaginatedResponse<Todo>> => {
-  return await getTodos(page, limit, undefined, { completed: false });
+export const getIncompleteTodos = async (): Promise<{ todos: Todo[] }> => {
+  const response = await getTodos();
+  const incompleteTodos = response.todos.filter(todo => !todo.completed);
+  return { todos: incompleteTodos };
 };
 
 /**
  * Search todos by title or description
  */
 export const searchTodos = async (
-  searchTerm: string,
-  page: number = 1,
-  limit: number = 10
-): Promise<PaginatedResponse<Todo>> => {
-  return await getTodos(page, limit, searchTerm);
-};
-
-/**
- * Get todos due today
- */
-export const getTodosDueToday = async (
-  page: number = 1,
-  limit: number = 10
-): Promise<PaginatedResponse<Todo>> => {
-  const today = new Date().toISOString().split('T')[0];
-  const params = new URLSearchParams({
-    page: page.toString(),
-    limit: limit.toString(),
-    dueDate: today
-  });
-
-  const url = `${TODO_ENDPOINTS.LIST}?${params.toString()}`;
-  return await apiGet<PaginatedResponse<Todo>>(url);
+  searchTerm: string
+): Promise<{ todos: Todo[] }> => {
+  const response = await getTodos();
+  const searchLower = searchTerm.toLowerCase();
+  const filteredTodos = response.todos.filter(todo => 
+    todo.title.toLowerCase().includes(searchLower) ||
+    todo.description.toLowerCase().includes(searchLower)
+  );
+  return { todos: filteredTodos };
 };
 
 /**
  * Get overdue todos
  */
-export const getOverdueTodos = async (
-  page: number = 1,
-  limit: number = 10
-): Promise<PaginatedResponse<Todo>> => {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    limit: limit.toString(),
-    overdue: 'true'
+export const getOverdueTodos = async (): Promise<{ todos: Todo[] }> => {
+  const response = await getTodos();
+  const now = new Date();
+  const overdueTodos = response.todos.filter(todo => {
+    if (!todo.dueDate) return false;
+    const dueDate = new Date(todo.dueDate);
+    return dueDate < now && !todo.completed;
   });
-
-  const url = `${TODO_ENDPOINTS.LIST}?${params.toString()}`;
-  return await apiGet<PaginatedResponse<Todo>>(url);
+  return { todos: overdueTodos };
 };
 
 // ===== TODO VALIDATION FUNCTIONS =====

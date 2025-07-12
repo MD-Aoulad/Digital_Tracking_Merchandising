@@ -67,12 +67,26 @@ app.use(cors({
 // Rate limiting middleware - prevents API abuse
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes time window
-  max: 1000 // Increased for development - Maximum 1000 requests per IP per time window
+  max: process.env.NODE_ENV === 'development' ? 10000 : 1000, // Much higher limit for development
+  message: {
+    error: 'Rate limit exceeded. Please wait 1 minute before trying again.',
+    retryAfter: 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 app.use(limiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// JSON parsing error handling middleware
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Invalid JSON format' });
+  }
+  next();
+});
 
 // Serve Swagger UI at /api/docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -104,6 +118,14 @@ let users = [
 let todos = [];
 let reports = [];
 let attendanceData = {};
+
+// ===== TEST-ONLY ENDPOINTS FOR CLEAN TESTING =====
+if (process.env.NODE_ENV === 'test') {
+  app.post('/api/test/reset-attendance', (req, res) => {
+    attendanceData = {};
+    res.json({ message: 'Attendance data reset' });
+  });
+}
 
 // ===== AUTHENTICATION MIDDLEWARE =====
 
@@ -731,27 +753,32 @@ app.get('/api/attendance', authenticateToken, (req, res) => {
 
 /**
  * Record punch in for authenticated user
- * Records employee punch in with location and optional photo
+ * Records user punch in with workplace location and optional photo
  * 
  * Headers:
  * - Authorization: Bearer <jwt_token> (required)
  * 
  * Request Body:
- * - location: Punch in location (required)
+ * - workplace: Workplace location where user is working (required)
  * - photo: Base64 encoded photo data (optional)
  * 
  * Response:
  * - 200: Punch in recorded successfully
- * - 400: Already punched in today
+ * - 400: Missing workplace or already punched in today
  * - 401: Missing or invalid token
  * - 500: Internal server error
  */
 app.post('/api/attendance/punch-in', authenticateToken, (req, res) => {
   try {
-    const { location, photo } = req.body;
+    const { workplace, photo } = req.body;
     const userId = req.user.id;
     const now = new Date();
     const today = now.toDateString();
+
+    // Validate required workplace field
+    if (!workplace || !workplace.trim()) {
+      return res.status(400).json({ error: 'Workplace location is required' });
+    }
 
     if (!attendanceData[userId]) {
       attendanceData[userId] = {};
@@ -767,12 +794,13 @@ app.post('/api/attendance/punch-in', authenticateToken, (req, res) => {
     }
 
     attendanceData[userId][today].punchIn = now.toISOString();
-    attendanceData[userId][today].location = location;
+    attendanceData[userId][today].workplace = workplace.trim();
     attendanceData[userId][today].photo = photo;
 
     res.json({ 
       message: 'Punch in recorded successfully',
       punchInTime: now.toISOString(),
+      workplace: workplace.trim(),
       attendance: attendanceData[userId][today]
     });
 
@@ -784,13 +812,13 @@ app.post('/api/attendance/punch-in', authenticateToken, (req, res) => {
 
 /**
  * Record punch out for authenticated user
- * Records employee punch out with location and calculates hours worked
+ * Records user punch out and calculates hours worked
  * 
  * Headers:
  * - Authorization: Bearer <jwt_token> (required)
  * 
  * Request Body:
- * - location: Punch out location (required)
+ * - None required (uses workplace from punch-in)
  * 
  * Response:
  * - 200: Punch out recorded successfully with hours worked
@@ -800,7 +828,6 @@ app.post('/api/attendance/punch-in', authenticateToken, (req, res) => {
  */
 app.post('/api/attendance/punch-out', authenticateToken, (req, res) => {
   try {
-    const { location } = req.body;
     const userId = req.user.id;
     const now = new Date();
     const today = now.toDateString();
@@ -812,16 +839,20 @@ app.post('/api/attendance/punch-out', authenticateToken, (req, res) => {
 
     // Calculate hours worked
     const punchInTime = new Date(attendanceData[userId][today].punchIn);
-    const hoursWorked = (now - punchInTime) / (1000 * 60 * 60);
+    let hoursWorked = (now - punchInTime) / (1000 * 60 * 60);
+    hoursWorked = Math.round(hoursWorked * 100) / 100;
+    if (hoursWorked === 0 && now > punchInTime) {
+      hoursWorked = 0.01;
+    }
 
     // Record punch out data
     attendanceData[userId][today].punchOut = now.toISOString();
-    attendanceData[userId][today].endLocation = location;
-    attendanceData[userId][today].hoursWorked = Math.round(hoursWorked * 100) / 100;
+    attendanceData[userId][today].hoursWorked = hoursWorked;
 
     res.json({ 
       message: 'Punch out recorded successfully',
       punchOutTime: now.toISOString(),
+      workplace: attendanceData[userId][today].workplace,
       hoursWorked: attendanceData[userId][today].hoursWorked,
       attendance: attendanceData[userId][today]
     });

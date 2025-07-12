@@ -43,7 +43,18 @@
     "test:backend": "cd backend && npm test",
     "test:full": "npm run test:backend && npm run test:all",
     "test:health": "node scripts/health-check.js",
-    "test:smoke": "node scripts/smoke-test.js"
+    "test:smoke": "node scripts/smoke-test.js",
+    "test:comprehensive": "./scripts/run-all-tests.sh",
+    "test:quick": "./scripts/run-all-tests.sh --skip-e2e --skip-mobile",
+    "test:backend-only": "./scripts/run-all-tests.sh --skip-frontend --skip-mobile --skip-e2e",
+    "test:frontend-only": "./scripts/run-all-tests.sh --skip-backend --skip-mobile --skip-e2e",
+    "test:mobile-only": "./scripts/run-all-tests.sh --skip-backend --skip-frontend --skip-e2e",
+    "test:security": "cd backend && npm run test:security",
+    "test:performance": "cd backend && npm run test:performance",
+    "test:load": "artillery run tests/load/load-test.yml",
+    "test:contract": "jest --testPathPattern=tests/api/contract",
+    "test:coverage:all": "npm run test:coverage && cd backend && npm run test:coverage",
+    "test:report": "npm run test:coverage:all && open coverage/lcov-report/index.html && open backend/coverage/lcov-report/index.html"
   },
   "eslintConfig": {
     "extends": [

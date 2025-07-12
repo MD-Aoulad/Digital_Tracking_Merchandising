@@ -20,12 +20,14 @@
 
 ### Key Features
 - **User Authentication & Authorization** - JWT-based secure authentication with role-based access control
+- **Enhanced Login System** - Demo login buttons and proper form validation with React Hook Form
 - **Todo Management** - Create, update, and track tasks with priority levels
 - **Report Generation** - Comprehensive reporting system with approval workflows
-- **Attendance Tracking** - GPS-based punch-in/out with photo verification
+- **Attendance Tracking** - GPS-based punch-in/out with workplace selection and photo verification
 - **Real-time Synchronization** - Data sync between web and mobile applications
 - **Admin Dashboard** - Administrative tools for user and data management
 - **API Documentation** - Interactive Swagger UI for API exploration
+- **Rate Limiting** - Optimized rate limits for development and production environments
 
 ### User Roles
 - **Admin** - Full system access and user management
@@ -144,7 +146,10 @@
 
 3. **Access the application**
    - Web app: http://localhost:3000
-   - Default credentials: admin@company.com / password
+   - Default credentials: 
+     - **Admin:** admin@company.com / password
+     - **Employee:** richard@company.com / password
+   - **Demo Login:** Use the quick demo login buttons on the login page
 
 ### Mobile App Setup
 
@@ -180,9 +185,13 @@ The Swagger UI provides:
 
 #### Authentication
 - `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
+- `POST /api/auth/login` - User login (supports demo credentials)
 - `GET /api/auth/profile` - Get user profile
 - `POST /api/auth/reset-password` - Reset password
+
+**Demo Credentials:**
+- Admin: admin@company.com / password
+- Employee: richard@company.com / password
 
 #### Todos
 - `GET /api/todos` - Get user todos
@@ -195,8 +204,14 @@ The Swagger UI provides:
 - `POST /api/reports` - Create report
 
 #### Attendance
-- `POST /api/attendance/punch-in` - Record punch in
+- `POST /api/attendance/punch-in` - Record punch in (requires workplace field)
 - `POST /api/attendance/punch-out` - Record punch out
+- `GET /api/attendance/history` - Get attendance history
+
+**Punch-in Requirements:**
+- `workplace` field is required (string)
+- `photo` field is optional (base64 encoded)
+- Available to all authenticated users regardless of role
 
 #### Admin (Admin only)
 - `GET /api/admin/users` - Get all users
@@ -393,9 +408,13 @@ src/
 
 ## 🔄 Recent Updates
 
-### Latest Features (v1.0.0)
+### Latest Features (v1.0.1)
 
 #### ✅ Completed Features
+- **Login System Fix** - Fixed demo login buttons and authentication flow
+- **Rate Limiting Optimization** - Increased limits for development environment
+- **Punch-in/Punch-out System** - Updated to require workplace selection
+- **TypeScript Error Resolution** - Fixed API response type mismatches
 - **Swagger UI Integration** - Interactive API documentation
 - **Comprehensive API Documentation** - Complete endpoint documentation
 - **Enhanced Security** - Rate limiting and security headers
@@ -417,11 +436,20 @@ src/
 - **Integration APIs** - Third-party service integration
 - **Advanced Security** - 2FA and audit logging
 
+### Recent Bug Fixes (v1.0.1)
+- **Fixed Login Demo Buttons** - Demo login now works properly with React Hook Form
+- **Resolved Rate Limiting Issues** - Increased development rate limits to 10,000 requests per 15 minutes
+- **Fixed TypeScript Errors** - Corrected API response types for todo endpoints
+- **Updated Attendance System** - Changed from 'location' to 'workplace' field requirement
+- **Improved Error Handling** - Better error messages for authentication failures
+
 ### Breaking Changes
-- None in current version
+- **Attendance API** - Changed `location` field to `workplace` in punch-in requests
+- **Todo API Response** - Updated response structure to match backend implementation
 
 ### Migration Guide
-- No migration required for v1.0.0
+- Update frontend code to use `workplace` instead of `location` for attendance
+- Ensure todo API calls expect `{ todos: Todo[] }` response format
 
 ## 🤝 Contributing
 
@@ -470,6 +498,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** January 2025  
-**Version:** 1.0.0  
+**Last Updated:** July 12, 2025  
+**Version:** 1.0.1  
 **Maintainer:** Workforce Management Team 
