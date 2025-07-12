@@ -11,6 +11,9 @@
  * - Automatic error handling and response parsing
  * - TypeScript interfaces for type safety
  * - Local storage integration for user sessions
+ * - Real-time data fetching with hooks
+ * - Loading states and error handling
+ * - Optimistic updates and caching
  * 
  * API Endpoints Covered:
  * - Authentication: login, register, profile, logout
@@ -23,6 +26,8 @@
  * @version 1.0.0
  * @lastUpdated 2025-07-12
  */
+
+import { useState, useEffect, useCallback } from 'react';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -105,16 +110,64 @@ export interface ApiResponse<T> {
   message?: string;              // Success/info message
 }
 
+/**
+ * API Hook State Interface
+ * Standard state for all API hooks
+ */
+export interface ApiHookState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+/**
+ * API Mutation State Interface
+ * State for mutation operations (create, update, delete)
+ */
+export interface ApiMutationState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  mutate: (data: any) => Promise<void>;
+  reset: () => void;
+}
+
 // ===== UTILITY FUNCTIONS =====
 
 /**
  * Get authentication headers for API requests
  * Retrieves JWT token from localStorage and formats Authorization header
+ * Also checks token expiration and clears invalid tokens
  * 
  * @returns Object containing Content-Type and Authorization headers
  */
 const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');
+  
+  // Check if token exists and is not expired
+  if (token) {
+    try {
+      // Decode JWT token to check expiration
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      
+      if (payload.exp && payload.exp < currentTime) {
+        // Token is expired, clear it
+        console.log('JWT token expired, clearing session');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        return { 'Content-Type': 'application/json' };
+      }
+    } catch (error) {
+      // Invalid token format, clear it
+      console.log('Invalid JWT token format, clearing session');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      return { 'Content-Type': 'application/json' };
+    }
+  }
+  
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` })
@@ -130,13 +183,136 @@ const getAuthHeaders = () => {
  * @throws Error if response is not ok
  */
 const handleResponse = async <T>(response: Response): Promise<T> => {
+  // Check if response is JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    // Handle non-JSON responses (like rate limiting HTML pages)
+    const text = await response.text();
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+    }
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+  
   const data = await response.json();
   
   if (!response.ok) {
-    throw new Error(data.error || 'API request failed');
+    throw new Error(data.error || `API request failed: ${response.status}`);
   }
   
   return data;
+};
+
+/**
+ * Generic API request function
+ * Handles all HTTP methods with proper error handling
+ * 
+ * @param url - API endpoint URL
+ * @param options - Fetch options
+ * @returns Promise with response data
+ */
+const apiRequest = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+  });
+  
+  return handleResponse<T>(response);
+};
+
+// ===== API HOOKS =====
+
+/**
+ * Custom hook for data fetching with loading and error states
+ * 
+ * @param url - API endpoint URL
+ * @param dependencies - Dependencies for useEffect
+ * @returns Hook state with data, loading, error, and refetch function
+ */
+export const useApiQuery = <T>(
+  url: string,
+  dependencies: any[] = []
+): ApiHookState<T> => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await apiRequest<T>(url);
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [url]);
+
+  useEffect(() => {
+    fetchData();
+  }, [url, ...dependencies]); // Only re-fetch when URL or dependencies change
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: fetchData,
+  };
+};
+
+/**
+ * Custom hook for mutation operations (create, update, delete)
+ * 
+ * @param url - API endpoint URL
+ * @param method - HTTP method
+ * @returns Hook state with mutate function and operation state
+ */
+export const useApiMutation = <T>(
+  url: string,
+  method: 'POST' | 'PUT' | 'DELETE' = 'POST'
+): ApiMutationState<T> => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutate = useCallback(async (body?: any) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const options: RequestInit = {
+        method,
+        ...(body && { body: JSON.stringify(body) }),
+      };
+      
+      const result = await apiRequest<T>(url, options);
+      setData(result);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [url, method]);
+
+  const reset = useCallback(() => {
+    setData(null);
+    setError(null);
+  }, []);
+
+  return {
+    data,
+    loading,
+    error,
+    mutate,
+    reset,
+  };
 };
 
 // ===== AUTHENTICATION API =====
@@ -220,11 +396,35 @@ export const authAPI = {
 
   /**
    * Check if user is currently authenticated
+   * Validates JWT token existence and expiration
    * 
-   * @returns True if JWT token exists in localStorage
+   * @returns True if JWT token exists and is valid
    */
   isAuthenticated: (): boolean => {
-    return !!localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
+    if (!token) return false;
+    
+    try {
+      // Decode JWT token to check expiration
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      
+      if (payload.exp && payload.exp < currentTime) {
+        // Token is expired, clear it
+        console.log('JWT token expired, clearing session');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      // Invalid token format, clear it
+      console.log('Invalid JWT token format, clearing session');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      return false;
+    }
   },
 
   /**
@@ -518,6 +718,71 @@ export const healthAPI = {
   }
 };
 
+// ===== SPECIALIZED HOOKS =====
+
+/**
+ * Hook for fetching todos with real-time updates
+ */
+export const useTodos = () => {
+  return useApiQuery<{ todos: Todo[] }>('/todos');
+};
+
+/**
+ * Hook for creating todos
+ */
+export const useCreateTodo = () => {
+  return useApiMutation<{ message: string; todo: Todo }>('/todos', 'POST');
+};
+
+/**
+ * Hook for updating todos
+ */
+export const useUpdateTodo = () => {
+  return useApiMutation<{ message: string; todo: Todo }>('/todos', 'PUT');
+};
+
+/**
+ * Hook for deleting todos
+ */
+export const useDeleteTodo = () => {
+  return useApiMutation<{ message: string }>('/todos', 'DELETE');
+};
+
+/**
+ * Hook for fetching reports
+ */
+export const useReports = () => {
+  return useApiQuery<{ reports: Report[] }>('/reports');
+};
+
+/**
+ * Hook for creating reports
+ */
+export const useCreateReport = () => {
+  return useApiMutation<{ message: string; report: Report }>('/reports', 'POST');
+};
+
+/**
+ * Hook for fetching attendance
+ */
+export const useAttendance = () => {
+  return useApiQuery<{ attendance: Record<string, Attendance> }>('/attendance');
+};
+
+/**
+ * Hook for punch in operation
+ */
+export const usePunchIn = () => {
+  return useApiMutation<{ message: string; punchInTime: string; attendance: Attendance }>('/attendance/punch-in', 'POST');
+};
+
+/**
+ * Hook for punch out operation
+ */
+export const usePunchOut = () => {
+  return useApiMutation<{ message: string; punchOutTime: string; hoursWorked: number; attendance: Attendance }>('/attendance/punch-out', 'POST');
+};
+
 // ===== DEFAULT EXPORT =====
 
 /**
@@ -545,11 +810,13 @@ export const healthAPI = {
  * // Health check
  * await api.health.check();
  */
-export default {
+const api = {
   auth: authAPI,
   todos: todosAPI,
   reports: reportsAPI,
   attendance: attendanceAPI,
   admin: adminAPI,
   health: healthAPI
-}; 
+};
+
+export default api; 

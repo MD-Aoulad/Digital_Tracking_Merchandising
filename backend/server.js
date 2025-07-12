@@ -65,7 +65,7 @@ app.use(cors({
 // Rate limiting middleware - prevents API abuse
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes time window
-  max: 100 // Maximum 100 requests per IP per time window
+  max: 1000 // Increased for development - Maximum 1000 requests per IP per time window
 });
 app.use(limiter);
 
