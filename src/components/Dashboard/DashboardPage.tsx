@@ -14,14 +14,13 @@ import {
   Clock, 
   Calendar, 
   CheckSquare, 
-  TrendingUp, 
-  AlertCircle,
   Plus,
   Download,
   Bell
 } from 'lucide-react';
 import { t } from '../../lib/i18n';
 import { useLanguageChange } from '../../lib/i18n-hooks';
+import SessionTimeoutTest from '../common/SessionTimeoutTest';
 
 /**
  * Dashboard Page Component
@@ -215,23 +214,29 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* System Status */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="h-3 w-3 rounded-full bg-green-400"></div>
-            <span className="text-sm text-gray-700">Attendance System</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="h-3 w-3 rounded-full bg-green-400"></div>
-            <span className="text-sm text-gray-700">Database</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="h-3 w-3 rounded-full bg-yellow-400"></div>
-            <span className="text-sm text-gray-700">API Services</span>
+      {/* System Status and Session Test */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* System Status */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="h-3 w-3 rounded-full bg-green-400"></div>
+              <span className="text-sm text-gray-700">Attendance System</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="h-3 w-3 rounded-full bg-green-400"></div>
+              <span className="text-sm text-gray-700">Database</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="h-3 w-3 rounded-full bg-yellow-400"></div>
+              <span className="text-sm text-gray-700">API Services</span>
+            </div>
           </div>
         </div>
+
+        {/* Session Timeout Test */}
+        <SessionTimeoutTest />
       </div>
     </div>
   );

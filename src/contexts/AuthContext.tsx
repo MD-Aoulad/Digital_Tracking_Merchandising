@@ -9,12 +9,14 @@
  * - Role-based access control (RBAC)
  * - Permission checking for UI components
  * - Backend API integration
+ * - Session timeout management (30 minutes inactivity)
+ * - Automatic logout on inactivity
  * 
  * @author Workforce Management Team
  * @version 1.0.0
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole } from '../types';
 import { authAPI, User as ApiUser } from '../services/api';
 
@@ -31,10 +33,16 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;  // Permission checker
   error: string | null;                 // Error message
   clearError: () => void;               // Clear error message
+  sessionTimeout: number;               // Session timeout in minutes
+  resetSessionTimer: () => void;        // Reset session timer
 }
 
 // Create the authentication context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Session timeout configuration (30 minutes)
+const SESSION_TIMEOUT_MINUTES = 30;
+const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_MINUTES * 60 * 1000;
 
 /**
  * Role-Based Permission Mapping
@@ -131,6 +139,74 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionTimeout] = useState<number>(SESSION_TIMEOUT_MINUTES);
+  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
+
+  /**
+   * Logout function - clears user state and redirects to login
+   */
+  const logout = useCallback(() => {
+    console.log('Logging out user...');
+    setUser(null);
+    setError(null);
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+      setSessionTimer(null);
+    }
+    authAPI.logout();
+    
+    // Force redirect to login page
+    window.location.href = '/login';
+  }, [sessionTimer]);
+
+  /**
+   * Start session timeout timer
+   */
+  const startSessionTimer = useCallback(() => {
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+    }
+    
+    const timer = setTimeout(() => {
+      // Session expired - auto logout
+      console.log('Session expired due to inactivity. Auto-logout initiated.');
+      logout();
+    }, SESSION_TIMEOUT_MS);
+    
+    setSessionTimer(timer);
+  }, [sessionTimer, logout]);
+
+  /**
+   * Reset session timer on user activity
+   */
+  const resetSessionTimer = useCallback(() => {
+    if (user) {
+      startSessionTimer();
+    }
+  }, [user, startSessionTimer]);
+
+  /**
+   * Handle user activity events
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const handleActivity = () => {
+      resetSessionTimer();
+    };
+
+    activityEvents.forEach(event => {
+      document.addEventListener(event, handleActivity, true);
+    });
+
+    return () => {
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+    };
+  }, [user, resetSessionTimer]);
 
   /**
    * Initialize authentication state on component mount
@@ -144,16 +220,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const profile = await authAPI.getProfile();
           const appUser = convertApiUserToAppUser(profile.user);
           setUser(appUser);
-        } else {
-          // Auto-login as admin for development/demo if no session exists
-          try {
-            const loginResult = await authAPI.login('admin@company.com', 'password');
-            const appUser = convertApiUserToAppUser(loginResult.user);
-            setUser(appUser);
-          } catch (error) {
-            console.log('Auto-login failed, user needs to login manually');
-          }
+          startSessionTimer(); // Start session timer for existing session
         }
+        // Removed auto-login - users must now login manually
       } catch (error) {
         console.error('Authentication initialization failed:', error);
         // Clear invalid session
@@ -164,7 +233,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initializeAuth();
-  }, []);
+  }, [startSessionTimer]);
 
   /**
    * Authenticate user with email and password
@@ -181,6 +250,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const loginResult = await authAPI.login(email, password);
       const appUser = convertApiUserToAppUser(loginResult.user);
       setUser(appUser);
+      startSessionTimer(); // Start session timer after successful login
       setIsLoading(false);
       return true;
     } catch (error) {
@@ -189,16 +259,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
       return false;
     }
-  };
-
-  /**
-   * Logout current user and clear session
-   * Removes user data from state and localStorage
-   */
-  const logout = () => {
-    setUser(null);
-    setError(null);
-    authAPI.logout();
   };
 
   /**
@@ -227,7 +287,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading,
     hasPermission,
     error,
-    clearError
+    clearError,
+    sessionTimeout,
+    resetSessionTimer
   };
 
   return (
