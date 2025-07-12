@@ -2,17 +2,11 @@ import React, { useState } from 'react';
 import { 
   Users, 
   Building2, 
-  Star, 
-  StarOff, 
   Plus, 
   Settings, 
   BarChart3,
   Search,
   Filter,
-  ChevronDown,
-  ChevronRight,
-  UserPlus,
-  UserMinus,
   Crown,
   MapPin
 } from 'lucide-react';

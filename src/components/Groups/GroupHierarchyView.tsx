@@ -7,7 +7,6 @@ import {
   Star, 
   StarOff,
   UserPlus,
-  UserMinus,
   Settings,
   Eye,
   Building2

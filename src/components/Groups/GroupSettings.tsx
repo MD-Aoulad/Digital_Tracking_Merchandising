@@ -2,15 +2,10 @@ import React, { useState } from 'react';
 import { 
   Settings, 
   Users, 
-  Crown, 
-  Building2, 
   Bell, 
   Save,
   Shield,
-  Lock,
-  Unlock,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
 import { GroupManagementSettings } from '../../types';
 

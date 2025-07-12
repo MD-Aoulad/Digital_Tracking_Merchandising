@@ -1,0 +1,982 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Digital Tracking Merchandising API",
+    "version": "1.0.0",
+    "description": "Comprehensive API documentation for the Digital Tracking Merchandising backend. This API provides workforce management functionality including user authentication, todo management, report generation, attendance tracking, and administrative features.",
+    "contact": {
+      "name": "Workforce Management Team",
+      "email": "support@company.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    { 
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token obtained from login endpoint"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Unique user identifier" },
+          "email": { "type": "string", "format": "email", "description": "User's email address" },
+          "name": { "type": "string", "description": "User's full name" },
+          "role": { 
+            "type": "string", 
+            "enum": ["admin", "employee", "leader"],
+            "description": "User's role in the system"
+          },
+          "department": { "type": "string", "description": "User's department" },
+          "status": { 
+            "type": "string", 
+            "enum": ["active", "inactive"],
+            "description": "User account status"
+          },
+          "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" }
+        }
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Unique todo identifier" },
+          "title": { "type": "string", "description": "Todo title" },
+          "description": { "type": "string", "description": "Todo description" },
+          "priority": { 
+            "type": "string", 
+            "enum": ["low", "medium", "high"],
+            "description": "Todo priority level"
+          },
+          "completed": { "type": "boolean", "description": "Completion status" },
+          "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+          "completedAt": { "type": "string", "format": "date-time", "description": "Completion timestamp" },
+          "userId": { "type": "string", "description": "Owner user ID" }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Unique report identifier" },
+          "title": { "type": "string", "description": "Report title" },
+          "type": { 
+            "type": "string", 
+            "enum": ["daily", "weekly", "monthly", "incident"],
+            "description": "Report type"
+          },
+          "content": { "type": "string", "description": "Report content" },
+          "status": { 
+            "type": "string", 
+            "enum": ["pending", "approved", "rejected"],
+            "description": "Report approval status"
+          },
+          "submittedAt": { "type": "string", "format": "date-time", "description": "Submission timestamp" },
+          "userId": { "type": "string", "description": "Author user ID" }
+        }
+      },
+      "Attendance": {
+        "type": "object",
+        "properties": {
+          "punchIn": { "type": "string", "format": "date-time", "description": "Punch in timestamp" },
+          "punchOut": { "type": "string", "format": "date-time", "description": "Punch out timestamp" },
+          "location": { "type": "string", "description": "Punch in location" },
+          "endLocation": { "type": "string", "description": "Punch out location" },
+          "photo": { "type": "string", "description": "Punch in photo data" },
+          "hoursWorked": { "type": "number", "description": "Total hours worked" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "description": "Error message" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Returns API health status and server information. Used to verify the API server is running and responsive.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy and running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "message": { "type": "string", "example": "Workforce Management API is running" },
+                    "timestamp": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register New User",
+        "description": "Creates a new user account with hashed password and returns JWT token for immediate authentication.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name"],
+                "properties": {
+                  "email": { 
+                    "type": "string", 
+                    "format": "email",
+                    "description": "User's email address"
+                  },
+                  "password": { 
+                    "type": "string", 
+                    "minLength": 6,
+                    "description": "User's password (minimum 6 characters)"
+                  },
+                  "name": { 
+                    "type": "string",
+                    "description": "User's full name"
+                  },
+                  "role": { 
+                    "type": "string", 
+                    "enum": ["admin", "employee", "leader"],
+                    "default": "employee",
+                    "description": "User's role in the system"
+                  },
+                  "department": { 
+                    "type": "string",
+                    "description": "User's department"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "user": { "$ref": "#/components/schemas/User" },
+                    "token": { "type": "string", "description": "JWT authentication token" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields or invalid password",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "User already exists",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "User Login",
+        "description": "Authenticates user credentials and returns JWT token for API access.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { 
+                    "type": "string", 
+                    "format": "email",
+                    "description": "User's email address"
+                  },
+                  "password": { 
+                    "type": "string",
+                    "description": "User's password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "user": { "$ref": "#/components/schemas/User" },
+                    "token": { "type": "string", "description": "JWT authentication token" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email or password",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Account deactivated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "summary": "Get User Profile",
+        "description": "Returns the authenticated user's profile information.",
+        "tags": ["Authentication"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "User profile data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": { "$ref": "#/components/schemas/User" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "summary": "Reset Password",
+        "description": "Resets user password by email address.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "newPassword"],
+                "properties": {
+                  "email": { 
+                    "type": "string", 
+                    "format": "email",
+                    "description": "User's email address"
+                  },
+                  "newPassword": { 
+                    "type": "string", 
+                    "minLength": 6,
+                    "description": "New password (minimum 6 characters)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing fields or invalid password",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos": {
+      "get": {
+        "summary": "Get User Todos",
+        "description": "Returns all todos belonging to the authenticated user.",
+        "tags": ["Todos"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of user's todos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "todos": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Todo" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Todo",
+        "description": "Creates a new todo item for the authenticated user.",
+        "tags": ["Todos"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": { 
+                    "type": "string",
+                    "description": "Todo title"
+                  },
+                  "description": { 
+                    "type": "string",
+                    "description": "Todo description"
+                  },
+                  "priority": { 
+                    "type": "string", 
+                    "enum": ["low", "medium", "high"],
+                    "default": "medium",
+                    "description": "Todo priority level"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Todo created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "todo": { "$ref": "#/components/schemas/Todo" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required title",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos/{id}": {
+      "put": {
+        "summary": "Update Todo",
+        "description": "Updates an existing todo item. Only the todo owner can update it.",
+        "tags": ["Todos"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Todo ID",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "priority": { 
+                    "type": "string", 
+                    "enum": ["low", "medium", "high"]
+                  },
+                  "completed": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "todo": { "$ref": "#/components/schemas/Todo" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Todo not found or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Todo",
+        "description": "Permanently removes a todo item. Only the todo owner can delete it.",
+        "tags": ["Todos"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Todo ID",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Todo not found or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports": {
+      "get": {
+        "summary": "Get User Reports",
+        "description": "Returns all reports belonging to the authenticated user.",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of user's reports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reports": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Report" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Report",
+        "description": "Creates a new report for the authenticated user.",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "title": { 
+                    "type": "string",
+                    "description": "Report title"
+                  },
+                  "type": { 
+                    "type": "string", 
+                    "enum": ["daily", "weekly", "monthly", "incident"],
+                    "default": "daily",
+                    "description": "Report type"
+                  },
+                  "content": { 
+                    "type": "string",
+                    "description": "Report content"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "report": { "$ref": "#/components/schemas/Report" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance/punch-in": {
+      "post": {
+        "summary": "Punch In",
+        "description": "Records employee punch in with location and optional photo.",
+        "tags": ["Attendance"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["location"],
+                "properties": {
+                  "location": { 
+                    "type": "string",
+                    "description": "Punch in location"
+                  },
+                  "photo": { 
+                    "type": "string",
+                    "description": "Base64 encoded photo data"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Punch in recorded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "punchInTime": { "type": "string", "format": "date-time" },
+                    "attendance": { "$ref": "#/components/schemas/Attendance" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Already punched in today",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance/punch-out": {
+      "post": {
+        "summary": "Punch Out",
+        "description": "Records employee punch out with location and calculates hours worked.",
+        "tags": ["Attendance"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["location"],
+                "properties": {
+                  "location": { 
+                    "type": "string",
+                    "description": "Punch out location"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Punch out recorded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "punchOutTime": { "type": "string", "format": "date-time" },
+                    "hoursWorked": { "type": "number" },
+                    "attendance": { "$ref": "#/components/schemas/Attendance" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Must punch in before punching out",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "summary": "Get All Users (Admin Only)",
+        "description": "Returns all users in the system. Admin access required.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of all users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/User" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin access required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/todos": {
+      "get": {
+        "summary": "Get All Todos (Admin Only)",
+        "description": "Returns all todos in the system. Admin access required.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of all todos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "todos": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Todo" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin access required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reports": {
+      "get": {
+        "summary": "Get All Reports (Admin Only)",
+        "description": "Returns all reports in the system. Admin access required.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of all reports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reports": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Report" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin access required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/attendance": {
+      "get": {
+        "summary": "Get All Attendance Data (Admin Only)",
+        "description": "Returns all attendance data in the system. Admin access required.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "All attendance data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "attendance": {
+                      "type": "object",
+                      "description": "Attendance data organized by user ID and date"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin access required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} 

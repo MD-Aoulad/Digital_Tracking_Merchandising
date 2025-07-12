@@ -16,24 +16,19 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import {  } from 'framer-motion';
 import {
   Calendar,
   Clock,
-  User,
   FileText,
   Plus,
   CheckCircle,
   XCircle,
   AlertCircle,
-  Download,
-  Filter,
   Search,
-  Edit,
   Trash2,
-  Eye,
-  Send,
-  Archive
+  Eye
+  
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LeaveRequest, LeaveType, LeaveBalance } from '../../types';

@@ -19,19 +19,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Clock, 
-  MapPin, 
-  User, 
-  Calendar, 
+  MapPin,
   Search, 
   Filter, 
   Download, 
   Eye, 
   Edit, 
   Trash2,
-  BarChart3,
   FileText,
-  Camera,
   Navigation
 } from 'lucide-react';
 import type { 

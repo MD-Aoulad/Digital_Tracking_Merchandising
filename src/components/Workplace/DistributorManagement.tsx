@@ -4,7 +4,6 @@ import {
   Pencil, 
   Trash2,
   Building2,
-  Info,
   Image
 } from 'lucide-react';
 import { Distributor, DistributorChannel } from '../../types';

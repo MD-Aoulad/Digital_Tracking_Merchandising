@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TodoSettings, UserRole } from '../../types';
+import { TodoSettings } from '../../types';
 
 interface TodoSettingsProps {
   settings: TodoSettings;

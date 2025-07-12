@@ -12,6 +12,7 @@ interface TodoPageProps {
 const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
   const [activeTab, setActiveTab] = useState<'tasks' | 'templates' | 'settings'>('tasks');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [rateLimitRetry, setRateLimitRetry] = useState(false);
 
   // API hooks for real data
   const { data: todosData, loading: todosLoading, error: todosError, refetch: refetchTodos } = useTodos();
@@ -19,10 +20,16 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
   // Add retry mechanism for rate limiting
   const handleRetry = () => {
     if (todosError?.includes('Rate limit exceeded')) {
-      toast.success('Retrying after rate limit...');
-      setTimeout(() => {
-        refetchTodos();
-      }, 2000); // Wait 2 seconds before retrying
+      if (!rateLimitRetry) {
+        setRateLimitRetry(true);
+        toast.success('Retrying after rate limit... Please wait 1 minute.');
+        setTimeout(() => {
+          refetchTodos();
+          setRateLimitRetry(false);
+        }, 60000); // Wait 60 seconds before retrying
+      } else {
+        toast.error('Please wait before retrying again.');
+      }
     } else {
       refetchTodos();
     }

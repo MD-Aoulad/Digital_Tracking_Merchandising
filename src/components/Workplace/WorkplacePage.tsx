@@ -4,8 +4,6 @@ import {
   MapPin, 
   Settings,
   Plus,
-  Search,
-  Filter,
   FileText,
   Info
 } from 'lucide-react';

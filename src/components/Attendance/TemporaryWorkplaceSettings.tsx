@@ -24,12 +24,11 @@ import {
   Camera, 
   FileText, 
   Save, 
-  X,
-  Check,
-  AlertCircle
+  X
+  
 } from 'lucide-react';
 import { 
-  User, 
+   
   UserRole 
 } from '../../types';
 import type { TemporaryWorkplaceSettings } from '../../types';

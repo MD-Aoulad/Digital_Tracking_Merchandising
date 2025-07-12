@@ -44,6 +44,8 @@ const { v4: uuidv4 } = require('uuid');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -71,6 +73,9 @@ app.use(limiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve Swagger UI at /api/docs
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ===== IN-MEMORY DATA STORAGE (Replace with database in production) =====
 let users = [
@@ -566,9 +571,21 @@ app.delete('/api/todos/:id', authenticateToken, (req, res) => {
 
 // ===== REPORT ROUTES =====
 
-// Get all reports for a user
+/**
+ * Get all reports for authenticated user
+ * Returns list of reports belonging to the current user
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Array of user's reports
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
 app.get('/api/reports', authenticateToken, (req, res) => {
   try {
+    // Filter reports to only show current user's reports
     const userReports = reports.filter(report => report.userId === req.user.id);
     res.json({ reports: userReports });
   } catch (error) {
@@ -577,15 +594,34 @@ app.get('/api/reports', authenticateToken, (req, res) => {
   }
 });
 
-// Create new report
+/**
+ * Create new report for authenticated user
+ * Creates a new report with the provided details
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Request Body:
+ * - title: Report title (required)
+ * - type: Report type ('daily', 'weekly', 'monthly', 'incident', default: 'daily')
+ * - content: Report content (required)
+ * 
+ * Response:
+ * - 201: Report created successfully
+ * - 400: Missing required fields
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
 app.post('/api/reports', authenticateToken, (req, res) => {
   try {
     const { title, type, content } = req.body;
 
+    // Validate required fields
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
     }
 
+    // Create new report object
     const newReport = {
       id: uuidv4(),
       title,
@@ -609,9 +645,30 @@ app.post('/api/reports', authenticateToken, (req, res) => {
   }
 });
 
-// Update report status (admin only)
+/**
+ * Update report status (admin only)
+ * Updates the approval status of a report with optional comments
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * URL Parameters:
+ * - id: Report ID to update (required)
+ * 
+ * Request Body:
+ * - status: New status ('pending', 'approved', 'rejected')
+ * - comments: Review comments (optional)
+ * 
+ * Response:
+ * - 200: Report status updated successfully
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 404: Report not found
+ * - 500: Internal server error
+ */
 app.put('/api/reports/:id/status', authenticateToken, (req, res) => {
   try {
+    // Check if user has admin role
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -619,11 +676,13 @@ app.put('/api/reports/:id/status', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { status, comments } = req.body;
 
+    // Find report by ID
     const reportIndex = reports.findIndex(report => report.id === id);
     if (reportIndex === -1) {
       return res.status(404).json({ error: 'Report not found' });
     }
 
+    // Update report with new status and review information
     const updatedReport = {
       ...reports[reportIndex],
       status: status || reports[reportIndex].status,
@@ -632,6 +691,7 @@ app.put('/api/reports/:id/status', authenticateToken, (req, res) => {
       comments: comments || reports[reportIndex].comments
     };
 
+    // Save updated report
     reports[reportIndex] = updatedReport;
     res.json({ 
       message: 'Report status updated successfully',
@@ -646,9 +706,21 @@ app.put('/api/reports/:id/status', authenticateToken, (req, res) => {
 
 // ===== ATTENDANCE ROUTES =====
 
-// Get attendance data for a user
+/**
+ * Get attendance data for authenticated user
+ * Returns all attendance records for the current user
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: User's attendance data organized by date
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
 app.get('/api/attendance', authenticateToken, (req, res) => {
   try {
+    // Get attendance data for current user (empty object if no data)
     const userAttendance = attendanceData[req.user.id] || {};
     res.json({ attendance: userAttendance });
   } catch (error) {
@@ -657,7 +729,23 @@ app.get('/api/attendance', authenticateToken, (req, res) => {
   }
 });
 
-// Record punch in
+/**
+ * Record punch in for authenticated user
+ * Records employee punch in with location and optional photo
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Request Body:
+ * - location: Punch in location (required)
+ * - photo: Base64 encoded photo data (optional)
+ * 
+ * Response:
+ * - 200: Punch in recorded successfully
+ * - 400: Already punched in today
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
 app.post('/api/attendance/punch-in', authenticateToken, (req, res) => {
   try {
     const { location, photo } = req.body;
@@ -694,7 +782,22 @@ app.post('/api/attendance/punch-in', authenticateToken, (req, res) => {
   }
 });
 
-// Record punch out
+/**
+ * Record punch out for authenticated user
+ * Records employee punch out with location and calculates hours worked
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Request Body:
+ * - location: Punch out location (required)
+ * 
+ * Response:
+ * - 200: Punch out recorded successfully with hours worked
+ * - 400: Must punch in before punching out
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
 app.post('/api/attendance/punch-out', authenticateToken, (req, res) => {
   try {
     const { location } = req.body;
@@ -702,13 +805,16 @@ app.post('/api/attendance/punch-out', authenticateToken, (req, res) => {
     const now = new Date();
     const today = now.toDateString();
 
+    // Check if user has punched in today
     if (!attendanceData[userId] || !attendanceData[userId][today] || !attendanceData[userId][today].punchIn) {
       return res.status(400).json({ error: 'Must punch in before punching out' });
     }
 
+    // Calculate hours worked
     const punchInTime = new Date(attendanceData[userId][today].punchIn);
     const hoursWorked = (now - punchInTime) / (1000 * 60 * 60);
 
+    // Record punch out data
     attendanceData[userId][today].punchOut = now.toISOString();
     attendanceData[userId][today].endLocation = location;
     attendanceData[userId][today].hoursWorked = Math.round(hoursWorked * 100) / 100;
@@ -727,7 +833,21 @@ app.post('/api/attendance/punch-out', authenticateToken, (req, res) => {
 });
 
 // ===== PASSWORD RESET ROUTE =====
-// Reset password by email
+
+/**
+ * Reset user password by email
+ * Allows users to reset their password using email verification
+ * 
+ * Request Body:
+ * - email: User's email address (required)
+ * - newPassword: New password, minimum 6 characters (required)
+ * 
+ * Response:
+ * - 200: Password reset successful
+ * - 400: Missing fields or invalid password
+ * - 404: User not found
+ * - 500: Internal server error
+ */
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { email, newPassword } = req.body;
@@ -751,13 +871,27 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 // ===== ADMIN ROUTES =====
 
-// Get all users (admin only)
+/**
+ * Get all users (admin only)
+ * Returns list of all users in the system without password fields
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: Array of all users (without passwords)
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
 app.get('/api/admin/users', authenticateToken, (req, res) => {
   try {
+    // Check if user has admin role
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
+    // Return users without password fields for security
     const usersWithoutPasswords = users.map(user => {
       const { password, ...userWithoutPassword } = user;
       return userWithoutPassword;
@@ -770,9 +904,22 @@ app.get('/api/admin/users', authenticateToken, (req, res) => {
   }
 });
 
-// Get all todos (admin only)
+/**
+ * Get all todos (admin only)
+ * Returns list of all todos in the system for administrative review
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: Array of all todos
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
 app.get('/api/admin/todos', authenticateToken, (req, res) => {
   try {
+    // Check if user has admin role
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -784,9 +931,22 @@ app.get('/api/admin/todos', authenticateToken, (req, res) => {
   }
 });
 
-// Get all reports (admin only)
+/**
+ * Get all reports (admin only)
+ * Returns list of all reports in the system for administrative review
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: Array of all reports
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
 app.get('/api/admin/reports', authenticateToken, (req, res) => {
   try {
+    // Check if user has admin role
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -798,9 +958,22 @@ app.get('/api/admin/reports', authenticateToken, (req, res) => {
   }
 });
 
-// Get all attendance data (admin only)
+/**
+ * Get all attendance data (admin only)
+ * Returns all attendance records in the system for administrative review
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: All attendance data organized by user ID and date
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
 app.get('/api/admin/attendance', authenticateToken, (req, res) => {
   try {
+    // Check if user has admin role
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -813,12 +986,30 @@ app.get('/api/admin/attendance', authenticateToken, (req, res) => {
 });
 
 // ===== ERROR HANDLING =====
+
+/**
+ * Global error handling middleware
+ * Catches any unhandled errors and returns a generic error response
+ * Logs the full error stack for debugging purposes
+ * 
+ * @param {Error} err - The error object
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// 404 handler
+/**
+ * 404 route handler
+ * Catches all unmatched routes and returns a 404 error
+ * This should be the last middleware in the stack
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });

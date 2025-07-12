@@ -66,7 +66,7 @@ import {
   FaceVerificationSettings,
   TemporaryWorkplaceRecord,
   ReusableTemporaryWorkplace,
-  TemporaryWorkplaceStats
+
 } from '../../types';
 import type { TemporaryWorkplaceSettings, ScheduledWorkdaysSettings } from '../../types';
 import FaceVerification from './FaceVerification';
@@ -126,7 +126,6 @@ const AttendancePage: React.FC = () => {
   
   // Shift management
   const [currentShift, setCurrentShift] = useState<WorkShift | null>(null);
-  const [availableShifts, setAvailableShifts] = useState<WorkShift[]>([]);
   
   // Geofencing
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -323,7 +322,6 @@ const AttendancePage: React.FC = () => {
         isActive: true
       }
     ];
-    setAvailableShifts(mockShifts);
     setCurrentShift(mockShifts[0]);
 
     // Mock geofence zones

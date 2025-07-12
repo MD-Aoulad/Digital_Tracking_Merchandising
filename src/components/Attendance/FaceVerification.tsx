@@ -27,13 +27,7 @@ import {
   Camera,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  RefreshCw,
-  User,
   Shield,
-  Eye,
-  EyeOff,
-  RotateCcw,
   Loader2,
   Info
 } from 'lucide-react';
@@ -41,7 +35,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   FaceVerificationSession, 
   FaceVerificationAttempt,
-  FaceImage,
   FaceVerificationSettings 
 } from '../../types';
 import toast from 'react-hot-toast';

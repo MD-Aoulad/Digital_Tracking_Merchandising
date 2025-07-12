@@ -199,11 +199,11 @@ const CompanyInfo: React.FC<CompanyInfoProps> = ({ userRole = MemberRole.ADMIN }
     }
 
     // Phone validation
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (formData.phone && !phoneRegex.test(formData.phone.replace(/[\s\-\(\)]/g, ''))) {
+    const phoneRegex = /^[+]?[1-9][\d]{0,15}$/;
+    if (formData.phone && !phoneRegex.test(formData.phone.replace(/[\s\-()]/g, ''))) {
       newErrors.phone = 'Please enter a valid phone number';
     }
-    if (formData.personInChargePhone && !phoneRegex.test(formData.personInChargePhone.replace(/[\s\-\(\)]/g, ''))) {
+    if (formData.personInChargePhone && !phoneRegex.test(formData.personInChargePhone.replace(/[\s\-()]/g, ''))) {
       newErrors.personInChargePhone = 'Please enter a valid phone number';
     }
 

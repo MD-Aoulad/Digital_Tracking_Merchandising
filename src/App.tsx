@@ -9,13 +9,15 @@
  * - Responsive sidebar navigation
  * - Protected routes for admin-only features
  * - Integration with all major platform modules
+ * - Real authentication with protected routes
+ * - Loading states and error handling
  * 
  * @author Workforce Management Team
  * @version 1.0.0
  */
 
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Clock, 
@@ -34,12 +36,7 @@ import {
   CheckSquare,
   Route as RouteIcon,
   Shield,
-  BarChart3,
-  MessageSquare,
-  FileSpreadsheet,
-  ClipboardList,
-  HelpCircle,
-  Zap
+  ClipboardList
 } from 'lucide-react';
 
 // Import all page components
@@ -59,15 +56,17 @@ import GroupPage from './components/Groups/GroupPage';
 import PostingBoardPage from './components/PostingBoard/PostingBoardPage';
 import ReportPage from './components/Report/ReportPage';
 import ComingSoonPage from './components/ComingSoonPage';
+import Login from './pages/Login';
 
 // Import type definitions
 import { UserRole, MemberRole } from './types';
 
-// Import AuthProvider
-import { AuthProvider } from './contexts/AuthContext';
+// Import AuthProvider and useAuth
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { t } from './lib/i18n';
 import { useLanguageChange } from './lib/i18n-hooks';
 import LanguageSelector from './components/LanguageSelector';
+import SessionTimeoutWarning from './components/common/SessionTimeoutWarning';
 
 /**
  * Navigation item interface for sidebar menu
@@ -82,6 +81,38 @@ interface NavItem {
 }
 
 /**
+ * Protected Route Component
+ * Wraps routes that require authentication
+ */
+const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: UserRole }> = ({ 
+  children, 
+  requiredRole 
+}) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+/**
  * Navigation component that handles the sidebar
  */
 function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogout }: {
@@ -91,8 +122,8 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
   handleLogout: () => void;
 }) {
   const location = useLocation();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const currentLocale = useLanguageChange(); // This will trigger re-renders when language changes
+  // This will trigger re-renders when language changes
+  useLanguageChange();
   
   /**
    * Navigation items configuration
@@ -234,12 +265,6 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
               {currentUser?.role || 'No Role'}
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="ml-3 flex-shrink-0 text-gray-400 hover:text-gray-500"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
         </div>
       </div>
     </nav>
@@ -247,98 +272,232 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
 }
 
 /**
- * Main App component
+ * Main App Layout Component
+ * Handles the authenticated user interface
  */
-function App() {
+function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentUser] = useState({
-    id: 1,
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: UserRole.ADMIN
-  });
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
   const handleLogout = () => {
-    // Handle logout logic here
-    console.log('Logout clicked');
+    logout();
+  };
+
+  const handleLogoClick = () => {
+    navigate('/'); // Navigate to dashboard (home page)
   };
 
   return (
-    <AuthProvider>
-      <Router>
-        <div className="h-screen flex overflow-hidden bg-gray-100">
-          {/* Sidebar */}
-          <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:translate-x-0 lg:static lg:inset-0`}>
-            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Workforce Management
-              </h1>
-              <button
-                onClick={handleSidebarToggle}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <Navigation
-              currentUser={currentUser}
-              sidebarOpen={sidebarOpen}
-              handleSidebarToggle={handleSidebarToggle}
-              handleLogout={handleLogout}
-            />
+    <div className="h-screen flex overflow-hidden bg-gray-100">
+      {/* Session Timeout Warning */}
+      <SessionTimeoutWarning />
+      
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0 lg:static lg:inset-0`}>
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+          <div className="flex items-center">
+            <h1 className="text-lg font-semibold text-gray-900">Navigation</h1>
           </div>
+          <button
+            onClick={handleSidebarToggle}
+            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        <Navigation
+          currentUser={user}
+          sidebarOpen={sidebarOpen}
+          handleSidebarToggle={handleSidebarToggle}
+          handleLogout={handleLogout}
+        />
+      </div>
 
-          {/* Main content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top bar */}
-            <div className="flex items-center justify-between h-16 bg-white shadow-sm px-4 lg:px-6">
-              <button
-                onClick={handleSidebarToggle}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-              >
-                <Menu className="h-6 w-6" />
-              </button>
-              
-              <div className="flex-1 flex items-center justify-center lg:justify-end space-x-4">
-                <LanguageSelector />
-                <button className="p-2 text-gray-400 hover:text-gray-500">
-                  <Bell className="h-6 w-6" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-gray-500">
-                  <Search className="h-6 w-6" />
-                </button>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar */}
+        <div className="flex items-center justify-between h-16 bg-white shadow-sm px-4 lg:px-6">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleSidebarToggle}
+              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            
+            {/* Single Logo - Clickable for navigation */}
+            <button
+              onClick={handleLogoClick}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-sm">
+                <span className="text-white font-bold text-lg">WM</span>
               </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold text-gray-900 leading-tight">Workforce</h1>
+                <p className="text-xs text-gray-500 leading-tight">Management</p>
+              </div>
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <LanguageSelector />
+            
+            {/* Notifications */}
+            <button className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-50 rounded-lg transition-colors relative">
+              <Bell className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            
+            {/* Search */}
+            <button className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-50 rounded-lg transition-colors">
+              <Search className="h-5 w-5" />
+            </button>
+            
+            {/* User Profile */}
+            <div className="flex items-center space-x-3 pl-3 border-l border-gray-200">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center shadow-sm">
+                  <span className="text-white font-medium text-sm">
+                    {user?.name?.charAt(0) || 'U'}
+                  </span>
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                  <p className="text-xs text-gray-500">{user?.role}</p>
+                </div>
+              </div>
+              
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors border border-red-200 hover:border-red-300"
+                aria-label="Logout"
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:block text-sm font-medium">Logout</span>
+              </button>
             </div>
-
-            {/* Page content */}
-            <main className="flex-1 overflow-y-auto">
-              <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/attendance" element={<AttendancePage />} />
-                <Route path="/schedule" element={<SchedulePage />} />
-                <Route path="/leave" element={<LeavePage />} />
-                <Route path="/grant-leave" element={<GrantLeavePage />} />
-                <Route path="/journey" element={<JourneyPlanPage />} />
-                <Route path="/journey/settings" element={<JourneyPlanSettings />} />
-                <Route path="/todo" element={<TodoPage userRole={currentUser.role} />} />
-                <Route path="/reports" element={<ReportPage />} />
-                <Route path="/members" element={<MembersPage userRole={currentUser.role} />} />
-                <Route path="/groups" element={<GroupPage />} />
-                <Route path="/workplace" element={<WorkplacePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/admin" element={<AdminTab currentUserRole={currentUser.role as any} />} />
-                <Route path="/posting-board" element={<PostingBoardPage userRole={currentUser.role} />} />
-                <Route path="*" element={<ComingSoonPage feature="coming soon" />} />
-              </Routes>
-            </main>
           </div>
         </div>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto">
+          <Routes>
+            <Route path="/" element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/attendance" element={
+              <ProtectedRoute>
+                <AttendancePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/schedule" element={
+              <ProtectedRoute>
+                <SchedulePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/leave" element={
+              <ProtectedRoute>
+                <LeavePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/grant-leave" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <GrantLeavePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/journey" element={
+              <ProtectedRoute>
+                <JourneyPlanPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/journey/settings" element={
+              <ProtectedRoute>
+                <JourneyPlanSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="/todo" element={
+              <ProtectedRoute>
+                <TodoPage userRole={user?.role || UserRole.VIEWER} />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <ReportPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/members" element={
+              <ProtectedRoute>
+                <MembersPage userRole={user?.role || UserRole.VIEWER} />
+              </ProtectedRoute>
+            } />
+            <Route path="/groups" element={
+              <ProtectedRoute>
+                <GroupPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/workplace" element={
+              <ProtectedRoute>
+                <WorkplacePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <SettingsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <AdminTab currentUserRole={user?.role === UserRole.ADMIN ? MemberRole.ADMIN : 
+                                          user?.role === UserRole.EDITOR ? MemberRole.LEADER : 
+                                          MemberRole.EMPLOYEE} />
+              </ProtectedRoute>
+            } />
+            <Route path="/posting-board" element={
+              <ProtectedRoute>
+                <PostingBoardPage userRole={user?.role || UserRole.VIEWER} />
+              </ProtectedRoute>
+            } />
+            <Route path="/unauthorized" element={
+              <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+                  <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
+                  <Link to="/" className="text-primary-600 hover:text-primary-700">
+                    Return to Dashboard
+                  </Link>
+                </div>
+              </div>
+            } />
+            <Route path="*" element={<ComingSoonPage feature="coming soon" />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Main App component
+ */
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={<AppLayout />} />
+        </Routes>
       </Router>
     </AuthProvider>
   );

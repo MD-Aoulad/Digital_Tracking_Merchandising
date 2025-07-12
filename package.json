@@ -8,10 +8,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.1.1",
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
     "@types/node": "^16.18.126",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
@@ -33,7 +29,21 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:unit": "jest --testPathPattern=src --testNamePattern='unit'",
+    "test:integration": "jest --testPathPattern=src --testNamePattern='integration'",
+    "test:api": "jest --testPathPattern=tests/api",
+    "test:e2e": "cypress run",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "npm run test:unit -- --ci --coverage --watchAll=false",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:backend": "cd backend && npm test",
+    "test:full": "npm run test:backend && npm run test:all",
+    "test:health": "node scripts/health-check.js",
+    "test:smoke": "node scripts/smoke-test.js"
   },
   "eslintConfig": {
     "extends": [
@@ -56,7 +66,16 @@
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
     "autoprefixer": "^10.4.21",
+    "cypress": "^14.5.1",
+    "enzyme-to-json": "^3.6.2",
+    "jest": "^30.0.4",
+    "jest-sonar-reporter": "^2.0.0",
+    "jest-watch-typeahead": "^3.0.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17"
   }

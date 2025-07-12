@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Plus, 
-  Pencil, 
-  Trash2, 
+  Pencil,
   Users, 
   Crown, 
   Star, 
@@ -15,8 +14,7 @@ import {
   Settings,
   MapPin,
   Eye,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
 import { Group, GroupMember, GroupLeader, GroupFilters, Workplace, GroupMemberRole } from '../../types';
 

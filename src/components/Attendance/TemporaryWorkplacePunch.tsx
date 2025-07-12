@@ -22,15 +22,13 @@ import {
   MapPin, 
   Camera, 
   FileText, 
-  Clock, 
-  Save, 
+  Clock,
   X, 
   Check,
   AlertCircle,
   Loader2,
-  Navigation,
-  Home,
-  Building
+  Navigation
+  
 } from 'lucide-react';
 import type { 
   TemporaryWorkplaceRecord, 
