@@ -115,7 +115,7 @@ const Login: React.FC = () => {
       const success = await login(data.email, data.password);
       if (success) {
         toast.success('Login successful!');
-        navigate('/dashboard');
+        navigate('/'); // Redirect to dashboard (home page)
       } else {
         toast.error('Invalid email or password');
       }
@@ -144,8 +144,7 @@ const Login: React.FC = () => {
    */
   const demoCredentials = [
     { email: 'admin@company.com', password: 'password', role: 'Admin' },
-    { email: 'editor@company.com', password: 'password', role: 'Editor' },
-    { email: 'viewer@company.com', password: 'password', role: 'Viewer' },
+    { email: 'richard@company.com', password: 'password', role: 'Employee' },
   ];
 
   /**

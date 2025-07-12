@@ -21,6 +21,7 @@ import {
 import { t } from '../../lib/i18n';
 import { useLanguageChange } from '../../lib/i18n-hooks';
 import SessionTimeoutTest from '../common/SessionTimeoutTest';
+import AuthDebug from '../common/AuthDebug';
 
 /**
  * Dashboard Page Component
@@ -237,6 +238,11 @@ const DashboardPage: React.FC = () => {
 
         {/* Session Timeout Test */}
         <SessionTimeoutTest />
+      </div>
+
+      {/* Authentication Debug */}
+      <div className="mt-6">
+        <AuthDebug />
       </div>
     </div>
   );
