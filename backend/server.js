@@ -58,10 +58,37 @@ app.use(helmet());
 
 // CORS configuration - allows cross-origin requests from web and mobile apps
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:8080', 'file://', 'null'], // Allowed origins
-  credentials: true, // Allow cookies and authentication headers
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'] // Allowed headers
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:8081',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:8081',
+      'http://192.168.178.150:3000',
+      'http://192.168.178.150:3001',
+      'http://192.168.178.150:8081',
+      'exp://192.168.178.150:8081'
+    ];
+    
+    // console.log('🌐 CORS request from origin:', origin);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // For unauthorized origins, still allow the request but don't include credentials
+      // console.log('⚠️ CORS: Allowing unauthorized origin:', origin);
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200 // Return 200 for OPTIONS requests
 }));
 
 // Rate limiting middleware - prevents API abuse
@@ -116,6 +143,9 @@ let users = [
 ];
 
 let todos = [];
+let advancedTodos = []; // New storage for advanced todos with questions
+let todoSubmissions = []; // Storage for todo responses/submissions
+let todoTemplates = []; // Storage for reusable todo templates
 let reports = [];
 let attendanceData = {};
 
@@ -328,10 +358,21 @@ const generateToken = (user) => {
  * Returns server status and current timestamp
  */
 app.get('/api/health', (req, res) => {
+  // console.log('🏥 Health check request from:', req.headers.origin || 'unknown');
   res.json({ 
     status: 'OK', 
     message: 'Workforce Management API is running',
     timestamp: new Date().toISOString()
+  });
+});
+
+// Test endpoint for mobile app (development only)
+app.get('/api/test', (req, res) => {
+  // console.log('🧪 Test request from:', req.headers.origin || 'unknown');
+  res.json({
+    message: 'Mobile app test successful',
+    timestamp: new Date().toISOString(),
+    userAgent: req.headers['user-agent']
   });
 });
 
@@ -475,6 +516,14 @@ app.post('/api/auth/login', async (req, res) => {
     // Validate required fields
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    console.log('Testing email:', email, 'Result:', emailRegex.test(email));
+    if (!emailRegex.test(email)) {
+      console.log('Email validation failed, returning 400');
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Find user by email (case-insensitive)
@@ -751,6 +800,436 @@ app.delete('/api/todos/:id', authenticateToken, (req, res) => {
 
   } catch (error) {
     console.error('Delete todo error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== ADVANCED TODO ROUTES =====
+
+/**
+ * Get advanced todos for authenticated user
+ * Returns advanced todos assigned to the current user with questions
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Array of advanced todos assigned to user
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/advanced-todos', authenticateToken, (req, res) => {
+  try {
+    // Filter advanced todos to show todos assigned to current user
+    const userAdvancedTodos = advancedTodos.filter(todo => 
+      todo.assignedTo.includes(req.user.id)
+    );
+    res.json({ advancedTodos: userAdvancedTodos });
+  } catch (error) {
+    console.error('Get advanced todos error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Create advanced todo (admin only)
+ * Creates a new advanced todo with questions and assignment settings
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Request Body:
+ * - title: Todo title (required)
+ * - description: Todo description (optional)
+ * - questions: Array of TodoQuestion objects (required)
+ * - assignedTo: Array of user IDs to assign to (required)
+ * - category: Todo category (optional)
+ * - difficulty: Difficulty level ('easy', 'medium', 'hard') (optional)
+ * - estimatedDuration: Estimated duration in minutes (optional)
+ * - dueDate: Due date (optional)
+ * - requireApproval: Whether approval is required (optional)
+ * - isTemplate: Whether this is a template (optional)
+ * 
+ * Response:
+ * - 201: Advanced todo created successfully
+ * - 400: Missing required fields
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.post('/api/advanced-todos', authenticateToken, (req, res) => {
+  try {
+    // Check if user has admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const {
+      title,
+      description,
+      questions,
+      assignedTo,
+      category,
+      difficulty = 'medium',
+      estimatedDuration,
+      dueDate,
+      requireApproval = false,
+      isTemplate = false,
+      tags = []
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !questions || !assignedTo) {
+      return res.status(400).json({ 
+        error: 'Title, questions, and assignedTo are required' 
+      });
+    }
+
+    // Validate questions structure
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ 
+        error: 'Questions must be a non-empty array' 
+      });
+    }
+
+    // Validate assignedTo
+    if (!Array.isArray(assignedTo) || assignedTo.length === 0) {
+      return res.status(400).json({ 
+        error: 'assignedTo must be a non-empty array' 
+      });
+    }
+
+    // Create new advanced todo object
+    const newAdvancedTodo = {
+      id: uuidv4(),
+      title,
+      description: description || '',
+      questions: questions.map((q, index) => ({
+        ...q,
+        id: q.id || uuidv4(),
+        order: q.order || index + 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })),
+      assignedTo,
+      assignedBy: req.user.id,
+      assignedAt: new Date().toISOString(),
+      category: category || 'General',
+      difficulty,
+      estimatedDuration: estimatedDuration || 30,
+      dueDate: dueDate || null,
+      requireApproval,
+      isTemplate,
+      tags,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      // Additional advanced todo fields
+      allowReassignment: false,
+      autoComplete: false,
+      points: 0,
+      weight: 1,
+      completionRate: 0,
+      averageTime: 0,
+      difficultyRating: 0
+    };
+
+    // Add to storage
+    advancedTodos.push(newAdvancedTodo);
+    res.status(201).json({ 
+      message: 'Advanced todo created successfully',
+      advancedTodo: newAdvancedTodo 
+    });
+
+  } catch (error) {
+    console.error('Create advanced todo error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Submit todo responses
+ * Submits responses for an advanced todo
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * URL Parameters:
+ * - todoId: Advanced todo ID (required)
+ * 
+ * Request Body:
+ * - responses: Array of TodoResponse objects (required)
+ * - status: Submission status ('draft', 'submitted') (optional)
+ * 
+ * Response:
+ * - 201: Todo responses submitted successfully
+ * - 400: Missing required fields
+ * - 401: Missing or invalid token
+ * - 404: Advanced todo not found
+ * - 500: Internal server error
+ */
+app.post('/api/advanced-todos/:todoId/submit', authenticateToken, (req, res) => {
+  try {
+    const { todoId } = req.params;
+    const { responses, status = 'submitted' } = req.body;
+
+    // Find the advanced todo
+    const advancedTodo = advancedTodos.find(todo => todo.id === todoId);
+    if (!advancedTodo) {
+      return res.status(404).json({ error: 'Advanced todo not found' });
+    }
+
+    // Check if user is assigned to this todo
+    if (!advancedTodo.assignedTo.includes(req.user.id)) {
+      return res.status(403).json({ error: 'Not assigned to this todo' });
+    }
+
+    // Validate responses
+    if (!Array.isArray(responses)) {
+      return res.status(400).json({ error: 'Responses must be an array' });
+    }
+
+    // Create submission
+    const submission = {
+      id: uuidv4(),
+      todoId,
+      userId: req.user.id,
+      responses: responses.map(r => ({
+        ...r,
+        id: r.id || uuidv4(),
+        todoId,
+        userId: req.user.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })),
+      status,
+      submittedAt: status === 'submitted' ? new Date().toISOString() : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Add to storage
+    todoSubmissions.push(submission);
+    res.status(201).json({ 
+      message: 'Todo responses submitted successfully',
+      submission 
+    });
+
+  } catch (error) {
+    console.error('Submit todo responses error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get todo submissions for admin
+ * Returns all submissions for a specific advanced todo (admin only)
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * URL Parameters:
+ * - todoId: Advanced todo ID (required)
+ * 
+ * Response:
+ * - 200: Array of submissions for the todo
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 404: Advanced todo not found
+ * - 500: Internal server error
+ */
+app.get('/api/advanced-todos/:todoId/submissions', authenticateToken, (req, res) => {
+  try {
+    // Check if user has admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { todoId } = req.params;
+
+    // Find the advanced todo
+    const advancedTodo = advancedTodos.find(todo => todo.id === todoId);
+    if (!advancedTodo) {
+      return res.status(404).json({ error: 'Advanced todo not found' });
+    }
+
+    // Get submissions for this todo
+    const submissions = todoSubmissions.filter(sub => sub.todoId === todoId);
+    res.json({ submissions });
+
+  } catch (error) {
+    console.error('Get todo submissions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Approve/reject todo submission (admin only)
+ * Updates the status of a todo submission with feedback
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * URL Parameters:
+ * - submissionId: Submission ID (required)
+ * 
+ * Request Body:
+ * - status: New status ('approved', 'rejected') (required)
+ * - feedback: Feedback comments (optional)
+ * - score: Numerical score (optional)
+ * 
+ * Response:
+ * - 200: Submission status updated successfully
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 404: Submission not found
+ * - 500: Internal server error
+ */
+app.put('/api/todo-submissions/:submissionId/status', authenticateToken, (req, res) => {
+  try {
+    // Check if user has admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { submissionId } = req.params;
+    const { status, feedback, score } = req.body;
+
+    // Find the submission
+    const submissionIndex = todoSubmissions.findIndex(sub => sub.id === submissionId);
+    if (submissionIndex === -1) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Update submission
+    const updatedSubmission = {
+      ...todoSubmissions[submissionIndex],
+      status,
+      feedback: feedback || null,
+      score: score || null,
+      approvedAt: status === 'approved' ? new Date().toISOString() : null,
+      rejectedAt: status === 'rejected' ? new Date().toISOString() : null,
+      approvedBy: req.user.id,
+      updatedAt: new Date().toISOString()
+    };
+
+    todoSubmissions[submissionIndex] = updatedSubmission;
+    res.json({ 
+      message: 'Submission status updated successfully',
+      submission: updatedSubmission 
+    });
+
+  } catch (error) {
+    console.error('Update submission status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get todo templates
+ * Returns all available todo templates
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Array of todo templates
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/todo-templates', authenticateToken, (req, res) => {
+  try {
+    // Return all templates (public and user's own)
+    const userTemplates = todoTemplates.filter(template => 
+      template.isPublic || template.createdBy === req.user.id
+    );
+    res.json({ templates: userTemplates });
+  } catch (error) {
+    console.error('Get todo templates error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Create todo template (admin only)
+ * Creates a reusable todo template
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Request Body:
+ * - name: Template name (required)
+ * - description: Template description (required)
+ * - questions: Array of TodoQuestion objects (required)
+ * - category: Template category (required)
+ * - difficulty: Difficulty level (required)
+ * - estimatedDuration: Estimated duration in minutes (required)
+ * - tags: Array of tags (optional)
+ * - isPublic: Whether template is public (optional)
+ * 
+ * Response:
+ * - 201: Template created successfully
+ * - 400: Missing required fields
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.post('/api/todo-templates', authenticateToken, (req, res) => {
+  try {
+    // Check if user has admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const {
+      name,
+      description,
+      questions,
+      category,
+      difficulty,
+      estimatedDuration,
+      tags = [],
+      isPublic = false
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !description || !questions || !category || !difficulty || !estimatedDuration) {
+      return res.status(400).json({ 
+        error: 'Name, description, questions, category, difficulty, and estimatedDuration are required' 
+      });
+    }
+
+    // Create new template
+    const newTemplate = {
+      id: uuidv4(),
+      name,
+      description,
+      questions: questions.map((q, index) => ({
+        ...q,
+        id: q.id || uuidv4(),
+        order: q.order || index + 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })),
+      category,
+      difficulty,
+      estimatedDuration,
+      tags,
+      isPublic,
+      createdBy: req.user.id,
+      usageCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    todoTemplates.push(newTemplate);
+    res.status(201).json({ 
+      message: 'Todo template created successfully',
+      template: newTemplate 
+    });
+
+  } catch (error) {
+    console.error('Create todo template error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -2115,16 +2594,20 @@ app.use('*', (req, res) => {
  * - CORS protection
  * - Helmet security headers
  */
-app.listen(PORT, () => {
-  console.log(`🚀 Workforce Management API Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🔗 API Documentation: http://localhost:${PORT}/api/docs`);
-  console.log(`🔐 Authentication endpoints: http://localhost:${PORT}/api/auth`);
-  console.log(`📝 Todo management: http://localhost:${PORT}/api/todos`);
-  console.log(`📋 Report system: http://localhost:${PORT}/api/reports`);
-  console.log(`⏰ Attendance tracking: http://localhost:${PORT}/api/attendance`);
-  console.log(`✅ Approval system: http://localhost:${PORT}/api/approvals`);
-  console.log(`💬 Chat system: http://localhost:${PORT}/api/chat`);
-});
+
+// Only start the server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Workforce Management API Server running on port ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🔗 API Documentation: http://localhost:${PORT}/api/docs`);
+    console.log(`🔐 Authentication endpoints: http://localhost:${PORT}/api/auth`);
+    console.log(`📝 Todo management: http://localhost:${PORT}/api/todos`);
+    console.log(`📋 Report system: http://localhost:${PORT}/api/reports`);
+    console.log(`⏰ Attendance tracking: http://localhost:${PORT}/api/attendance`);
+    console.log(`✅ Approval system: http://localhost:${PORT}/api/approvals`);
+    console.log(`💬 Chat system: http://localhost:${PORT}/api/chat`);
+  });
+}
 
 module.exports = app; 

@@ -20,6 +20,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Bell, 
   Search, 
@@ -29,6 +30,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import LanguageSelector from '../LanguageSelector';
 
 /**
  * Navbar component props interface
@@ -50,6 +52,7 @@ interface NavbarProps {
  */
 const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   
   // State management for dropdown menus
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -70,12 +73,15 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
         {/* Left side - Logo */}
         <div className="flex items-center space-x-4">
           {/* Application logo and branding */}
-          <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => navigate('/')}
+            className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+          >
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">WM</span>
             </div>
             <span className="text-xl font-semibold text-gray-900">Workforce Manager</span>
-          </div>
+          </button>
         </div>
 
         {/* Center - Global search */}
@@ -93,6 +99,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
 
         {/* Right side - Notifications, logout, and profile */}
         <div className="flex items-center space-x-4">
+          {/* Language Selector */}
+          <LanguageSelector />
+          
           {/* Notifications dropdown */}
           <div className="relative">
             <button

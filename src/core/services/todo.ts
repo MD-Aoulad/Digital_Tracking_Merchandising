@@ -32,8 +32,51 @@ const TODO_ENDPOINTS = {
 /**
  * Get all todos for the current user
  */
-export const getTodos = async (): Promise<{ todos: Todo[] }> => {
-  return await apiGet<{ todos: Todo[] }>(TODO_ENDPOINTS.LIST);
+export const getTodos = async (
+  page: number = 1,
+  limit: number = 10,
+  search?: string,
+  filters?: {
+    priority?: 'low' | 'medium' | 'high';
+    completed?: boolean;
+    dueDate?: string;
+    overdue?: boolean;
+  }
+): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  let url = `${TODO_ENDPOINTS.LIST}?page=${page}&limit=${limit}`;
+  
+  if (search) {
+    url += `&search=${encodeURIComponent(search)}`;
+  }
+  
+  if (filters) {
+    if (filters.priority) {
+      url += `&priority=${filters.priority}`;
+    }
+    if (filters.completed !== undefined) {
+      url += `&completed=${filters.completed}`;
+    }
+    if (filters.dueDate) {
+      url += `&dueDate=${encodeURIComponent(filters.dueDate)}`;
+    }
+    if (filters.overdue) {
+      url += `&overdue=${filters.overdue}`;
+    }
+  }
+  
+  return await apiGet<{
+    todos: Todo[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(url);
 };
 
 /**
@@ -84,11 +127,12 @@ export const incompleteTodo = async (id: string): Promise<Todo> => {
 export const bulkUpdateTodos = async (
   todoIds: string[],
   updates: Partial<UpdateTodoRequest>
-): Promise<ApiResponse<{ updated: number; failed: number }>> => {
-  return await apiPost<ApiResponse<{ updated: number; failed: number }>>(
+): Promise<{ updated: number; failed: number }> => {
+  const response = await apiPost<{ updated: number; failed: number }>(
     TODO_ENDPOINTS.BULK_UPDATE,
     { todoIds, updates }
   );
+  return response;
 };
 
 /**
@@ -96,11 +140,12 @@ export const bulkUpdateTodos = async (
  */
 export const bulkDeleteTodos = async (
   todoIds: string[]
-): Promise<ApiResponse<{ deleted: number; failed: number }>> => {
-  return await apiPost<ApiResponse<{ deleted: number; failed: number }>>(
+): Promise<{ deleted: number; failed: number }> => {
+  const response = await apiPost<{ deleted: number; failed: number }>(
     TODO_ENDPOINTS.BULK_DELETE,
     { todoIds }
   );
+  return response;
 };
 
 // ===== TODO UTILITY FUNCTIONS =====
@@ -110,28 +155,40 @@ export const bulkDeleteTodos = async (
  */
 export const getTodosByPriority = async (
   priority: 'low' | 'medium' | 'high'
-): Promise<{ todos: Todo[] }> => {
-  const response = await getTodos();
-  const filteredTodos = response.todos.filter(todo => todo.priority === priority);
-  return { todos: filteredTodos };
+): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  return await getTodos(1, 10, undefined, { priority });
 };
 
 /**
  * Get completed todos
  */
-export const getCompletedTodos = async (): Promise<{ todos: Todo[] }> => {
-  const response = await getTodos();
-  const completedTodos = response.todos.filter(todo => todo.completed);
-  return { todos: completedTodos };
+export const getCompletedTodos = async (): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  return await getTodos(1, 10, undefined, { completed: true });
 };
 
 /**
  * Get incomplete todos
  */
-export const getIncompleteTodos = async (): Promise<{ todos: Todo[] }> => {
-  const response = await getTodos();
-  const incompleteTodos = response.todos.filter(todo => !todo.completed);
-  return { todos: incompleteTodos };
+export const getIncompleteTodos = async (): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  return await getTodos(1, 10, undefined, { completed: false });
 };
 
 /**
@@ -139,28 +196,41 @@ export const getIncompleteTodos = async (): Promise<{ todos: Todo[] }> => {
  */
 export const searchTodos = async (
   searchTerm: string
-): Promise<{ todos: Todo[] }> => {
-  const response = await getTodos();
-  const searchLower = searchTerm.toLowerCase();
-  const filteredTodos = response.todos.filter(todo => 
-    todo.title.toLowerCase().includes(searchLower) ||
-    todo.description.toLowerCase().includes(searchLower)
-  );
-  return { todos: filteredTodos };
+): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  return await getTodos(1, 10, searchTerm);
+};
+
+/**
+ * Get todos due today
+ */
+export const getTodosDueToday = async (): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  const today = new Date().toISOString().split('T')[0];
+  return await getTodos(1, 10, undefined, { dueDate: today });
 };
 
 /**
  * Get overdue todos
  */
-export const getOverdueTodos = async (): Promise<{ todos: Todo[] }> => {
-  const response = await getTodos();
-  const now = new Date();
-  const overdueTodos = response.todos.filter(todo => {
-    if (!todo.dueDate) return false;
-    const dueDate = new Date(todo.dueDate);
-    return dueDate < now && !todo.completed;
-  });
-  return { todos: overdueTodos };
+export const getOverdueTodos = async (): Promise<{
+  todos: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  return await getTodos(1, 10, undefined, { overdue: true });
 };
 
 // ===== TODO VALIDATION FUNCTIONS =====

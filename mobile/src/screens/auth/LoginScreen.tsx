@@ -13,12 +13,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import authService from '../../services/auth/authService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginScreenProps {
   navigation: any;
@@ -27,8 +28,8 @@ interface LoginScreenProps {
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading, error, clearError } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -36,19 +37,39 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       return;
     }
 
-    setIsLoading(true);
-
+    // console.log('🚀 Login button pressed with:', { email, password });
+    
+    // Test network connectivity first (commented out for production)
+    /*
     try {
-      await authService.login({ email, password });
-      // Navigation will be handled automatically by the App component
-    } catch (error: any) {
-      Alert.alert(
-        'Login Failed',
-        error.message || 'Invalid email or password. Please try again.'
-      );
-    } finally {
-      setIsLoading(false);
+      console.log('🌐 Testing network connectivity...');
+      const testResponse = await fetch('http://192.168.178.150:5000/api/test');
+      console.log('🌐 Test response:', testResponse.status);
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        console.log('🌐 Test data:', testData);
+      }
+    } catch (networkError) {
+      console.log('❌ Network connectivity test failed:', networkError);
+      Alert.alert('Network Error', 'Cannot connect to server. Please check your network connection.');
+      return;
     }
+    */
+    
+    clearError();
+    const success = await login(email, password);
+    
+    // console.log('📱 Login result:', { success, error });
+    
+    if (!success && error) {
+      // console.log('❌ Showing error alert:', error);
+      Alert.alert('Login Failed', error);
+    }
+  };
+
+  const quickLogin = (userEmail: string) => {
+    setEmail(userEmail);
+    setPassword('password');
   };
 
   return (
@@ -58,14 +79,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
-          <Ionicons name="business" size={80} color="#3b82f6" />
-          <Text style={styles.title}>Workforce Management</Text>
-          <Text style={styles.subtitle}>Mobile Platform</Text>
+          <Ionicons name="business" size={80} color="#007AFF" />
+          <Text style={styles.title}>Workforce Mobile</Text>
+          <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
+            <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -79,7 +100,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
+            <Ionicons name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Password"
@@ -95,9 +116,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               onPress={() => setShowPassword(!showPassword)}
             >
               <Ionicons
-                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                name={showPassword ? 'eye' : 'eye-off'}
                 size={20}
-                color="#64748b"
+                color="#666"
               />
             </TouchableOpacity>
           </View>
@@ -108,17 +129,54 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             disabled={isLoading}
           >
             {isLoading ? (
-              <Text style={styles.loginButtonText}>Signing In...</Text>
+              <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.loginButtonText}>Sign In</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Use your company credentials to access the platform
-            </Text>
+          <View style={styles.quickLoginContainer}>
+            <Text style={styles.quickLoginTitle}>Quick Login (Demo):</Text>
+            <TouchableOpacity
+              style={styles.quickLoginButton}
+              onPress={() => quickLogin('richard@company.com')}
+            >
+              <Text style={styles.quickLoginText}>Login as Richard</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickLoginButton}
+              onPress={() => quickLogin('admin@company.com')}
+            >
+              <Text style={styles.quickLoginText}>Login as Admin</Text>
+            </TouchableOpacity>
+            {/* Debug button - uncomment for testing
+            <TouchableOpacity
+              style={[styles.quickLoginButton, { backgroundColor: '#f59e0b' }]}
+              onPress={async () => {
+                console.log('🧪 Testing API connectivity...');
+                try {
+                  const response = await fetch('http://192.168.178.150:5000/api/test');
+                  const data = await response.json();
+                  console.log('🧪 API Test Result:', { status: response.status, data });
+                  Alert.alert('API Test', `Status: ${response.status}\nData: ${JSON.stringify(data)}`);
+                } catch (error) {
+                  console.log('🧪 API Test Error:', error);
+                  Alert.alert('API Test Error', error instanceof Error ? error.message : 'Unknown error');
+                }
+              }}
+            >
+              <Text style={styles.quickLoginText}>Test API Connection</Text>
+            </TouchableOpacity>
+            */}
           </View>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Demo Credentials:{'\n'}
+            Email: admin@company.com{'\n'}
+            Password: password
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -128,77 +186,112 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f9fa',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    padding: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1e293b',
-    marginTop: 16,
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748b',
-    marginTop: 4,
+    color: '#666',
+    textAlign: 'center',
   },
   form: {
-    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#e1e5e9',
+    borderRadius: 8,
+    marginBottom: 16,
+    backgroundColor: '#f8f9fa',
   },
   inputIcon: {
-    marginRight: 12,
+    marginLeft: 12,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: '#1e293b',
     paddingVertical: 16,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: '#333',
   },
   eyeIcon: {
-    padding: 8,
+    padding: 12,
   },
   loginButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
   loginButtonDisabled: {
-    backgroundColor: '#94a3b8',
+    backgroundColor: '#ccc',
   },
   loginButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  footer: {
+  quickLoginContainer: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9',
+  },
+  quickLoginTitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  quickLoginButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
     alignItems: 'center',
+  },
+  quickLoginText: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  footer: {
     marginTop: 32,
+    alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 12,
+    color: '#999',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

@@ -3,7 +3,7 @@
 
 export const API_CONFIG = {
   // Base URL - update this to match your web app backend
-  BASE_URL: 'http://localhost:3001/api', // Change to your actual backend URL
+  BASE_URL: 'http://192.168.178.150:5000/api', // Your computer's IP address
   
   // API Endpoints
   ENDPOINTS: {
@@ -55,7 +55,7 @@ export const getApiConfig = () => {
   return {
     ...API_CONFIG,
     BASE_URL: isDevelopment 
-      ? 'http://localhost:3001/api'  // Development
+      ? 'http://192.168.178.150:5000/api'  // Development - your computer's IP
       : 'https://your-production-api.com/api', // Production - update this
   };
 };

@@ -50,9 +50,22 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 // Mock react-native-vector-icons
 jest.mock('react-native-vector-icons/MaterialIcons', () => 'Icon');
 
-// Mock react-native-camera
-jest.mock('react-native-camera', () => ({
-  RNCamera: 'RNCamera'
+// Mock expo-camera instead of react-native-camera
+jest.mock('expo-camera', () => ({
+  Camera: 'Camera',
+  CameraType: {
+    front: 'front',
+    back: 'back'
+  }
+}));
+
+// Mock expo-location
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+  LocationAccuracy: {
+    High: 'high'
+  }
 }));
 
 // Mock react-native-permissions

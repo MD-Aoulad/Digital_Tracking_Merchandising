@@ -9,10 +9,11 @@
 5. [API Documentation](#api-documentation)
 6. [Frontend Features](#frontend-features)
 7. [Backend Features](#backend-features)
-8. [Testing](#testing)
-9. [Deployment](#deployment)
-10. [Development Guidelines](#development-guidelines)
-11. [Recent Updates](#recent-updates)
+8. [Todo Assignment Feature](#todo-assignment-feature)
+9. [Testing](#testing)
+10. [Deployment](#deployment)
+11. [Development Guidelines](#development-guidelines)
+12. [Recent Updates](#recent-updates)
 
 ## 🎯 Project Overview
 
@@ -21,18 +22,19 @@
 ### Key Features
 - **User Authentication & Authorization** - JWT-based secure authentication with role-based access control
 - **Enhanced Login System** - Demo login buttons and proper form validation with React Hook Form
-- **Todo Management** - Create, update, and track tasks with priority levels
+- **Todo Management with Assignment** - Create, assign, update, and track tasks with priority levels and user assignment
 - **Report Generation** - Comprehensive reporting system with approval workflows
 - **Attendance Tracking** - GPS-based punch-in/out with workplace selection and photo verification
 - **Real-time Synchronization** - Data sync between web and mobile applications
 - **Admin Dashboard** - Administrative tools for user and data management
 - **API Documentation** - Interactive Swagger UI for API exploration
 - **Rate Limiting** - Optimized rate limits for development and production environments
+- **Mobile App Support** - Full-featured React Native mobile application with authentication
 
 ### User Roles
-- **Admin** - Full system access and user management
-- **Leader** - Team management and reporting capabilities
-- **Employee** - Basic task and attendance management
+- **Admin** - Full system access, user management, and todo assignment capabilities
+- **Leader** - Team management, reporting capabilities, and limited todo assignment
+- **Employee** - Basic task management and completion tracking
 
 ## 🏗️ Architecture
 
@@ -99,6 +101,7 @@
 - Git
 - Modern web browser
 - Mobile device or emulator (for mobile app)
+- **Network Access**: Ensure your computer and mobile device are on the same network
 
 ### Backend Setup
 
@@ -161,13 +164,22 @@
 
 2. **Start Expo development server**
    ```bash
-   npx expo start
+   npm start
    ```
 
 3. **Run on device/emulator**
-   - Scan QR code with Expo Go app
-   - Or press 'i' for iOS simulator
-   - Or press 'a' for Android emulator
+   - **Web Browser**: Open http://localhost:8081 for Expo DevTools
+   - **Mobile Device**: Scan QR code with Expo Go app
+   - **iOS Simulator**: Press 'i' in the terminal
+   - **Android Emulator**: Press 'a' in the terminal
+
+4. **Mobile App Features**
+   - **Authentication**: Same login system as web app
+   - **Quick Login**: Demo buttons for testing
+   - **Network Configuration**: Automatically configured for local development
+   - **Cross-Platform**: Works on iOS and Android
+
+**Note**: The mobile app is configured to connect to the backend server using your computer's network IP address. Make sure both backend and mobile servers are running for full functionality.
 
 ## 📚 API Documentation
 
@@ -194,9 +206,187 @@ The Swagger UI provides:
 - Employee: richard@company.com / password
 
 #### Todos
-- `GET /api/todos` - Get user todos
-- `POST /api/todos` - Create todo
+- `GET /api/todos` - Get user todos (returns todos assigned to current user)
+- `POST /api/todos` - Create todo (supports assignment to other users)
 - `PUT /api/todos/:id` - Update todo
+- `DELETE /api/todos/:id` - Delete todo
+
+## 📋 Todo Assignment Feature
+
+### Overview
+The Todo Assignment Feature allows administrators and team leaders to create and assign tasks to specific employees, enabling better task distribution and accountability tracking.
+
+### Key Features
+
+#### 🔐 **Role-Based Assignment**
+- **Admins**: Can assign todos to any user in the system
+- **Leaders**: Can assign todos to team members
+- **Employees**: Can only create todos for themselves
+
+#### 📝 **Assignment Tracking**
+- **assignedTo**: User ID of the person assigned the task
+- **assignedBy**: User ID of the person who assigned the task
+- **assignedAt**: Timestamp when the task was assigned
+- **userId**: Original creator of the task
+
+#### 🎯 **Assignment Workflow**
+1. **Admin/Leader creates todo** with assignment dropdown
+2. **Employee receives assigned todo** in their task list
+3. **Employee completes todo** and marks as done
+4. **System tracks completion** with timestamps
+
+### Frontend Implementation
+
+#### TodoPage Component (`src/components/Todo/TodoPage.tsx`)
+```typescript
+/**
+ * TodoPage Component
+ * 
+ * Main component for managing todos. Provides functionality for:
+ * - Viewing todos assigned to the current user
+ * - Creating new todos (with assignment for admins)
+ * - Updating todo status and details
+ * - Deleting todos
+ * - Managing todo settings and templates
+ */
+```
+
+**Key Features:**
+- **Assignment Dropdown**: Admin-only dropdown to select assignee
+- **User Loading**: Fetches users for assignment options
+- **Optimistic Updates**: Immediate UI updates for better UX
+- **Error Handling**: Comprehensive error handling with toast notifications
+
+#### Mobile Integration (`mobile/src/screens/tasks/TasksScreen.tsx`)
+- **Assigned Todos Display**: Shows todos assigned to current user
+- **Pull-to-Refresh**: Refresh assigned todos
+- **Completion Tracking**: Mark assigned todos as complete
+- **Real-time Updates**: Sync with backend changes
+
+### Backend Implementation
+
+#### Todo API Endpoints
+```javascript
+/**
+ * Get all todos for authenticated user
+ * Returns list of todos assigned to the current user
+ */
+app.get('/api/todos', authenticateToken, (req, res) => {
+  // Filter todos to show todos assigned to current user
+  const userTodos = todos.filter(todo => todo.assignedTo === req.user.id);
+  res.json({ todos: userTodos });
+});
+
+/**
+ * Create new todo with assignment support
+ * Creates a new todo item with optional user assignment
+ */
+app.post('/api/todos', authenticateToken, (req, res) => {
+  const { title, description, priority = 'medium', assignedTo } = req.body;
+  
+  const newTodo = {
+    id: uuidv4(),
+    title,
+    description,
+    priority,
+    completed: false,
+    createdAt: new Date().toISOString(),
+    completedAt: null,
+    userId: req.user.id, // Creator
+    assignedTo: assignedTo || req.user.id, // Assigned user (defaults to creator)
+    assignedBy: req.user.id, // Who assigned it
+    assignedAt: new Date().toISOString()
+  };
+});
+```
+
+### Data Structure
+
+#### Todo Object
+```typescript
+interface Todo {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'low' | 'medium' | 'high';
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
+  userId: string;        // Creator
+  assignedTo: string;    // Assigned user
+  assignedBy: string;    // Who assigned it
+  assignedAt: string;    // Assignment timestamp
+}
+```
+
+### Testing Coverage
+
+#### Frontend Tests (`src/components/Todo/__tests__/TodoPage.test.tsx`)
+- **Admin Role Testing**: Assignment dropdown functionality
+- **Employee Role Testing**: Viewing assigned todos
+- **Todo Creation**: With and without assignment
+- **UI Interactions**: Form validation, error handling
+- **API Integration**: Mock API calls and responses
+
+#### Backend Tests (`backend/__tests__/todo-assignment.test.js`)
+- **Authentication**: Token validation
+- **Authorization**: Role-based access control
+- **Todo Creation**: Assignment tracking
+- **Todo Retrieval**: User-specific filtering
+- **Todo Updates**: Status changes and completion
+- **Todo Deletion**: Proper cleanup
+
+#### Mobile Tests (`mobile/src/screens/tasks/__tests__/TasksScreen.test.tsx`)
+- **Assigned Todos Display**: Correct rendering
+- **Pull-to-Refresh**: Data refresh functionality
+- **Completion Actions**: Mark as complete/incomplete
+- **Error Handling**: Network errors and edge cases
+- **Accessibility**: Screen reader support
+
+#### Integration Tests (`__tests__/integration/todo-assignment-workflow.test.tsx`)
+- **Complete Workflow**: Admin creates → Employee completes
+- **Assignment Tracking**: Verify assignment metadata
+- **Error Scenarios**: Network failures, invalid data
+- **Cross-Platform Sync**: Web ↔ Mobile synchronization
+
+### Usage Examples
+
+#### Admin Creating Assigned Todo
+```javascript
+// Admin creates todo and assigns to employee
+const todoData = {
+  title: "Stock inventory check",
+  description: "Check and update stock levels",
+  priority: "high",
+  assignedTo: "employee-user-id"
+};
+
+const response = await createTodo(todoData);
+// Response includes assignment tracking
+// {
+//   message: "Todo created successfully",
+//   todo: {
+//     id: "todo-123",
+//     assignedTo: "employee-user-id",
+//     assignedBy: "admin-user-id",
+//     assignedAt: "2025-01-13T10:30:00Z"
+//   }
+// }
+```
+
+#### Employee Viewing Assigned Todos
+```javascript
+// Employee fetches their assigned todos
+const todos = await getTodos();
+// Returns only todos where assignedTo === currentUserId
+```
+
+#### Employee Completing Assigned Todo
+```javascript
+// Employee marks assigned todo as complete
+const response = await updateTodo(todoId, { completed: true });
+// Updates completedAt timestamp and status
+```
 - `DELETE /api/todos/:id` - Delete todo
 
 #### Reports
@@ -408,9 +598,13 @@ src/
 
 ## 🔄 Recent Updates
 
-### Latest Features (v1.0.1)
+### Latest Features (v1.0.2)
 
 #### ✅ Completed Features
+- **Mobile App Authentication** - Fixed mobile app login with proper network configuration
+- **CORS Configuration** - Enhanced CORS settings for mobile app compatibility
+- **Network Configuration** - Updated API endpoints to use network IP addresses
+- **Debugging Tools** - Added comprehensive debugging for mobile app development
 - **Login System Fix** - Fixed demo login buttons and authentication flow
 - **Rate Limiting Optimization** - Increased limits for development environment
 - **Punch-in/Punch-out System** - Updated to require workplace selection
@@ -436,7 +630,10 @@ src/
 - **Integration APIs** - Third-party service integration
 - **Advanced Security** - 2FA and audit logging
 
-### Recent Bug Fixes (v1.0.1)
+### Recent Bug Fixes (v1.0.2)
+- **Fixed Mobile App Login** - Resolved network connectivity issues and CORS configuration
+- **Updated API Endpoints** - Changed from localhost to network IP addresses for mobile compatibility
+- **Enhanced CORS Settings** - Added support for mobile app origins and Expo development
 - **Fixed Login Demo Buttons** - Demo login now works properly with React Hook Form
 - **Resolved Rate Limiting Issues** - Increased development rate limits to 10,000 requests per 15 minutes
 - **Fixed TypeScript Errors** - Corrected API response types for todo endpoints
@@ -498,6 +695,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** July 12, 2025  
-**Version:** 1.0.1  
+**Last Updated:** July 13, 2025  
+**Version:** 1.0.2  
 **Maintainer:** Workforce Management Team 

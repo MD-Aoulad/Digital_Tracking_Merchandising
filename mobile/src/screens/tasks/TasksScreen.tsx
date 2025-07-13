@@ -24,7 +24,7 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://192.168.178.150:5000/api';
 
   const getAuthHeaders = () => {
     const token = user?.token;

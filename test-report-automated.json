@@ -1,0 +1,158 @@
+{
+  "timestamp": "2025-07-13T18:13:26.438Z",
+  "summary": {
+    "total": 9,
+    "passed": 0,
+    "failed": 9,
+    "skipped": 0,
+    "errors": []
+  },
+  "details": {
+    "unit": {
+      "passed": 0,
+      "failed": 5,
+      "errors": [
+        "\n> workforce-management-api@1.0.0 test:unit\n> jest --testPathPatterns=__tests__/unit\n\n",
+        "Timeout after 30000ms",
+        "Exit code: 1\nOutput: \n> mobile@1.0.0 test\n> jest --watchAll=false\n\n\nError: FAIL __tests__/App.test.tsx\n  ● Test suite failed to run\n\n    Cannot find module 'react-native-permissions' from '__tests__/App.test.tsx'\n\n      70 |\n      71 | // Mock react-native-permissions\n    > 72 | jest.mock('react-native-permissions', () => ({\n         |      ^\n      73 |   PERMISSIONS: {\n      74 |     ANDROID: {\n      75 |       CAMERA: 'android.permission.CAMERA',\n\n      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/index.js:863:11)\n      at Object.mock (__tests__/App.test.tsx:72:6)\n\nFAIL src/screens/tasks/__tests__/TasksScreen.test.tsx\n  ● Test suite failed to run\n\n    ReferenceError: You are trying to `import` a file outside of the scope of the test code.\n\n      at Runtime._execModule (node_modules/jest-runtime/build/index.js:1212:13)\n      at node_modules/expo/src/winter/runtime.native.ts:28:10\n      at node_modules/expo/src/winter/runtime.native.ts:15:29\n      at Object.getValue [as __ExpoImportMetaRegistry] (node_modules/react-native/Libraries/Utilities/defineLazyObjectProperty.js:16:16)\n\nA worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.\nTest Suites: 2 failed, 2 total\nTests:       0 total\nSnapshots:   0 total\nTime:        17.581 s\nRan all test suites.\n",
+        "Exit code: 1\nOutput: \n> WorkforceMobileApp@0.0.1 test\n> jest --watchAll=false\n\n\nError: FAIL __tests__/App.test.tsx\n  ● Test suite failed to run\n\n    Jest encountered an unexpected token\n\n    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.\n\n    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.\n\n    By default \"node_modules\" folder is ignored by transformers.\n\n    Here's what you can do:\n     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.\n     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript\n     • To have some of your \"node_modules\" files transformed, you can specify a custom \"transformIgnorePatterns\" in your config.\n     • If you need a custom transformation specify a \"transform\" option in your config.\n     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the \"moduleNameMapper\" config option.\n\n    You'll find more details and examples of these config options in the docs:\n    https://jestjs.io/docs/configuration\n    For information about custom transformations, see:\n    https://jestjs.io/docs/code-transformation\n\n    Details:\n\n    /Users/aoulad/Digital_Tracking_Merchandising/WorkforceMobileApp/node_modules/@react-navigation/native/lib/module/index.js:3\n    export { createStaticNavigation } from \"./createStaticNavigation.js\";\n    ^^^^^^\n\n    SyntaxError: Unexpected token 'export'\n\n      17 |   Platform,\n      18 | } from 'react-native';\n    > 19 | import { NavigationContainer } from '@react-navigation/native';\n         | ^\n      20 | import { createStackNavigator } from '@react-navigation/stack';\n      21 | import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';\n      22 | import Icon from 'react-native-vector-icons/MaterialIcons';\n\n      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)\n      at Object.require (App.tsx:19:1)\n      at Object.require (__tests__/App.test.tsx:7:1)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        0.274 s\nRan all test suites.\n",
+        "Exit code: 1\nOutput: \n> workforcemobileexpo@1.0.0 test\n> jest --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising/WorkforceMobileExpo\n  11 files checked.\n  testMatch: **/__tests__/**/*.?([mc])[jt]s?(x), **/?(*.)+(spec|test).?([mc])[jt]s?(x) - 0 matches\n  testPathIgnorePatterns: /node_modules/ - 11 matches\n  testRegex:  - 0 matches\nPattern:  - 0 matches\n\nError: "
+      ]
+    },
+    "integration": {
+      "passed": 0,
+      "failed": 3,
+      "errors": [
+        "\n> workforce-management-api@1.0.0 test:integration\n> jest --testPathPatterns=__tests__/integration\n\n",
+        "Timeout after 60000ms",
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:integration\n> jest --config jest.config.js --testPathPatterns=integration --verbose --no-coverage --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising\n  115 files checked.\n  roots: /Users/aoulad/Digital_Tracking_Merchandising/src, /Users/aoulad/Digital_Tracking_Merchandising/tests - 115 matches\n  testMatch: /Users/aoulad/Digital_Tracking_Merchandising/src/**/__tests__/**/*.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/src/**/*.{test,spec}.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/tests/**/*.{test,spec}.{js,jsx,ts,tsx} - 20 matches\n  testPathIgnorePatterns: /node_modules/, /build/, /dist/, /coverage/ - 115 matches\n  testRegex:  - 0 matches\nPattern: integration - 0 matches\n\nError: "
+      ]
+    },
+    "e2e": {
+      "passed": 0,
+      "failed": 1,
+      "errors": [
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:e2e\n> cypress run\n\nCypress could not verify that this server is running:\n\n  > http://localhost:3000\n\nWe are verifying this server because it has been configured as your baseUrl.\n\nCypress automatically waits until your server is accessible before running tests.\n\nWe will try connecting to it 3 more times...\nWe will try connecting to it 2 more times...\nWe will try connecting to it 1 more time...\n\nCypress failed to verify that your server is running.\n\nPlease start this server and then run Cypress again.\n\nError: \nDevTools listening on ws://127.0.0.1:58151/devtools/browser/af6eed8a-b685-4ab0-a172-28ed450b33dc\nMissing baseUrl in compilerOptions. tsconfig-paths will be skipped\n"
+      ]
+    },
+    "api": {
+      "passed": 0,
+      "failed": 1,
+      "errors": [
+        "\n> workforce-management-api@1.0.0 test:api\n> jest --testPathPatterns=__tests__/integration/api\n\n"
+      ]
+    },
+    "performance": {
+      "passed": 0,
+      "failed": 2,
+      "errors": [
+        "\n> workforce-management-api@1.0.0 test:performance\n> jest --testPathPatterns=__tests__/performance\n\n",
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:performance\n> jest --config jest.config.js --testPathPatterns=performance --verbose --no-coverage --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising\n  115 files checked.\n  roots: /Users/aoulad/Digital_Tracking_Merchandising/src, /Users/aoulad/Digital_Tracking_Merchandising/tests - 115 matches\n  testMatch: /Users/aoulad/Digital_Tracking_Merchandising/src/**/__tests__/**/*.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/src/**/*.{test,spec}.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/tests/**/*.{test,spec}.{js,jsx,ts,tsx} - 20 matches\n  testPathIgnorePatterns: /node_modules/, /build/, /dist/, /coverage/ - 115 matches\n  testRegex:  - 0 matches\nPattern: performance - 0 matches\n\nError: "
+      ]
+    },
+    "security": {
+      "passed": 0,
+      "failed": 2,
+      "errors": [
+        "\n> workforce-management-api@1.0.0 test:security\n> jest --testPathPatterns=__tests__/security\n\n",
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:security\n> jest --config jest.config.js --testPathPatterns=security --verbose --no-coverage --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising\n  115 files checked.\n  roots: /Users/aoulad/Digital_Tracking_Merchandising/src, /Users/aoulad/Digital_Tracking_Merchandising/tests - 115 matches\n  testMatch: /Users/aoulad/Digital_Tracking_Merchandising/src/**/__tests__/**/*.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/src/**/*.{test,spec}.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/tests/**/*.{test,spec}.{js,jsx,ts,tsx} - 20 matches\n  testPathIgnorePatterns: /node_modules/, /build/, /dist/, /coverage/ - 115 matches\n  testRegex:  - 0 matches\nPattern: security - 0 matches\n\nError: "
+      ]
+    }
+  },
+  "system": {
+    "backend": {
+      "status": "unhealthy",
+      "errors": [
+        "Timeout after 10000ms"
+      ]
+    },
+    "frontend": {
+      "status": "healthy",
+      "errors": []
+    },
+    "mobile": {
+      "status": "unknown",
+      "errors": []
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "category": "SYSTEM",
+      "message": "Backend system is unhealthy - check server configuration and dependencies",
+      "action": "Review backend logs and ensure all dependencies are installed"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TESTING",
+      "message": "unit tests have 5 failures",
+      "action": "Review unit test failures and fix implementation issues",
+      "details": [
+        "\n> workforce-management-api@1.0.0 test:unit\n> jest --testPathPatterns=__tests__/unit\n\n",
+        "Timeout after 30000ms",
+        "Exit code: 1\nOutput: \n> mobile@1.0.0 test\n> jest --watchAll=false\n\n\nError: FAIL __tests__/App.test.tsx\n  ● Test suite failed to run\n\n    Cannot find module 'react-native-permissions' from '__tests__/App.test.tsx'\n\n      70 |\n      71 | // Mock react-native-permissions\n    > 72 | jest.mock('react-native-permissions', () => ({\n         |      ^\n      73 |   PERMISSIONS: {\n      74 |     ANDROID: {\n      75 |       CAMERA: 'android.permission.CAMERA',\n\n      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/index.js:863:11)\n      at Object.mock (__tests__/App.test.tsx:72:6)\n\nFAIL src/screens/tasks/__tests__/TasksScreen.test.tsx\n  ● Test suite failed to run\n\n    ReferenceError: You are trying to `import` a file outside of the scope of the test code.\n\n      at Runtime._execModule (node_modules/jest-runtime/build/index.js:1212:13)\n      at node_modules/expo/src/winter/runtime.native.ts:28:10\n      at node_modules/expo/src/winter/runtime.native.ts:15:29\n      at Object.getValue [as __ExpoImportMetaRegistry] (node_modules/react-native/Libraries/Utilities/defineLazyObjectProperty.js:16:16)\n\nA worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.\nTest Suites: 2 failed, 2 total\nTests:       0 total\nSnapshots:   0 total\nTime:        17.581 s\nRan all test suites.\n"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TESTING",
+      "message": "integration tests have 3 failures",
+      "action": "Review integration test failures and fix implementation issues",
+      "details": [
+        "\n> workforce-management-api@1.0.0 test:integration\n> jest --testPathPatterns=__tests__/integration\n\n",
+        "Timeout after 60000ms",
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:integration\n> jest --config jest.config.js --testPathPatterns=integration --verbose --no-coverage --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising\n  115 files checked.\n  roots: /Users/aoulad/Digital_Tracking_Merchandising/src, /Users/aoulad/Digital_Tracking_Merchandising/tests - 115 matches\n  testMatch: /Users/aoulad/Digital_Tracking_Merchandising/src/**/__tests__/**/*.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/src/**/*.{test,spec}.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/tests/**/*.{test,spec}.{js,jsx,ts,tsx} - 20 matches\n  testPathIgnorePatterns: /node_modules/, /build/, /dist/, /coverage/ - 115 matches\n  testRegex:  - 0 matches\nPattern: integration - 0 matches\n\nError: "
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TESTING",
+      "message": "e2e tests have 1 failures",
+      "action": "Review e2e test failures and fix implementation issues",
+      "details": [
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:e2e\n> cypress run\n\nCypress could not verify that this server is running:\n\n  > http://localhost:3000\n\nWe are verifying this server because it has been configured as your baseUrl.\n\nCypress automatically waits until your server is accessible before running tests.\n\nWe will try connecting to it 3 more times...\nWe will try connecting to it 2 more times...\nWe will try connecting to it 1 more time...\n\nCypress failed to verify that your server is running.\n\nPlease start this server and then run Cypress again.\n\nError: \nDevTools listening on ws://127.0.0.1:58151/devtools/browser/af6eed8a-b685-4ab0-a172-28ed450b33dc\nMissing baseUrl in compilerOptions. tsconfig-paths will be skipped\n"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TESTING",
+      "message": "api tests have 1 failures",
+      "action": "Review api test failures and fix implementation issues",
+      "details": [
+        "\n> workforce-management-api@1.0.0 test:api\n> jest --testPathPatterns=__tests__/integration/api\n\n"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TESTING",
+      "message": "performance tests have 2 failures",
+      "action": "Review performance test failures and fix implementation issues",
+      "details": [
+        "\n> workforce-management-api@1.0.0 test:performance\n> jest --testPathPatterns=__tests__/performance\n\n",
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:performance\n> jest --config jest.config.js --testPathPatterns=performance --verbose --no-coverage --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising\n  115 files checked.\n  roots: /Users/aoulad/Digital_Tracking_Merchandising/src, /Users/aoulad/Digital_Tracking_Merchandising/tests - 115 matches\n  testMatch: /Users/aoulad/Digital_Tracking_Merchandising/src/**/__tests__/**/*.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/src/**/*.{test,spec}.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/tests/**/*.{test,spec}.{js,jsx,ts,tsx} - 20 matches\n  testPathIgnorePatterns: /node_modules/, /build/, /dist/, /coverage/ - 115 matches\n  testRegex:  - 0 matches\nPattern: performance - 0 matches\n\nError: "
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TESTING",
+      "message": "security tests have 2 failures",
+      "action": "Review security test failures and fix implementation issues",
+      "details": [
+        "\n> workforce-management-api@1.0.0 test:security\n> jest --testPathPatterns=__tests__/security\n\n",
+        "Exit code: 1\nOutput: \n> workforce-management-platform@0.1.0 test:security\n> jest --config jest.config.js --testPathPatterns=security --verbose --no-coverage --watchAll=false\n\nNo tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\nIn /Users/aoulad/Digital_Tracking_Merchandising\n  115 files checked.\n  roots: /Users/aoulad/Digital_Tracking_Merchandising/src, /Users/aoulad/Digital_Tracking_Merchandising/tests - 115 matches\n  testMatch: /Users/aoulad/Digital_Tracking_Merchandising/src/**/__tests__/**/*.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/src/**/*.{test,spec}.{js,jsx,ts,tsx}, /Users/aoulad/Digital_Tracking_Merchandising/tests/**/*.{test,spec}.{js,jsx,ts,tsx} - 20 matches\n  testPathIgnorePatterns: /node_modules/, /build/, /dist/, /coverage/ - 115 matches\n  testRegex:  - 0 matches\nPattern: security - 0 matches\n\nError: "
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "PERFORMANCE",
+      "message": "Performance tests are failing",
+      "action": "Optimize application performance and review bottlenecks"
+    },
+    {
+      "priority": "HIGH",
+      "category": "SECURITY",
+      "message": "Security tests are failing",
+      "action": "Address security vulnerabilities immediately"
+    }
+  ]
+}

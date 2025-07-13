@@ -21,7 +21,7 @@
  */
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Clock,
   Calendar,
@@ -37,7 +37,8 @@ import {
   Mail,
   Bot,
   Gift,
-  Building2
+  Building2,
+  Home
 } from 'lucide-react';
 
 /**
@@ -61,12 +62,15 @@ interface SidebarProps {
  * @returns JSX element with complete sidebar navigation
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
+  
   // Always show all features for admin
   // Grouped as in Shoplworks UI
   const menuGroups = [
     {
       label: 'Workforce Management',
       items: [
+        { title: 'Dashboard', path: '/', icon: <Home size={20} /> },
         { title: 'Attendance', path: '/attendance', icon: <Clock size={20} /> },
         { title: 'Schedule', path: '/schedule', icon: <Calendar size={20} /> },
         { title: 'Leave', path: '/leave', icon: <FileText size={20} /> },
@@ -129,7 +133,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="flex flex-col h-full">
           {/* Sidebar header with logo */}
           <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => navigate('/')}
+              className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+            >
               <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">WM</span>
               </div>
@@ -137,7 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <h1 className="text-xl font-bold text-gray-900">Workforce</h1>
                 <p className="text-xs text-gray-500">Management</p>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Navigation menu */}

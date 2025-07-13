@@ -9,7 +9,7 @@
  * @version 1.0.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,11 +17,10 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// Import services
-import authService from './src/services/auth/authService';
-import { AuthState, User } from './src/types';
+// Import AuthContext
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
-// Import screens (to be created)
+// Import screens
 import LoginScreen from './src/screens/auth/LoginScreen';
 import DashboardScreen from './src/screens/dashboard/DashboardScreen';
 import StoresScreen from './src/screens/stores/StoresScreen';
@@ -117,44 +116,12 @@ function LoadingScreen() {
   );
 }
 
-// Main App component
-export default function App() {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    isLoading: true,
-  });
-
-  useEffect(() => {
-    // Initialize authentication
-    const initializeAuth = async () => {
-      try {
-        const state = await authService.initialize();
-        setAuthState(state);
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        setAuthState({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      }
-    };
-
-    initializeAuth();
-
-    // Subscribe to auth state changes
-    const unsubscribe = authService.subscribe((newState) => {
-      setAuthState(newState);
-    });
-
-    return unsubscribe;
-  }, []);
+// Main App component with AuthContext
+function AppContent() {
+  const { user, isLoading } = useAuth();
 
   // Show loading screen while initializing
-  if (authState.isLoading) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
@@ -162,12 +129,21 @@ export default function App() {
     <NavigationContainer>
       <StatusBar style="auto" />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {authState.isAuthenticated ? (
+        {user ? (
           <Stack.Screen name="Main" component={MainTabNavigator} />
         ) : (
           <Stack.Screen name="Auth" component={LoginScreen} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+// Root App component with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

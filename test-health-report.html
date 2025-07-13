@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Infrastructure Health Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .status { display: inline-block; padding: 10px 20px; border-radius: 20px; color: white; font-weight: bold; }
+        .status.healthy { background: #27ae60; }
+        .status.unhealthy { background: #f39c12; }
+        .status.error { background: #e74c3c; }
+        .check { margin-bottom: 20px; padding: 15px; border-radius: 8px; border-left: 4px solid #ecf0f1; }
+        .check.healthy { border-left-color: #27ae60; background: #f8fff9; }
+        .check.unhealthy { border-left-color: #f39c12; background: #fffbf0; }
+        .check.error { border-left-color: #e74c3c; background: #fff5f5; }
+        .issue { background: #fee; border: 1px solid #fcc; padding: 8px; margin: 5px 0; border-radius: 4px; }
+        .recommendation { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #3498db; }
+        .priority-high { border-left-color: #e74c3c; }
+        .priority-medium { border-left-color: #f39c12; }
+        .priority-low { border-left-color: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Test Infrastructure Health Report</h1>
+            <p>Generated on: 2025-07-13T09:27:27.120Z</p>
+            <div class="status unhealthy">
+                UNHEALTHY
+            </div>
+        </div>
+        
+        <h2>📊 Health Checks</h2>
+        
+            <div class="check healthy">
+                <h3>DEPENDENCIES</h3>
+                <p><strong>Status:</strong> healthy</p>
+                <p>✅ No issues found</p>
+            </div>
+        
+            <div class="check healthy">
+                <h3>CONFIGURATION</h3>
+                <p><strong>Status:</strong> healthy</p>
+                <p>✅ No issues found</p>
+            </div>
+        
+            <div class="check healthy">
+                <h3>PROCESSES</h3>
+                <p><strong>Status:</strong> healthy</p>
+                <p>✅ No issues found</p>
+            </div>
+        
+            <div class="check healthy">
+                <h3>PORTS</h3>
+                <p><strong>Status:</strong> healthy</p>
+                <p>✅ No issues found</p>
+            </div>
+        
+            <div class="check unhealthy">
+                <h3>FILES</h3>
+                <p><strong>Status:</strong> unhealthy</p>
+                
+                    <h4>Issues:</h4>
+                    <div class="issue">No test files found</div>
+                
+            </div>
+        
+        
+        
+            <h2>🎯 Recommendations</h2>
+            
+                <div class="recommendation priority-low">
+                    <h4>[LOW] FILES</h4>
+                    <p><strong>Issue:</strong> Test files have issues</p>
+                    <p><strong>Action:</strong> Review and fix test file structure</p>
+                </div>
+            
+        
+    </div>
+</body>
+</html>
+    

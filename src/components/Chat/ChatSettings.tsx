@@ -38,7 +38,7 @@ import toast from 'react-hot-toast';
  * 
  * @returns JSX element with chat settings interface
  */
-const ChatSettings: React.FC = () => {
+const ChatSettingsComponent: React.FC = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<ChatSettings>({
     id: '1',
@@ -706,4 +706,4 @@ const ChatSettings: React.FC = () => {
   );
 };
 
-export default ChatSettings; 
+export default ChatSettingsComponent; 

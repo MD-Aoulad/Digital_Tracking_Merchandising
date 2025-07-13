@@ -11,7 +11,7 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPatterns=__tests__/unit",
     "test:integration": "jest --testPathPatterns=__tests__/integration",
-    "test:api": "jest --testPathPatterns=__tests__/api",
+    "test:api": "jest --testPathPatterns=__tests__/integration/api",
     "test:security": "jest --testPathPatterns=__tests__/security",
     "test:performance": "jest --testPathPatterns=__tests__/performance",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:security",

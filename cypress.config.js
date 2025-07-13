@@ -62,6 +62,9 @@ module.exports = defineConfig({
       openMode: 0,
     },
     
+    // Experimental features
+    experimentalRunAllSpecs: true,
+    
     // Setup node events
     setupNodeEvents(on, config) {
       // Implement node event listeners here
@@ -107,14 +110,8 @@ module.exports = defineConfig({
   // Experimental features
   experimentalModifyObstructiveThirdPartyCode: true,
   
-  // Network stubbing
-  experimentalNetworkStubbing: true,
-  
   // Memory management
   experimentalMemoryManagement: true,
-  
-  // Performance monitoring
-  experimentalRunAllSpecs: true,
   
   // Reporter configuration
   reporter: 'cypress-multi-reporters',

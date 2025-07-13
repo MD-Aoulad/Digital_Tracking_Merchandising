@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-07-13T09:27:27.120Z",
+  "overall": "unhealthy",
+  "checks": {
+    "dependencies": {
+      "status": "healthy",
+      "issues": []
+    },
+    "configuration": {
+      "status": "healthy",
+      "issues": []
+    },
+    "processes": {
+      "status": "healthy",
+      "issues": []
+    },
+    "ports": {
+      "status": "healthy",
+      "issues": []
+    },
+    "files": {
+      "status": "unhealthy",
+      "issues": [
+        "No test files found"
+      ]
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "LOW",
+      "category": "FILES",
+      "message": "Test files have issues",
+      "action": "Review and fix test file structure"
+    }
+  ]
+}

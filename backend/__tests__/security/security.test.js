@@ -6,23 +6,52 @@
 const request = require('supertest');
 const app = require('../../server');
 
+let server;
+let authToken, adminToken;
+
+beforeAll(async () => {
+  // Start the server for testing
+  server = app.listen(0); // Use port 0 to get a random available port
+  
+  // Create test users and get tokens
+  const adminUser = {
+    email: 'admin@company.com',
+    password: 'password',
+    name: 'Admin User',
+    role: 'admin'
+  };
+
+  const regularUser = {
+    email: 'richard@company.com',
+    password: 'password',
+    name: 'Richard Johnson',
+    role: 'employee'
+  };
+
+  // Register users if they don't exist
+  await request(app).post('/api/auth/register').send(adminUser);
+  await request(app).post('/api/auth/register').send(regularUser);
+
+  // Login to get tokens
+  const adminResponse = await request(app)
+    .post('/api/auth/login')
+    .send({ email: adminUser.email, password: adminUser.password });
+  adminToken = adminResponse.body.token;
+
+  const userResponse = await request(app)
+    .post('/api/auth/login')
+    .send({ email: regularUser.email, password: regularUser.password });
+  authToken = userResponse.body.token;
+});
+
+afterAll(async () => {
+  // Close the server after all tests
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 describe('Security Tests', () => {
-  let authToken;
-  let adminToken;
-
-  beforeAll(async () => {
-    // Get tokens for testing
-    const loginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@company.com', password: 'password' });
-    adminToken = loginResponse.body.token;
-
-    const userLoginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'richard@company.com', password: 'password' });
-    authToken = userLoginResponse.body.token;
-  });
-
   describe('Authentication Security', () => {
     test('should reject requests without authentication token', async () => {
       const endpoints = [
@@ -137,9 +166,17 @@ describe('Security Tests', () => {
       for (const email of invalidEmails) {
         const response = await request(app)
           .post('/api/auth/login')
-          .send({ email, password: 'password' })
-          .expect(401);
+          .send({ email, password: 'password' });
 
+        console.log(`Email: "${email}", Status: ${response.status}, Body:`, response.body);
+        
+        // For invalid email format, we expect 400, but for non-existent users we get 401
+        // The server validates email format first, then checks if user exists
+        if (email === '' || email === 'invalid-email' || email === 'test@' || email === '@example.com') {
+          expect(response.status).toBe(400); // Invalid email format
+        } else {
+          expect(response.status).toBe(401); // Valid email format but user doesn't exist
+        }
         expect(response.body).toHaveProperty('error');
       }
     });
@@ -264,8 +301,8 @@ describe('Security Tests', () => {
         .set('Origin', 'http://malicious-site.com')
         .expect(200); // Health endpoint should still work
 
-      // CORS headers should be present
-      expect(response.headers).toHaveProperty('access-control-allow-origin');
+      // CORS headers should NOT be present for unauthorized origins
+      expect(response.headers).not.toHaveProperty('access-control-allow-origin');
     });
   });
 

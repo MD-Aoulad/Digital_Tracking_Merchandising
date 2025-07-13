@@ -2855,3 +2855,443 @@ export enum AttachmentType {
   AUDIO = 'audio',
   OTHER = 'other'
 }
+
+// ============================================================================
+// ADVANCED TODO SYSTEM TYPES
+// ============================================================================
+
+/**
+ * Question types for advanced todo system
+ */
+export enum QuestionType {
+  MULTIPLE_CHOICE = 'multiple_choice',     // Multiple choice with checkboxes
+  SINGLE_CHOICE = 'single_choice',         // Single choice with radio buttons
+  TEXT_ANSWER = 'text_answer',             // Text input
+  TEXTAREA_ANSWER = 'textarea_answer',     // Multi-line text input
+  NUMBER_INPUT = 'number_input',           // Numeric input
+  PHOTO_UPLOAD = 'photo_upload',           // Photo capture/upload
+  LOCATION = 'location',                   // GPS location
+  DATE_TIME = 'date_time',                 // Date and time picker
+  RATING_SCALE = 'rating_scale',           // Rating scale (1-5, 1-10, etc.)
+  CHECKLIST = 'checklist',                 // Checklist with items
+  SIGNATURE = 'signature',                 // Digital signature
+  FILE_UPLOAD = 'file_upload',             // File upload
+  YES_NO = 'yes_no',                       // Yes/No question
+  SLIDER = 'slider',                       // Slider input
+  MATRIX = 'matrix',                       // Matrix question (rows x columns)
+  
+  // Merchandising-specific question types
+  PRODUCT_INSPECTION = 'product_inspection', // Product inspection checklist
+  DISPLAY_EVALUATION = 'display_evaluation', // Display evaluation form
+  COMPETITOR_ANALYSIS = 'competitor_analysis', // Competitor analysis form
+  STORE_LAYOUT = 'store_layout',           // Store layout assessment
+  INVENTORY_COUNT = 'inventory_count',     // Inventory counting form
+  PRICING_VERIFICATION = 'pricing_verification', // Pricing verification
+  PROMOTION_COMPLIANCE = 'promotion_compliance', // Promotion compliance check
+  CUSTOMER_FEEDBACK = 'customer_feedback', // Customer feedback collection
+  SUPPLIER_EVALUATION = 'supplier_evaluation', // Supplier evaluation form
+  QUALITY_ASSURANCE = 'quality_assurance', // Quality assurance checklist
+  SAFETY_INSPECTION = 'safety_inspection', // Safety inspection form
+  TRAINING_VERIFICATION = 'training_verification', // Training verification
+  EQUIPMENT_CHECK = 'equipment_check',     // Equipment status check
+  ENVIRONMENTAL_ASSESSMENT = 'environmental_assessment', // Environmental factors
+  COMPLIANCE_AUDIT = 'compliance_audit'    // Compliance audit checklist
+}
+
+/**
+ * Question validation rules
+ */
+export interface QuestionValidation {
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
+  pattern?: string; // Regex pattern
+  customValidation?: string; // Custom validation message
+}
+
+/**
+ * Question option for choice-based questions
+ */
+export interface QuestionOption {
+  id: string;
+  label: string;
+  value: string;
+  description?: string;
+  image?: string;
+  isOther?: boolean; // For "Other" option with text input
+}
+
+/**
+ * Matrix question structure
+ */
+export interface MatrixQuestion {
+  rows: QuestionOption[];
+  columns: QuestionOption[];
+  allowMultiple?: boolean;
+}
+
+/**
+ * Rating scale configuration
+ */
+export interface RatingScale {
+  min: number;
+  max: number;
+  step?: number;
+  labels?: {
+    min: string;
+    max: string;
+  };
+  showNumbers?: boolean;
+}
+
+/**
+ * Conditional logic for questions
+ */
+export interface ConditionalLogic {
+  questionId: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
+  value: string | number | boolean;
+  action: 'show' | 'hide' | 'require' | 'skip';
+}
+
+/**
+ * Individual question in a todo
+ */
+export interface TodoQuestion {
+  id: string;
+  type: QuestionType;
+  title: string;
+  description?: string;
+  required: boolean;
+  order: number;
+  
+  // Question-specific configurations
+  options?: QuestionOption[]; // For choice questions
+  matrix?: MatrixQuestion; // For matrix questions
+  ratingScale?: RatingScale; // For rating questions
+  validation?: QuestionValidation;
+  
+  // Merchandising-specific configuration
+  merchandisingConfig?: MerchandisingQuestionConfig;
+  
+  // Conditional logic
+  conditionalLogic?: ConditionalLogic[];
+  
+  // File upload settings
+  fileTypes?: string[]; // ['image/*', 'application/pdf', etc.]
+  maxFileSize?: number; // in bytes
+  maxFiles?: number;
+  
+  // UI settings
+  placeholder?: string;
+  defaultValue?: any;
+  helpText?: string;
+  
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Enhanced Todo interface with questions
+ */
+export interface AdvancedTodo extends TodoTask {
+  questions: TodoQuestion[];
+  isTemplate: boolean;
+  templateId?: string;
+  estimatedDuration: number; // in minutes (required)
+  difficulty: 'easy' | 'medium' | 'hard';
+  category: string;
+  tags: string[];
+  
+  // Assignment settings
+  allowReassignment: boolean;
+  requireApproval: boolean;
+  autoComplete: boolean;
+  
+  // Scheduling
+  dueDate: string;
+  startDate?: string;
+  recurring?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    interval: number;
+    endDate?: string;
+  };
+  
+  // Scoring and evaluation
+  points?: number;
+  weight?: number;
+  evaluationCriteria?: string[];
+  
+  // Integration
+  linkedTasks?: string[]; // IDs of related tasks
+  dependencies?: string[]; // IDs of prerequisite tasks
+  
+  // Analytics
+  completionRate?: number;
+  averageTime?: number;
+  difficultyRating?: number;
+}
+
+/**
+ * Todo response/answer
+ */
+export interface TodoResponse {
+  id: string;
+  todoId: string;
+  userId: string;
+  questionId: string;
+  answer: any;
+  files?: string[]; // File URLs
+  metadata?: {
+    location?: {
+      latitude: number;
+      longitude: number;
+      accuracy?: number;
+    };
+    timestamp: string;
+    deviceInfo?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Complete todo submission
+ */
+export interface TodoSubmission {
+  id: string;
+  todoId: string;
+  userId: string;
+  responses: TodoResponse[];
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'completed';
+  submittedAt?: string;
+  completedAt?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectionReason?: string;
+  score?: number;
+  feedback?: string;
+  timeSpent?: number; // in minutes
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Todo template for reusability
+ */
+export interface TodoTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  questions: TodoQuestion[];
+  estimatedDuration: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  tags: string[];
+  isPublic: boolean;
+  createdBy: string;
+  usageCount: number;
+  rating?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================================
+// MERCHANDISING-SPECIFIC TYPES
+// ============================================================================
+
+/**
+ * Product inspection configuration
+ */
+export interface ProductInspectionConfig {
+  productCategories: string[];    // Product categories to inspect
+  inspectionPoints: string[];     // Points to inspect (e.g., "Packaging", "Quality", "Expiry")
+  qualityStandards: string[];     // Quality standards to check
+  defectTypes: string[];          // Types of defects to look for
+  requirePhotos: boolean;         // Whether photos are required
+  requireBarcodeScan: boolean;    // Whether barcode scanning is required
+  requireQuantityCount: boolean;  // Whether quantity counting is required
+}
+
+/**
+ * Display evaluation configuration
+ */
+export interface DisplayEvaluationConfig {
+  displayTypes: string[];         // Types of displays to evaluate
+  evaluationCriteria: string[];   // Criteria for evaluation
+  visualElements: string[];       // Visual elements to check
+  lightingAssessment: boolean;    // Whether lighting assessment is required
+  trafficFlowAnalysis: boolean;   // Whether traffic flow analysis is required
+  competitorComparison: boolean;  // Whether competitor comparison is required
+}
+
+/**
+ * Competitor analysis configuration
+ */
+export interface CompetitorAnalysisConfig {
+  competitorTypes: string[];      // Types of competitors to analyze
+  analysisAreas: string[];        // Areas to analyze (pricing, products, displays)
+  dataCollectionMethods: string[]; // Methods for data collection
+  requirePhotos: boolean;         // Whether competitor photos are required
+  requirePricingData: boolean;    // Whether pricing data is required
+  requireProductComparison: boolean; // Whether product comparison is required
+}
+
+/**
+ * Store layout configuration
+ */
+export interface StoreLayoutConfig {
+  layoutAreas: string[];          // Areas of the store to assess
+  trafficFlowPoints: string[];    // Traffic flow assessment points
+  fixtureTypes: string[];         // Types of fixtures to evaluate
+  spaceUtilization: boolean;      // Whether space utilization is assessed
+  accessibilityCheck: boolean;    // Whether accessibility is checked
+  safetyCompliance: boolean;      // Whether safety compliance is checked
+}
+
+/**
+ * Inventory count configuration
+ */
+export interface InventoryCountConfig {
+  countMethods: string[];         // Counting methods (manual, scanner, etc.)
+  accuracyThresholds: number[];   // Accuracy thresholds for counts
+  requirePhotos: boolean;         // Whether photos are required
+  requireLocationVerification: boolean; // Whether location verification is required
+  requireDiscrepancyReporting: boolean; // Whether discrepancy reporting is required
+}
+
+/**
+ * Pricing verification configuration
+ */
+export interface PricingVerificationConfig {
+  pricingElements: string[];      // Elements to verify (shelf tags, displays, etc.)
+  accuracyThresholds: number[];   // Accuracy thresholds
+  requirePhotos: boolean;         // Whether photos are required
+  requireCompetitorComparison: boolean; // Whether competitor comparison is required
+  requirePromotionCheck: boolean; // Whether promotion compliance is checked
+}
+
+/**
+ * Promotion compliance configuration
+ */
+export interface PromotionComplianceConfig {
+  promotionTypes: string[];       // Types of promotions to check
+  complianceCriteria: string[];   // Compliance criteria
+  requirePhotos: boolean;         // Whether photos are required
+  requireCustomerFeedback: boolean; // Whether customer feedback is required
+  requireSalesData: boolean;      // Whether sales data is required
+}
+
+/**
+ * Customer feedback configuration
+ */
+export interface CustomerFeedbackConfig {
+  feedbackTypes: string[];        // Types of feedback to collect
+  surveyQuestions: string[];      // Standard survey questions
+  requireDemographics: boolean;   // Whether demographics are required
+  requireContactInfo: boolean;    // Whether contact info is required
+  requireFollowUp: boolean;       // Whether follow-up is required
+}
+
+/**
+ * Supplier evaluation configuration
+ */
+export interface SupplierEvaluationConfig {
+  evaluationCriteria: string[];   // Criteria for evaluation
+  performanceMetrics: string[];   // Performance metrics to assess
+  requireDocumentation: boolean;  // Whether documentation is required
+  requireQualitySamples: boolean; // Whether quality samples are required
+  requireDeliveryAssessment: boolean; // Whether delivery assessment is required
+}
+
+/**
+ * Quality assurance configuration
+ */
+export interface QualityAssuranceConfig {
+  qualityStandards: string[];     // Quality standards to check
+  inspectionPoints: string[];     // Points to inspect
+  requireDocumentation: boolean;  // Whether documentation is required
+  requireCorrectiveActions: boolean; // Whether corrective actions are required
+  requireFollowUp: boolean;       // Whether follow-up is required
+}
+
+/**
+ * Safety inspection configuration
+ */
+export interface SafetyInspectionConfig {
+  safetyAreas: string[];          // Areas to inspect for safety
+  hazardTypes: string[];          // Types of hazards to look for
+  requireImmediateAction: boolean; // Whether immediate action is required
+  requireReporting: boolean;      // Whether reporting is required
+  requireTrainingVerification: boolean; // Whether training verification is required
+}
+
+/**
+ * Training verification configuration
+ */
+export interface TrainingVerificationConfig {
+  trainingAreas: string[];        // Areas of training to verify
+  verificationMethods: string[];  // Methods for verification
+  requirePracticalTest: boolean;  // Whether practical test is required
+  requireDocumentation: boolean;  // Whether documentation is required
+  requireFollowUp: boolean;       // Whether follow-up is required
+}
+
+/**
+ * Equipment check configuration
+ */
+export interface EquipmentCheckConfig {
+  equipmentTypes: string[];       // Types of equipment to check
+  maintenanceCriteria: string[];  // Maintenance criteria
+  requirePhotos: boolean;         // Whether photos are required
+  requireMaintenanceSchedule: boolean; // Whether maintenance schedule is required
+  requireRepairReporting: boolean; // Whether repair reporting is required
+}
+
+/**
+ * Environmental assessment configuration
+ */
+export interface EnvironmentalAssessmentConfig {
+  environmentalFactors: string[]; // Environmental factors to assess
+  measurementTypes: string[];     // Types of measurements
+  requireDocumentation: boolean;  // Whether documentation is required
+  requireActionPlan: boolean;     // Whether action plan is required
+  requireMonitoring: boolean;     // Whether monitoring is required
+}
+
+/**
+ * Compliance audit configuration
+ */
+export interface ComplianceAuditConfig {
+  complianceAreas: string[];      // Areas of compliance to audit
+  auditCriteria: string[];        // Audit criteria
+  requireDocumentation: boolean;  // Whether documentation is required
+  requireCorrectiveActions: boolean; // Whether corrective actions are required
+  requireFollowUp: boolean;       // Whether follow-up is required
+}
+
+/**
+ * Merchandising-specific question configuration
+ */
+export interface MerchandisingQuestionConfig {
+  productInspection?: ProductInspectionConfig;
+  displayEvaluation?: DisplayEvaluationConfig;
+  competitorAnalysis?: CompetitorAnalysisConfig;
+  storeLayout?: StoreLayoutConfig;
+  inventoryCount?: InventoryCountConfig;
+  pricingVerification?: PricingVerificationConfig;
+  promotionCompliance?: PromotionComplianceConfig;
+  customerFeedback?: CustomerFeedbackConfig;
+  supplierEvaluation?: SupplierEvaluationConfig;
+  qualityAssurance?: QualityAssuranceConfig;
+  safetyInspection?: SafetyInspectionConfig;
+  trainingVerification?: TrainingVerificationConfig;
+  equipmentCheck?: EquipmentCheckConfig;
+  environmentalAssessment?: EnvironmentalAssessmentConfig;
+  complianceAudit?: ComplianceAuditConfig;
+}
