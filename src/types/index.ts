@@ -800,10 +800,16 @@ export interface Message {
 export interface ChatGroup {
   id: string;                    // Group ID
   name: string;                  // Group name
+  description?: string;          // Group description
   members: string[];             // Array of member user IDs
+  admins: string[];              // Array of admin user IDs
   createdBy: string;             // Group creator's user ID
+  isPrivate: boolean;            // Whether group is private
+  isArchived: boolean;           // Whether group is archived
+  lastMessage?: ChatMessage;     // Most recent message
+  memberCount: number;           // Number of members
   createdAt: string;             // Creation timestamp
-  lastMessage?: Message;         // Most recent message
+  updatedAt: string;             // Last update timestamp
 }
 
 /**
@@ -2090,4 +2096,762 @@ export interface MemberManagementSettings {
   };
   createdBy: string;             // Admin who configured settings
   updatedAt: string;             // Last update timestamp
+}
+
+// ============================================================================
+// APPROVAL MANAGEMENT TYPES
+// ============================================================================
+
+/**
+ * Approval request interface for various approval workflows
+ */
+export interface ApprovalRequest {
+  id: string;                    // Unique approval request ID
+  type: ApprovalRequestType;     // Type of approval request
+  title: string;                 // Request title
+  description: string;           // Request description
+  requesterId: string;           // User who submitted the request
+  requesterName: string;         // Requester's name
+  requesterEmail: string;        // Requester's email
+  requesterRole: UserRole;       // Requester's role
+  requesterGroupId?: string;     // Requester's group ID
+  status: ApprovalStatus;        // Current approval status
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Request priority
+  category: string;              // Request category
+  requestData: any;              // Request-specific data
+  attachments?: string[];        // Supporting documents
+  submittedAt: string;           // Submission timestamp
+  dueDate?: string;              // Due date for approval
+  approvedAt?: string;           // Approval timestamp
+  rejectedAt?: string;           // Rejection timestamp
+  approvedBy?: string;           // Approver's user ID
+  rejectedBy?: string;           // Rejector's user ID
+  approvalNotes?: string;        // Approval notes
+  rejectionReason?: string;      // Reason for rejection
+  workflow: ApprovalWorkflow;    // Approval workflow
+  currentStep: number;           // Current workflow step
+  totalSteps: number;            // Total workflow steps
+  canSelfApprove: boolean;       // Whether requester can self-approve
+  requiresDelegation: boolean;   // Whether delegation is required
+  delegationInfo?: DelegationInfo; // Delegation information
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Types of approval requests
+ */
+export enum ApprovalRequestType {
+  LEAVE_REQUEST = 'leave_request',
+  SCHEDULE_CHANGE = 'schedule_change',
+  OVERTIME_REQUEST = 'overtime_request',
+  ATTENDANCE_CORRECTION = 'attendance_correction',
+  REPORT_SUBMISSION = 'report_submission',
+  TASK_COMPLETION = 'task_completion',
+  EXPENSE_CLAIM = 'expense_claim',
+  PURCHASE_REQUEST = 'purchase_request',
+  DELEGATION_REQUEST = 'delegation_request',
+  GROUP_CHANGE = 'group_change',
+  ROLE_CHANGE = 'role_change',
+  WORKPLACE_CHANGE = 'workplace_change',
+  CUSTOM_REQUEST = 'custom_request'
+}
+
+/**
+ * Approval status enumeration
+ */
+export enum ApprovalStatus {
+  PENDING = 'pending',
+  IN_REVIEW = 'in_review',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  CANCELLED = 'cancelled',
+  EXPIRED = 'expired',
+  DELEGATED = 'delegated'
+}
+
+/**
+ * Approval workflow configuration
+ */
+export interface ApprovalWorkflow {
+  id: string;                    // Workflow ID
+  name: string;                  // Workflow name
+  description: string;           // Workflow description
+  type: ApprovalRequestType;     // Associated request type
+  steps: ApprovalStep[];         // Workflow steps
+  allowSelfApproval: boolean;    // Whether self-approval is allowed
+  allowDelegation: boolean;      // Whether delegation is allowed
+  autoApprove: boolean;          // Whether to auto-approve certain requests
+  autoApproveConditions?: AutoApproveCondition[]; // Auto-approve conditions
+  escalationRules?: EscalationRule[]; // Escalation rules
+  isActive: boolean;             // Whether workflow is active
+  createdBy: string;             // Admin who created the workflow
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Individual approval step in a workflow
+ */
+export interface ApprovalStep {
+  id: string;                    // Step ID
+  stepNumber: number;            // Step order in workflow
+  name: string;                  // Step name
+  description: string;           // Step description
+  approverType: ApproverType;    // Type of approver for this step
+  approverIds?: string[];        // Specific approver IDs (if approverType is 'specific')
+  approverRoles?: UserRole[];    // Approver roles (if approverType is 'role')
+  approverGroups?: string[];     // Approver groups (if approverType is 'group')
+  isRequired: boolean;           // Whether this step is required
+  canDelegate: boolean;          // Whether this step can be delegated
+  timeLimit?: number;            // Time limit in hours (optional)
+  autoApproveAfter?: number;     // Auto-approve after hours (optional)
+  conditions?: ApprovalCondition[]; // Conditions for this step
+  actions: ApprovalAction[];     // Available actions for this step
+}
+
+/**
+ * Types of approvers in approval workflows
+ */
+export enum ApproverType {
+  SPECIFIC = 'specific',         // Specific users
+  ROLE = 'role',                 // Users with specific roles
+  GROUP = 'group',               // Group leaders
+  MANAGER = 'manager',           // Direct manager
+  UPPER_MANAGER = 'upper_manager', // Upper-level manager
+  GROUP_LEADER = 'group_leader', // Group leader
+  UPPER_GROUP_LEADER = 'upper_group_leader', // Upper group leader
+  TOP_GROUP_LEADER = 'top_group_leader', // Top group leader
+  ADMIN = 'admin',               // Administrators
+  ANY_LEADER = 'any_leader',     // Any leader
+  ANY_MANAGER = 'any_manager'    // Any manager
+}
+
+/**
+ * Conditions for approval steps
+ */
+export interface ApprovalCondition {
+  id: string;                    // Condition ID
+  field: string;                 // Field to check
+  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'in' | 'not_in'; // Comparison operator
+  value: any;                    // Value to compare against
+  logicalOperator?: 'and' | 'or'; // Logical operator for multiple conditions
+}
+
+/**
+ * Available actions for approval steps
+ */
+export interface ApprovalAction {
+  id: string;                    // Action ID
+  name: string;                  // Action name
+  type: 'approve' | 'reject' | 'delegate' | 'request_info' | 'escalate'; // Action type
+  label: string;                 // Display label
+  icon: string;                  // Action icon
+  color: string;                 // Action color
+  requiresComment: boolean;      // Whether comment is required
+  isPrimary: boolean;            // Whether this is the primary action
+  conditions?: ApprovalCondition[]; // Conditions for this action
+}
+
+/**
+ * Auto-approve conditions
+ */
+export interface AutoApproveCondition {
+  id: string;                    // Condition ID
+  field: string;                 // Field to check
+  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'in' | 'not_in'; // Comparison operator
+  value: any;                    // Value to compare against
+  logicalOperator?: 'and' | 'or'; // Logical operator for multiple conditions
+}
+
+/**
+ * Escalation rules for approval workflows
+ */
+export interface EscalationRule {
+  id: string;                    // Rule ID
+  name: string;                  // Rule name
+  triggerType: 'time_limit' | 'step_timeout' | 'manual'; // Trigger type
+  triggerValue?: number;         // Trigger value (hours for time-based)
+  escalationType: 'next_level' | 'specific_user' | 'admin' | 'group_leader'; // Escalation type
+  escalationTarget?: string;     // Specific escalation target
+  notificationSettings: {        // Notification preferences
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+  };
+  isActive: boolean;             // Whether rule is active
+}
+
+/**
+ * Approval delegation information
+ */
+export interface DelegationInfo {
+  id: string;                    // Delegation ID
+  delegatorId: string;           // User delegating approval authority
+  delegateId: string;            // User receiving delegation
+  delegateName: string;          // Delegate's name
+  delegateEmail: string;         // Delegate's email
+  delegateRole: UserRole;        // Delegate's role
+  requestType: ApprovalRequestType; // Type of request being delegated
+  startDate: string;             // Delegation start date
+  endDate: string;               // Delegation end date
+  reason: string;                // Reason for delegation
+  status: DelegationStatus;      // Delegation status
+  approvedBy?: string;           // Who approved the delegation
+  approvedAt?: string;           // Delegation approval timestamp
+  isActive: boolean;             // Whether delegation is active
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Delegation status enumeration
+ */
+export enum DelegationStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  ACTIVE = 'active',
+  EXPIRED = 'expired',
+  CANCELLED = 'cancelled'
+}
+
+/**
+ * Approval settings for the organization
+ */
+export interface ApprovalSettings {
+  id: string;                    // Settings ID
+  allowSelfApproval: boolean;    // Whether self-approval is allowed
+  allowDelegation: boolean;      // Whether delegation is allowed
+  delegationSettings: DelegationSettings; // Delegation configuration
+  defaultWorkflows: Record<ApprovalRequestType, string>; // Default workflows by type
+  notificationSettings: {        // Notification preferences
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    smsNotifications: boolean;
+    approvalReminders: boolean;
+    escalationNotifications: boolean;
+    delegationNotifications: boolean;
+  };
+  autoApprovalSettings: {        // Auto-approval configuration
+    enabled: boolean;
+    maxAmount?: number;          // Maximum amount for auto-approval
+    maxDays?: number;            // Maximum days for auto-approval
+    allowedTypes: ApprovalRequestType[]; // Request types eligible for auto-approval
+  };
+  escalationSettings: {          // Escalation configuration
+    enabled: boolean;
+    defaultTimeout: number;      // Default timeout in hours
+    escalationLevels: number;    // Number of escalation levels
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Delegation settings configuration
+ */
+export interface DelegationSettings {
+  allowDelegation: boolean;      // Whether delegation is allowed
+  whoCanDelegate: DelegationScope; // Who can delegate approval authority
+  whoCanBeDelegated: DelegationScope; // Who can receive delegation
+  whoApprovesDelegation: DelegationApprovalType; // Who approves delegation requests
+  restrictedLeaveTypes?: string[]; // Leave types that restrict delegation
+  maxDelegationDuration: number; // Maximum delegation duration in days
+  requireApproval: boolean;      // Whether delegation requires approval
+  autoApproveForUpperLeaders: boolean; // Auto-approve for upper group leaders
+  allowMultipleDelegations: boolean; // Allow multiple active delegations
+  delegationHistoryRetention: number; // Days to retain delegation history
+}
+
+/**
+ * Delegation scope options
+ */
+export enum DelegationScope {
+  ALL_MANAGERS_LEADERS = 'all_managers_leaders',
+  SPECIFIC_MANAGERS_LEADERS = 'specific_managers_leaders',
+  GROUP_LEADERS = 'group_leaders',
+  UPPER_GROUP_LEADERS = 'upper_group_leaders',
+  TOP_GROUP_LEADERS = 'top_group_leaders',
+  SAME_GROUP_LEADERS = 'same_group_leaders',
+  DIFFERENT_WORKPLACE_LEADERS = 'different_workplace_leaders'
+}
+
+/**
+ * Delegation approval types
+ */
+export enum DelegationApprovalType {
+  DELEGATE_DIRECT = 'delegate_direct',
+  UPPER_GROUP_LEADER = 'upper_group_leader',
+  TOP_GROUP_LEADER = 'top_group_leader',
+  ADMIN = 'admin'
+}
+
+/**
+ * Approval statistics for reporting
+ */
+export interface ApprovalStats {
+  totalRequests: number;         // Total approval requests
+  pendingRequests: number;       // Pending requests
+  approvedRequests: number;      // Approved requests
+  rejectedRequests: number;      // Rejected requests
+  averageApprovalTime: number;   // Average approval time in hours
+  requestsByType: {              // Requests count by type
+    type: ApprovalRequestType;
+    count: number;
+    approved: number;
+    rejected: number;
+  }[];
+  requestsByStatus: {            // Requests count by status
+    status: ApprovalStatus;
+    count: number;
+  }[];
+  topApprovers: {                // Top approvers
+    approverId: string;
+    approverName: string;
+    approvedCount: number;
+    averageTime: number;
+  }[];
+  recentActivity: {              // Recent approval activity
+    requestId: string;
+    requestTitle: string;
+    action: string;
+    approverName: string;
+    timestamp: string;
+  }[];
+}
+
+/**
+ * Approval filters for searching and filtering
+ */
+export interface ApprovalFilters {
+  type?: ApprovalRequestType;    // Filter by request type
+  status?: ApprovalStatus;       // Filter by status
+  requesterId?: string;          // Filter by requester
+  approverId?: string;           // Filter by approver
+  groupId?: string;              // Filter by group
+  priority?: string;             // Filter by priority
+  category?: string;             // Filter by category
+  dateRange?: {                  // Filter by date range
+    startDate: string;
+    endDate: string;
+  };
+  searchTerm?: string;           // Search term for title/description
+  isDelegated?: boolean;         // Filter delegated requests
+  canSelfApprove?: boolean;      // Filter self-approvable requests
+}
+
+/**
+ * Approval notification settings
+ */
+export interface ApprovalNotificationSettings {
+  id: string;                    // Settings ID
+  requestSubmitted: {            // When request is submitted
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    recipients: 'requester' | 'approvers' | 'both';
+  };
+  requestApproved: {             // When request is approved
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    recipients: 'requester' | 'approvers' | 'both';
+  };
+  requestRejected: {             // When request is rejected
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    recipients: 'requester' | 'approvers' | 'both';
+  };
+  requestEscalated: {            // When request is escalated
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    recipients: 'escalation_target' | 'original_approvers' | 'both';
+  };
+  delegationRequested: {         // When delegation is requested
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    recipients: 'delegator' | 'delegate' | 'approver' | 'all';
+  };
+  delegationApproved: {          // When delegation is approved
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    recipients: 'delegator' | 'delegate' | 'all';
+  };
+  reminderNotifications: {       // Reminder notifications
+    enabled: boolean;
+    frequency: 'daily' | 'weekly' | 'custom';
+    customHours?: number;
+    recipients: 'pending_approvers' | 'all_approvers' | 'admins';
+  };
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Approval template for creating standardized approval workflows
+ */
+export interface ApprovalTemplate {
+  id: string;                    // Template ID
+  name: string;                  // Template name
+  description: string;           // Template description
+  type: ApprovalRequestType;     // Associated request type
+  workflow: ApprovalWorkflow;    // Workflow configuration
+  isDefault: boolean;            // Whether this is the default template
+  isActive: boolean;             // Whether template is active
+  createdBy: string;             // Admin who created the template
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Approval batch operation result
+ */
+export interface ApprovalBatchResult {
+  id: string;                    // Batch operation ID
+  operationType: 'approve' | 'reject' | 'delegate' | 'escalate'; // Operation type
+  totalRequests: number;         // Total requests processed
+  successfulRequests: number;    // Successfully processed requests
+  failedRequests: number;        // Failed requests
+  errors: ApprovalBatchError[];  // Processing errors
+  performedBy: string;           // User who performed the operation
+  performedAt: string;           // Operation timestamp
+  notes?: string;                // Operation notes
+}
+
+/**
+ * Approval batch operation error
+ */
+export interface ApprovalBatchError {
+  requestId: string;             // Request ID that failed
+  error: string;                 // Error message
+  details?: any;                 // Additional error details
+}
+
+/**
+ * Approval audit log entry
+ */
+export interface ApprovalAuditLog {
+  id: string;                    // Audit log ID
+  requestId: string;             // Associated request ID
+  action: string;                // Action performed
+  performedBy: string;           // User who performed the action
+  performedByName: string;       // Performer's name
+  performedByRole: UserRole;     // Performer's role
+  details: any;                  // Action details
+  timestamp: string;             // Action timestamp
+  ipAddress?: string;            // IP address
+  userAgent?: string;            // User agent
+  previousStatus?: ApprovalStatus; // Previous request status
+  newStatus?: ApprovalStatus;    // New request status
+}
+
+// ============================================================================
+// CHAT AND COMMUNICATION TYPES
+// ============================================================================
+
+/**
+ * Enhanced Chat Message interface for business messenger
+ */
+export interface ChatMessage {
+  id: string;                    // Message ID
+  senderId: string;              // Sender's user ID
+  receiverId?: string;           // Receiver's user ID (for 1:1 messages)
+  channelId?: string;            // Channel ID (for channel messages)
+  content: string;               // Message content
+  type: 'text' | 'image' | 'file' | 'system' | 'help-desk';  // Message type
+  attachments?: ChatAttachment[]; // File attachments
+  readBy: string[];              // Array of user IDs who read the message
+  reactions?: MessageReaction[];  // Message reactions
+  replyTo?: string;              // ID of message being replied to
+  isEdited: boolean;             // Whether message was edited
+  editedAt?: string;             // Edit timestamp
+  isDeleted: boolean;            // Whether message was deleted
+  deletedAt?: string;            // Deletion timestamp
+  createdAt: string;             // Message timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Chat attachment for files and images
+ */
+export interface ChatAttachment {
+  id: string;                    // Attachment ID
+  name: string;                  // File name
+  type: 'image' | 'document' | 'video' | 'audio' | 'other';  // File type
+  size: number;                  // File size in bytes
+  url: string;                   // File URL
+  thumbnailUrl?: string;         // Thumbnail URL for images
+  mimeType: string;              // MIME type
+  uploadedAt: string;            // Upload timestamp
+}
+
+/**
+ * Message reaction (emojis, likes, etc.)
+ */
+export interface MessageReaction {
+  id: string;                    // Reaction ID
+  emoji: string;                 // Emoji or reaction type
+  userId: string;                // User who reacted
+  messageId: string;             // Associated message ID
+  createdAt: string;             // Reaction timestamp
+}
+
+/**
+ * Chat Channel for group conversations
+ */
+export interface ChatChannel {
+  id: string;                    // Channel ID
+  name: string;                  // Channel name
+  description?: string;          // Channel description
+  type: 'general' | 'department' | 'project' | 'help-desk' | 'announcement';  // Channel type
+  members: string[];             // Array of member user IDs
+  admins: string[];              // Array of admin user IDs
+  createdBy: string;             // Channel creator's user ID
+  isPrivate: boolean;            // Whether channel is private
+  isArchived: boolean;           // Whether channel is archived
+  notificationSettings: ChannelNotificationSettings;  // Notification settings
+  lastMessage?: ChatMessage;     // Most recent message
+  memberCount: number;           // Number of members
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Channel notification settings
+ */
+export interface ChannelNotificationSettings {
+  mentions: boolean;             // Notify on mentions
+  allMessages: boolean;          // Notify on all messages
+  importantOnly: boolean;        // Notify on important messages only
+  quietHours: {                  // Quiet hours settings
+    enabled: boolean;
+    startTime: string;           // Start time (HH:MM)
+    endTime: string;             // End time (HH:MM)
+    timezone: string;            // Timezone
+  };
+}
+
+/**
+ * Help Desk Channel for internal support
+ */
+export interface HelpDeskChannel {
+  id: string;                    // Channel ID
+  name: string;                  // Channel name
+  description: string;           // Channel description
+  category: HelpDeskCategory;    // Help desk category
+  assignedManagers: string[];    // Assigned manager user IDs
+  contactPersons: string[];      // Contact person user IDs
+  topics: string[];              // Supported topics
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Channel priority
+  responseTime: number;          // Expected response time in hours
+  isActive: boolean;             // Whether channel is active
+  autoAssign: boolean;           // Whether to auto-assign requests
+  escalationRules?: EscalationRule[];  // Escalation rules
+  createdBy: string;             // Admin who created the channel
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Help desk categories
+ */
+export enum HelpDeskCategory {
+  PERSONNEL = 'personnel',       // HR and personnel issues
+  VMD = 'vmd',                   // Visual merchandising
+  INVENTORY = 'inventory',       // Inventory and store issues
+  TECHNICAL = 'technical',       // Technical support
+  GENERAL = 'general',           // General inquiries
+  CUSTOM = 'custom'              // Custom category
+}
+
+/**
+ * Help Desk Request
+ */
+export interface HelpDeskRequest {
+  id: string;                    // Request ID
+  channelId: string;             // Associated help desk channel
+  requesterId: string;           // Employee requesting help
+  requesterName: string;         // Requester's name
+  requesterEmail: string;        // Requester's email
+  title: string;                 // Request title
+  description: string;           // Request description
+  category: HelpDeskCategory;    // Request category
+  priority: 'low' | 'medium' | 'high' | 'urgent';  // Request priority
+  status: 'open' | 'in-progress' | 'resolved' | 'closed';  // Request status
+  assignedTo?: string;           // Assigned manager/contact person
+  assignedAt?: string;           // Assignment timestamp
+  resolvedAt?: string;           // Resolution timestamp
+  resolution?: string;           // Resolution notes
+  attachments?: ChatAttachment[]; // Supporting files
+  messages: ChatMessage[];       // Conversation messages
+  tags: string[];                // Request tags
+  createdAt: string;             // Creation timestamp
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Chat Settings for administrators
+ */
+export interface ChatSettings {
+  id: string;                    // Settings ID
+  isEnabled: boolean;            // Whether chat function is enabled
+  allowFileSharing: boolean;     // Allow file and image sharing
+  maxFileSize: number;           // Maximum file size in MB
+  allowedFileTypes: string[];    // Allowed file types
+  allowReactions: boolean;       // Allow message reactions
+  allowEditing: boolean;         // Allow message editing
+  editTimeLimit: number;         // Time limit for editing in minutes
+  allowDeletion: boolean;        // Allow message deletion
+  deletionTimeLimit: number;     // Time limit for deletion in minutes
+  messageRetentionDays: number;  // Days to retain messages
+  helpDeskEnabled: boolean;      // Whether help desk feature is enabled
+  helpDeskSettings: HelpDeskSettings;  // Help desk configuration
+  notificationSettings: ChatNotificationSettings;  // Notification preferences
+  createdBy: string;             // Admin who configured settings
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Help Desk Settings
+ */
+export interface HelpDeskSettings {
+  autoAssignEnabled: boolean;    // Whether to auto-assign requests
+  defaultResponseTime: number;   // Default response time in hours
+  escalationEnabled: boolean;    // Whether escalation is enabled
+  escalationTimeLimit: number;   // Escalation time limit in hours
+  allowEmployeeCreation: boolean; // Allow employees to create channels
+  requireApproval: boolean;      // Require approval for new channels
+  categories: HelpDeskCategory[]; // Available categories
+  priorityLevels: string[];      // Available priority levels
+}
+
+/**
+ * Chat Notification Settings
+ */
+export interface ChatNotificationSettings {
+  emailNotifications: boolean;   // Email notifications
+  pushNotifications: boolean;    // Push notifications
+  smsNotifications: boolean;     // SMS notifications
+  mentionNotifications: boolean; // Notify on mentions
+  channelNotifications: boolean; // Notify on channel messages
+  helpDeskNotifications: boolean; // Notify on help desk requests
+  quietHours: {                  // Quiet hours settings
+    enabled: boolean;
+    startTime: string;           // Start time (HH:MM)
+    endTime: string;             // End time (HH:MM)
+    timezone: string;            // Timezone
+  };
+}
+
+/**
+ * Chat Statistics
+ */
+export interface ChatStats {
+  totalMessages: number;         // Total messages sent
+  totalChannels: number;         // Total channels
+  totalHelpDeskRequests: number; // Total help desk requests
+  activeUsers: number;           // Active users in last 24 hours
+  messagesByType: {              // Messages count by type
+    type: string;
+    count: number;
+  }[];
+  topChannels: {                 // Most active channels
+    channelId: string;
+    channelName: string;
+    messageCount: number;
+    memberCount: number;
+  }[];
+  helpDeskStats: {               // Help desk statistics
+    totalRequests: number;
+    openRequests: number;
+    resolvedRequests: number;
+    averageResponseTime: number;
+    requestsByCategory: {
+      category: HelpDeskCategory;
+      count: number;
+    }[];
+  };
+  recentActivity: {              // Recent chat activity
+    channelId: string;
+    channelName: string;
+    activity: string;
+    timestamp: string;
+  }[];
+}
+
+/**
+ * Chat Filters
+ */
+export interface ChatFilters {
+  channelId?: string;            // Filter by channel
+  messageType?: string;          // Filter by message type
+  senderId?: string;             // Filter by sender
+  dateRange?: {                  // Filter by date range
+    startDate: string;
+    endDate: string;
+  };
+  searchTerm?: string;           // Search term for message content
+  hasAttachments?: boolean;      // Filter messages with attachments
+  isRead?: boolean;              // Filter read/unread messages
+}
+
+/**
+ * Chat User Status
+ */
+export interface ChatUserStatus {
+  userId: string;                // User ID
+  status: 'online' | 'offline' | 'away' | 'busy' | 'do-not-disturb';  // User status
+  lastSeen?: string;             // Last seen timestamp
+  isTyping?: string;             // Channel ID where user is typing
+  customStatus?: string;         // Custom status message
+  updatedAt: string;             // Last update timestamp
+}
+
+/**
+ * Chat Typing Indicator
+ */
+export interface TypingIndicator {
+  userId: string;                // User ID
+  channelId: string;             // Channel ID
+  userName: string;              // User name
+  isTyping: boolean;             // Whether user is typing
+  startedAt: string;             // Typing start timestamp
+}
+
+/**
+ * Chat Search Result
+ */
+export interface ChatSearchResult {
+  message: ChatMessage;          // Found message
+  channel: ChatChannel;          // Associated channel
+  sender: User;                  // Message sender
+  context: string;               // Message context (surrounding text)
+  relevance: number;             // Search relevance score
+}
+
+/**
+ * Message type enumeration for chat messages
+ */
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  FILE = 'file',
+  SYSTEM = 'system',
+  HELP_DESK = 'help-desk'
+}
+
+/**
+ * Attachment type enumeration for chat attachments
+ */
+export enum AttachmentType {
+  IMAGE = 'image',
+  DOCUMENT = 'document',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  OTHER = 'other'
 }

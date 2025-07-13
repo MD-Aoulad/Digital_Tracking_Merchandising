@@ -16,7 +16,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   
   // Module name mapping for absolute imports
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@core/(.*)$': '<rootDir>/src/core/$1',
     '^@components/(.*)$': '<rootDir>/src/components/$1',
@@ -75,9 +75,6 @@ module.exports = {
   // Restore mocks between tests
   restoreMocks: true,
   
-  // Test results processor
-  testResultsProcessor: 'jest-sonar-reporter',
-  
   // Coverage reporters
   coverageReporters: [
     'text',
@@ -94,10 +91,6 @@ module.exports = {
   testEnvironmentOptions: {
     url: 'http://localhost:3000',
   },
-  
-  // Global setup and teardown
-  globalSetup: '<rootDir>/tests/setup/global-setup.js',
-  globalTeardown: '<rootDir>/tests/setup/global-teardown.js',
   
   // Test path ignore patterns
   testPathIgnorePatterns: [
@@ -121,26 +114,9 @@ module.exports = {
     'jest-watch-typeahead/testname',
   ],
   
-  // Snapshot serializers
-  snapshotSerializers: [
-    'enzyme-to-json/serializer',
-  ],
-  
   // Test location
   roots: [
     '<rootDir>/src',
     '<rootDir>/tests',
-  ],
-  
-  // Collect coverage from specific directories
-  collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/index.tsx',
-    '!src/reportWebVitals.ts',
-    '!src/setupTests.ts',
-    '!src/**/*.stories.{js,jsx,ts,tsx}',
-    '!src/**/*.test.{js,jsx,ts,tsx}',
-    '!src/**/*.spec.{js,jsx,ts,tsx}',
   ],
 }; 

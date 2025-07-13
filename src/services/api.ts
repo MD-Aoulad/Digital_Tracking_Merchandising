@@ -783,6 +783,334 @@ export const usePunchOut = () => {
   return useApiMutation<{ message: string; punchOutTime: string; hoursWorked: number; attendance: Attendance }>('/attendance/punch-out', 'POST');
 };
 
+// ===== APPROVAL API FUNCTIONS =====
+
+/**
+ * Get approval statistics
+ * Fetches approval metrics and analytics
+ * 
+ * @returns Promise with approval statistics
+ */
+export const getApprovalStats = async (): Promise<any> => {
+  return apiRequest<any>('/approval/stats');
+};
+
+/**
+ * Get approval settings
+ * Fetches current approval system configuration
+ * 
+ * @returns Promise with approval settings
+ */
+export const getApprovalSettings = async (): Promise<any> => {
+  return apiRequest<any>('/approval/settings');
+};
+
+/**
+ * Update approval settings
+ * Updates approval system configuration
+ * 
+ * @param settings - New approval settings
+ * @returns Promise with update confirmation
+ */
+export const updateApprovalSettings = async (settings: any): Promise<any> => {
+  return apiRequest<any>('/approval/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settings)
+  });
+};
+
+/**
+ * Get approval requests
+ * Fetches list of approval requests
+ * 
+ * @returns Promise with approval requests
+ */
+export const getApprovalRequests = async (): Promise<any[]> => {
+  return apiRequest<any[]>('/approval/requests');
+};
+
+/**
+ * Create approval request
+ * Creates a new approval request
+ * 
+ * @param request - Request data
+ * @returns Promise with created request
+ */
+export const createApprovalRequest = async (request: any): Promise<any> => {
+  return apiRequest<any>('/approval/requests', {
+    method: 'POST',
+    body: JSON.stringify(request)
+  });
+};
+
+/**
+ * Update approval request
+ * Updates an existing approval request
+ * 
+ * @param id - Request ID
+ * @param updates - Update data
+ * @returns Promise with update confirmation
+ */
+export const updateApprovalRequest = async (id: string, updates: any): Promise<any> => {
+  try {
+    const response = await apiRequest(`/approval/requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+    return response;
+  } catch (error) {
+    console.error('Error updating approval request:', error);
+    throw error;
+  }
+};
+
+export const approveRequest = async (id: string): Promise<any> => {
+  try {
+    const response = await apiRequest(`/approval/requests/${id}/approve`, {
+      method: 'POST'
+    });
+    return response;
+  } catch (error) {
+    console.error('Error approving request:', error);
+    throw error;
+  }
+};
+
+export const rejectRequest = async (id: string): Promise<any> => {
+  try {
+    const response = await apiRequest(`/approval/requests/${id}/reject`, {
+      method: 'POST'
+    });
+    return response;
+  } catch (error) {
+    console.error('Error rejecting request:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete approval request
+ * Deletes an approval request
+ * 
+ * @param id - Request ID
+ * @returns Promise with deletion confirmation
+ */
+export const deleteApprovalRequest = async (id: string): Promise<any> => {
+  return apiRequest<any>(`/approval/requests/${id}`, {
+    method: 'DELETE'
+  });
+};
+
+/**
+ * Get approval delegations
+ * Fetches list of approval delegations
+ * 
+ * @returns Promise with approval delegations
+ */
+export const getApprovalDelegations = async (): Promise<any[]> => {
+  return apiRequest<any[]>('/approval/delegations');
+};
+
+/**
+ * Create approval delegation
+ * Creates a new approval delegation
+ * 
+ * @param delegation - Delegation data
+ * @returns Promise with created delegation
+ */
+export const createApprovalDelegation = async (delegation: any): Promise<any> => {
+  return apiRequest<any>('/approval/delegations', {
+    method: 'POST',
+    body: JSON.stringify(delegation)
+  });
+};
+
+/**
+ * Update approval delegation
+ * Updates an existing approval delegation
+ * 
+ * @param id - Delegation ID
+ * @param updates - Update data
+ * @returns Promise with update confirmation
+ */
+export const updateApprovalDelegation = async (id: string, updates: any): Promise<any> => {
+  return apiRequest<any>(`/approval/delegations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
+};
+
+/**
+ * Delete approval delegation
+ * Deletes an approval delegation
+ * 
+ * @param id - Delegation ID
+ * @returns Promise with deletion confirmation
+ */
+export const deleteApprovalDelegation = async (id: string): Promise<any> => {
+  return apiRequest<any>(`/approval/delegations/${id}`, {
+    method: 'DELETE'
+  });
+};
+
+/**
+ * Get approval workflows
+ * Fetches list of approval workflows
+ * 
+ * @returns Promise with approval workflows
+ */
+export const getApprovalWorkflows = async (): Promise<any[]> => {
+  return apiRequest<any[]>('/approval/workflows');
+};
+
+/**
+ * Create approval workflow
+ * Creates a new approval workflow
+ * 
+ * @param workflow - Workflow data
+ * @returns Promise with created workflow
+ */
+export const createApprovalWorkflow = async (workflow: any): Promise<any> => {
+  return apiRequest<any>('/approval/workflows', {
+    method: 'POST',
+    body: JSON.stringify(workflow)
+  });
+};
+
+/**
+ * Update approval workflow
+ * Updates an existing approval workflow
+ * 
+ * @param id - Workflow ID
+ * @param updates - Update data
+ * @returns Promise with update confirmation
+ */
+export const updateApprovalWorkflow = async (id: string, updates: any): Promise<any> => {
+  return apiRequest<any>(`/approval/workflows/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
+};
+
+/**
+ * Delete approval workflow
+ * Deletes an approval workflow
+ * 
+ * @param id - Workflow ID
+ * @returns Promise with deletion confirmation
+ */
+export const deleteApprovalWorkflow = async (id: string): Promise<any> => {
+  return apiRequest<any>(`/approval/workflows/${id}`, {
+    method: 'DELETE'
+  });
+};
+
+// ===== CHAT API FUNCTIONS =====
+
+/**
+ * Get chat settings
+ */
+export const getChatSettings = async () => {
+  return apiRequest<any>('/chat/settings');
+};
+
+/**
+ * Update chat settings
+ */
+export const updateChatSettings = async (settings: any) => {
+  return apiRequest<any>('/chat/settings', {
+    method: 'PUT',
+    body: settings
+  });
+};
+
+/**
+ * Get chat channels
+ */
+export const getChatChannels = async () => {
+  return apiRequest<any[]>('/chat/channels');
+};
+
+/**
+ * Create new chat channel
+ */
+export const createChatChannel = async (channel: any) => {
+  return apiRequest<any>('/chat/channels', {
+    method: 'POST',
+    body: channel
+  });
+};
+
+/**
+ * Get messages for a channel
+ */
+export const getChannelMessages = async (channelId: string) => {
+  return apiRequest<any[]>(`/chat/channels/${channelId}/messages`);
+};
+
+/**
+ * Send message to channel
+ */
+export const sendChannelMessage = async (channelId: string, message: any) => {
+  return apiRequest<any>(`/chat/channels/${channelId}/messages`, {
+    method: 'POST',
+    body: message
+  });
+};
+
+/**
+ * Get help desk channels
+ */
+export const getHelpDeskChannels = async () => {
+  return apiRequest<any[]>('/chat/help-desk/channels');
+};
+
+/**
+ * Get help desk requests
+ */
+export const getHelpDeskRequests = async () => {
+  return apiRequest<any[]>('/chat/help-desk/requests');
+};
+
+/**
+ * Create help desk request
+ */
+export const createHelpDeskRequest = async (request: any) => {
+  return apiRequest<any>('/chat/help-desk/requests', {
+    method: 'POST',
+    body: request
+  });
+};
+
+/**
+ * Send message to help desk request
+ */
+export const sendHelpDeskMessage = async (requestId: string, message: any) => {
+  return apiRequest<any>(`/chat/help-desk/requests/${requestId}/messages`, {
+    method: 'POST',
+    body: message
+  });
+};
+
+// ===== CHAT API OBJECT =====
+
+/**
+ * Chat API object
+ * Provides access to all chat-related API functions
+ */
+export const chatAPI = {
+  getChatSettings,
+  updateChatSettings,
+  getChatChannels,
+  createChatChannel,
+  getChannelMessages,
+  sendChannelMessage,
+  getHelpDeskChannels,
+  getHelpDeskRequests,
+  createHelpDeskRequest,
+  sendHelpDeskMessage
+};
+
 // ===== DEFAULT EXPORT =====
 
 /**
@@ -816,7 +1144,27 @@ const api = {
   reports: reportsAPI,
   attendance: attendanceAPI,
   admin: adminAPI,
-  health: healthAPI
+  health: healthAPI,
+  approval: {
+    getStats: getApprovalStats,
+    getSettings: getApprovalSettings,
+    updateSettings: updateApprovalSettings,
+    getRequests: getApprovalRequests,
+    createRequest: createApprovalRequest,
+    updateRequest: updateApprovalRequest,
+    approveRequest: approveRequest,
+    rejectRequest: rejectRequest,
+    deleteRequest: deleteApprovalRequest,
+    getDelegations: getApprovalDelegations,
+    createDelegation: createApprovalDelegation,
+    updateDelegation: updateApprovalDelegation,
+    deleteDelegation: deleteApprovalDelegation,
+    getWorkflows: getApprovalWorkflows,
+    createWorkflow: createApprovalWorkflow,
+    updateWorkflow: updateApprovalWorkflow,
+    deleteWorkflow: deleteApprovalWorkflow
+  },
+  chat: chatAPI
 };
 
 export default api; 

@@ -36,7 +36,8 @@ import {
   CheckSquare,
   Route as RouteIcon,
   Shield,
-  ClipboardList
+  ClipboardList,
+  MessageSquare
 } from 'lucide-react';
 
 // Import all page components
@@ -55,6 +56,8 @@ import WorkplacePage from './components/Workplace/WorkplacePage';
 import GroupPage from './components/Groups/GroupPage';
 import PostingBoardPage from './components/PostingBoard/PostingBoardPage';
 import ReportPage from './components/Report/ReportPage';
+import ApprovalPage from './components/Approval/ApprovalPage';
+import ChatPage from './components/Chat/ChatPage';
 import ComingSoonPage from './components/ComingSoonPage';
 import Login from './pages/Login';
 
@@ -180,6 +183,13 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
       icon: ClipboardList,
       current: location.pathname === '/todo'
     },
+    // Chat system - all users
+    {
+      name: 'Chat',
+      href: '/chat',
+      icon: MessageSquare,
+      current: location.pathname === '/chat'
+    },
     // Reports - admin only (as per retail manager requirements)
     ...(currentUser?.role === UserRole.ADMIN ? [{
       name: 'Reports',
@@ -187,6 +197,13 @@ function Navigation({ currentUser, sidebarOpen, handleSidebarToggle, handleLogou
       icon: FileText,
       current: location.pathname === '/reports'
     }] : []),
+    // Approval management - for managers and admins
+    {
+      name: 'Approval',
+      href: '/approval',
+      icon: Shield,
+      current: location.pathname === '/approval'
+    },
     // Member management - admin and leaders
     {
       name: t('nav.members'),
@@ -431,9 +448,19 @@ function AppLayout() {
                 <TodoPage userRole={user?.role || UserRole.VIEWER} />
               </ProtectedRoute>
             } />
+            <Route path="/chat" element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            } />
             <Route path="/reports" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ReportPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/approval" element={
+              <ProtectedRoute>
+                <ApprovalPage />
               </ProtectedRoute>
             } />
             <Route path="/members" element={

@@ -119,6 +119,128 @@ let todos = [];
 let reports = [];
 let attendanceData = {};
 
+// Chat system data storage
+let chatSettings = {
+  id: '1',
+  isEnabled: true,
+  allowFileSharing: true,
+  maxFileSize: 10,
+  allowedFileTypes: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt'],
+  allowReactions: true,
+  allowEditing: true,
+  editTimeLimit: 5,
+  allowDeletion: true,
+  deletionTimeLimit: 10,
+  messageRetentionDays: 365,
+  helpDeskEnabled: true,
+  helpDeskSettings: {
+    autoAssignEnabled: true,
+    defaultResponseTime: 24,
+    escalationEnabled: true,
+    escalationTimeLimit: 48,
+    allowEmployeeCreation: false,
+    requireApproval: true,
+    categories: ['personnel', 'vmd', 'inventory'],
+    priorityLevels: ['low', 'medium', 'high', 'urgent']
+  },
+  notificationSettings: {
+    emailNotifications: true,
+    pushNotifications: true,
+    smsNotifications: false,
+    mentionNotifications: true,
+    channelNotifications: true,
+    helpDeskNotifications: true,
+    quietHours: {
+      enabled: false,
+      startTime: '22:00',
+      endTime: '08:00',
+      timezone: 'UTC'
+    }
+  },
+  createdBy: '1',
+  updatedAt: new Date().toISOString()
+};
+
+let chatChannels = [
+  {
+    id: '1',
+    name: 'General',
+    description: 'Company-wide announcements and general discussions',
+    type: 'general',
+    members: ['1', '2'],
+    admins: ['1'],
+    createdBy: '1',
+    isPrivate: false,
+    isArchived: false,
+    notificationSettings: {
+      mentions: true,
+      allMessages: false,
+      importantOnly: true,
+      quietHours: {
+        enabled: false,
+        startTime: '22:00',
+        endTime: '08:00',
+        timezone: 'UTC'
+      }
+    },
+    memberCount: 2,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  }
+];
+
+let chatMessages = [
+  {
+    id: '1',
+    senderId: '2',
+    channelId: '1',
+    content: 'Good morning team!',
+    type: 'text',
+    readBy: ['1', '2'],
+    createdAt: '2024-01-15T09:00:00Z',
+    updatedAt: '2024-01-15T09:00:00Z',
+    isEdited: false,
+    isDeleted: false
+  }
+];
+
+let helpDeskChannels = [
+  {
+    id: 'hd1',
+    name: 'Personnel Manager',
+    description: 'Contact for vacation/annual leave, HR issues, and personnel matters',
+    category: 'personnel',
+    assignedManagers: ['1'],
+    contactPersons: ['1'],
+    topics: ['Vacation Request', 'Annual Leave', 'HR Issues', 'Benefits'],
+    priority: 'medium',
+    responseTime: 24,
+    isActive: true,
+    autoAssign: true,
+    createdBy: '1',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  },
+  {
+    id: 'hd2',
+    name: 'VMD Manager',
+    description: 'Contact for visual merchandising, store layout, and display issues',
+    category: 'vmd',
+    assignedManagers: ['2'],
+    contactPersons: ['2'],
+    topics: ['Store Layout', 'Display Issues', 'Visual Merchandising', 'Product Placement'],
+    priority: 'high',
+    responseTime: 12,
+    isActive: true,
+    autoAssign: true,
+    createdBy: '1',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  }
+];
+
+let helpDeskRequests = [];
+
 // ===== TEST-ONLY ENDPOINTS FOR CLEAN TESTING =====
 if (process.env.NODE_ENV === 'test') {
   app.post('/api/test/reset-attendance', (req, res) => {
@@ -421,6 +543,45 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
   }
 });
 
+// ===== USER MANAGEMENT ROUTES =====
+
+/**
+ * Get all users (for admin assignment purposes)
+ * Returns list of all users for todo assignment
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Array of all users
+ * - 401: Missing or invalid token
+ * - 403: Access denied (admin only)
+ * - 500: Internal server error
+ */
+app.get('/api/users', authenticateToken, (req, res) => {
+  try {
+    // Only admins can get all users
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin only.' });
+    }
+
+    // Return users without sensitive information
+    const safeUsers = users.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      status: user.status
+    }));
+
+    res.json({ users: safeUsers });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ===== TODO ROUTES =====
 
 /**
@@ -437,8 +598,8 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
  */
 app.get('/api/todos', authenticateToken, (req, res) => {
   try {
-    // Filter todos to only show current user's todos
-    const userTodos = todos.filter(todo => todo.userId === req.user.id);
+    // Filter todos to show todos assigned to current user (not just created by them)
+    const userTodos = todos.filter(todo => todo.assignedTo === req.user.id);
     res.json({ todos: userTodos });
   } catch (error) {
     console.error('Get todos error:', error);
@@ -466,7 +627,7 @@ app.get('/api/todos', authenticateToken, (req, res) => {
  */
 app.post('/api/todos', authenticateToken, (req, res) => {
   try {
-    const { title, description, priority = 'medium' } = req.body;
+    const { title, description, priority = 'medium', assignedTo } = req.body;
 
     // Validate required fields
     if (!title) {
@@ -482,7 +643,10 @@ app.post('/api/todos', authenticateToken, (req, res) => {
       completed: false,
       createdAt: new Date().toISOString(),
       completedAt: null,
-      userId: req.user.id
+      userId: req.user.id, // Creator
+      assignedTo: assignedTo || req.user.id, // Assigned user (defaults to creator)
+      assignedBy: req.user.id, // Who assigned it
+      assignedAt: new Date().toISOString()
     };
 
     // Add todo to storage
@@ -1016,6 +1180,885 @@ app.get('/api/admin/attendance', authenticateToken, (req, res) => {
   }
 });
 
+// ===== CHAT SYSTEM ENDPOINTS =====
+
+/**
+ * Get chat settings
+ * Returns current chat system configuration
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: Chat settings
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.get('/api/chat/settings', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    res.json(chatSettings);
+  } catch (error) {
+    console.error('Get chat settings error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Update chat settings
+ * Updates chat system configuration
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Body:
+ * - Updated chat settings
+ * 
+ * Response:
+ * - 200: Settings updated successfully
+ * - 400: Invalid settings data
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.put('/api/chat/settings', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    chatSettings = {
+      ...chatSettings,
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json({ message: 'Chat settings updated successfully', settings: chatSettings });
+  } catch (error) {
+    console.error('Update chat settings error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get chat channels
+ * Returns available chat channels for the user
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Array of chat channels
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/chat/channels', authenticateToken, (req, res) => {
+  try {
+    // Filter channels based on user membership
+    const userChannels = chatChannels.filter(channel => 
+      channel.members.includes(req.user.id) || channel.admins.includes(req.user.id)
+    );
+
+    res.json(userChannels);
+  } catch (error) {
+    console.error('Get chat channels error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Create chat channel
+ * Creates a new chat channel
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - Channel configuration data
+ * 
+ * Response:
+ * - 200: Channel created successfully
+ * - 400: Invalid channel data
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.post('/api/chat/channels', authenticateToken, (req, res) => {
+  try {
+    const channel = {
+      id: uuidv4(),
+      ...req.body,
+      members: req.body.members || [req.user.id],
+      admins: req.body.admins || [req.user.id],
+      createdBy: req.user.id,
+      isPrivate: req.body.isPrivate || false,
+      isArchived: false,
+      memberCount: (req.body.members || [req.user.id]).length,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    chatChannels.push(channel);
+
+    res.json({ message: 'Channel created successfully', channel });
+  } catch (error) {
+    console.error('Create chat channel error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get chat messages
+ * Returns messages for a specific channel
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Query Parameters:
+ * - channelId: Channel ID to get messages for
+ * - limit: Number of messages to return (default: 50)
+ * - before: Get messages before this timestamp
+ * 
+ * Response:
+ * - 200: Array of chat messages
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/chat/messages', authenticateToken, (req, res) => {
+  try {
+    const { channelId, limit = 50, before } = req.query;
+    
+    if (!channelId) {
+      return res.status(400).json({ error: 'Channel ID is required' });
+    }
+
+    // Check if user has access to this channel
+    const channel = chatChannels.find(c => c.id === channelId);
+    if (!channel || (!channel.members.includes(req.user.id) && !channel.admins.includes(req.user.id))) {
+      return res.status(403).json({ error: 'Access denied to this channel' });
+    }
+
+    let filteredMessages = chatMessages.filter(msg => msg.channelId === channelId);
+
+    if (before) {
+      filteredMessages = filteredMessages.filter(msg => new Date(msg.createdAt) < new Date(before));
+    }
+
+    // Sort by creation date (newest first) and limit
+    filteredMessages = filteredMessages
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, parseInt(limit));
+
+    res.json(filteredMessages);
+  } catch (error) {
+    console.error('Get chat messages error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Send chat message
+ * Sends a new message to a channel
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - Message data (channelId, content, type, etc.)
+ * 
+ * Response:
+ * - 200: Message sent successfully
+ * - 400: Invalid message data
+ * - 401: Missing or invalid token
+ * - 403: Access denied to channel
+ * - 500: Internal server error
+ */
+app.post('/api/chat/messages', authenticateToken, (req, res) => {
+  try {
+    const { channelId, content, type = 'text', replyTo, attachments } = req.body;
+
+    if (!channelId || !content) {
+      return res.status(400).json({ error: 'Channel ID and content are required' });
+    }
+
+    // Check if user has access to this channel
+    const channel = chatChannels.find(c => c.id === channelId);
+    if (!channel || (!channel.members.includes(req.user.id) && !channel.admins.includes(req.user.id))) {
+      return res.status(403).json({ error: 'Access denied to this channel' });
+    }
+
+    const message = {
+      id: uuidv4(),
+      senderId: req.user.id,
+      channelId,
+      content,
+      type,
+      readBy: [req.user.id],
+      replyTo,
+      attachments: attachments || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isEdited: false,
+      isDeleted: false
+    };
+
+    chatMessages.push(message);
+
+    // Update channel's last message
+    const channelIndex = chatChannels.findIndex(c => c.id === channelId);
+    if (channelIndex !== -1) {
+      chatChannels[channelIndex].lastMessage = message;
+      chatChannels[channelIndex].updatedAt = new Date().toISOString();
+    }
+
+    res.json({ message: 'Message sent successfully', chatMessage: message });
+  } catch (error) {
+    console.error('Send chat message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get help desk channels
+ * Returns available help desk channels
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Array of help desk channels
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/chat/help-desk/channels', authenticateToken, (req, res) => {
+  try {
+    res.json(helpDeskChannels);
+  } catch (error) {
+    console.error('Get help desk channels error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get help desk requests
+ * Returns help desk requests for the user
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Query Parameters:
+ * - status: Filter by request status
+ * - category: Filter by request category
+ * 
+ * Response:
+ * - 200: Array of help desk requests
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/chat/help-desk/requests', authenticateToken, (req, res) => {
+  try {
+    let filteredRequests = helpDeskRequests.filter(req => req.requesterId === req.user.id);
+
+    if (req.query.status) {
+      filteredRequests = filteredRequests.filter(r => r.status === req.query.status);
+    }
+
+    if (req.query.category) {
+      filteredRequests = filteredRequests.filter(r => r.category === req.query.category);
+    }
+
+    res.json(filteredRequests);
+  } catch (error) {
+    console.error('Get help desk requests error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Create help desk request
+ * Creates a new help desk request
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - Request data (channelId, title, description, category, priority, etc.)
+ * 
+ * Response:
+ * - 200: Request created successfully
+ * - 400: Invalid request data
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.post('/api/chat/help-desk/requests', authenticateToken, (req, res) => {
+  try {
+    const { channelId, title, description, category, priority = 'medium', tags = [] } = req.body;
+
+    if (!channelId || !title || !description) {
+      return res.status(400).json({ error: 'Channel ID, title, and description are required' });
+    }
+
+    // Check if help desk channel exists
+    const helpDeskChannel = helpDeskChannels.find(c => c.id === channelId);
+    if (!helpDeskChannel) {
+      return res.status(400).json({ error: 'Invalid help desk channel' });
+    }
+
+    const request = {
+      id: uuidv4(),
+      channelId,
+      requesterId: req.user.id,
+      requesterName: req.user.name,
+      requesterEmail: req.user.email,
+      title,
+      description,
+      category,
+      priority,
+      status: 'open',
+      messages: [
+        {
+          id: uuidv4(),
+          senderId: req.user.id,
+          channelId,
+          content: description,
+          type: 'help-desk',
+          readBy: [req.user.id],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isEdited: false,
+          isDeleted: false
+        }
+      ],
+      tags,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    helpDeskRequests.push(request);
+
+    res.json({ message: 'Help desk request created successfully', request });
+  } catch (error) {
+    console.error('Create help desk request error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Send message to help desk request
+ * Sends a message to a specific help desk request
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - Message data (requestId, content)
+ * 
+ * Response:
+ * - 200: Message sent successfully
+ * - 400: Invalid message data
+ * - 401: Missing or invalid token
+ * - 403: Access denied to request
+ * - 500: Internal server error
+ */
+app.post('/api/chat/help-desk/messages', authenticateToken, (req, res) => {
+  try {
+    const { requestId, content } = req.body;
+
+    if (!requestId || !content) {
+      return res.status(400).json({ error: 'Request ID and content are required' });
+    }
+
+    // Find the help desk request
+    const requestIndex = helpDeskRequests.findIndex(r => r.id === requestId);
+    if (requestIndex === -1) {
+      return res.status(404).json({ error: 'Help desk request not found' });
+    }
+
+    const request = helpDeskRequests[requestIndex];
+
+    // Check if user has access to this request
+    if (request.requesterId !== req.user.id && !request.assignedTo) {
+      return res.status(403).json({ error: 'Access denied to this request' });
+    }
+
+    const message = {
+      id: uuidv4(),
+      senderId: req.user.id,
+      channelId: request.channelId,
+      content,
+      type: 'help-desk',
+      readBy: [req.user.id],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isEdited: false,
+      isDeleted: false
+    };
+
+    // Add message to request
+    helpDeskRequests[requestIndex].messages.push(message);
+    helpDeskRequests[requestIndex].updatedAt = new Date().toISOString();
+
+    res.json({ message: 'Message sent successfully', chatMessage: message });
+  } catch (error) {
+    console.error('Send help desk message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== APPROVAL SYSTEM ENDPOINTS =====
+
+// In-memory storage for approval data
+let approvalRequests = [];
+let approvalSettings = {
+  id: '1',
+  allowSelfApproval: false,
+  allowDelegation: true,
+  delegationSettings: {
+    allowDelegation: true,
+    whoCanDelegate: 'all_managers_leaders',
+    whoCanBeDelegated: 'all_managers_leaders',
+    whoApprovesDelegation: 'upper_group_leader',
+    maxDelegationDuration: 30,
+    requireApproval: true,
+    autoApproveForUpperLeaders: false,
+    allowMultipleDelegations: false,
+    delegationHistoryRetention: 365
+  },
+  notificationSettings: {
+    emailNotifications: true,
+    pushNotifications: true,
+    smsNotifications: false,
+    approvalReminders: true,
+    escalationNotifications: true,
+    delegationNotifications: true
+  },
+  autoApprovalSettings: {
+    enabled: false,
+    maxAmount: 1000,
+    maxDays: 3,
+    allowedTypes: ['leave_request', 'schedule_change']
+  },
+  escalationSettings: {
+    enabled: true,
+    defaultTimeout: 24,
+    escalationLevels: 3
+  },
+  createdBy: '2',
+  updatedAt: new Date().toISOString()
+};
+
+let delegations = [];
+let approvalWorkflows = [];
+
+/**
+ * Get approval statistics
+ * Returns comprehensive approval metrics and statistics
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Response:
+ * - 200: Approval statistics object
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/approvals/stats', authenticateToken, (req, res) => {
+  try {
+    const stats = {
+      totalRequests: approvalRequests.length,
+      pendingRequests: approvalRequests.filter(r => r.status === 'pending').length,
+      approvedRequests: approvalRequests.filter(r => r.status === 'approved').length,
+      rejectedRequests: approvalRequests.filter(r => r.status === 'rejected').length,
+      averageApprovalTime: 12.5, // Mock data - calculate from actual data
+      requestsByType: [
+        { type: 'leave_request', count: 15, approved: 12, rejected: 2 },
+        { type: 'schedule_change', count: 8, approved: 7, rejected: 1 },
+        { type: 'overtime_request', count: 5, approved: 4, rejected: 1 }
+      ],
+      requestsByStatus: [
+        { status: 'pending', count: 3 },
+        { status: 'approved', count: 23 },
+        { status: 'rejected', count: 4 }
+      ],
+      topApprovers: [
+        { approverId: '2', approverName: 'Admin User', approvedCount: 15, averageTime: 8.5 },
+        { approverId: '1', approverName: 'Richard Johnson', approvedCount: 8, averageTime: 12.3 }
+      ],
+      recentActivity: [
+        {
+          requestId: '1',
+          requestTitle: 'Vacation Request',
+          action: 'approved',
+          approverName: 'Admin User',
+          timestamp: new Date().toISOString()
+        }
+      ]
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Get approval stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get approval settings
+ * Returns current approval system configuration
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: Approval settings object
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.get('/api/approvals/settings', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    res.json(approvalSettings);
+  } catch (error) {
+    console.error('Get approval settings error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Update approval settings
+ * Updates the approval system configuration
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Body:
+ * - Approval settings object
+ * 
+ * Response:
+ * - 200: Updated approval settings
+ * - 400: Invalid settings data
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.put('/api/approvals/settings', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const updatedSettings = { ...approvalSettings, ...req.body, updatedAt: new Date().toISOString() };
+    approvalSettings = updatedSettings;
+
+    res.json(updatedSettings);
+  } catch (error) {
+    console.error('Update approval settings error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get approval requests
+ * Returns approval requests based on filters
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Query Parameters:
+ * - my-requests: Filter to show only user's requests
+ * - pending-approvals: Filter to show only pending approvals for user
+ * 
+ * Response:
+ * - 200: Array of approval requests
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/approvals/requests', authenticateToken, (req, res) => {
+  try {
+    let filteredRequests = [...approvalRequests];
+
+    if (req.query['my-requests'] === 'true') {
+      filteredRequests = filteredRequests.filter(r => r.requesterId === req.user.id);
+    }
+
+    if (req.query['pending-approvals'] === 'true') {
+      filteredRequests = filteredRequests.filter(r => 
+        r.status === 'pending' && r.requesterId !== req.user.id
+      );
+    }
+
+    res.json(filteredRequests);
+  } catch (error) {
+    console.error('Get approval requests error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Approve a request
+ * Approves an approval request
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - notes: Optional approval notes
+ * 
+ * Response:
+ * - 200: Request approved successfully
+ * - 400: Invalid request data
+ * - 401: Missing or invalid token
+ * - 404: Request not found
+ * - 500: Internal server error
+ */
+app.post('/api/approvals/requests/:requestId/approve', authenticateToken, (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { notes } = req.body;
+
+    const request = approvalRequests.find(r => r.id === requestId);
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    request.status = 'approved';
+    request.approvedBy = req.user.id;
+    request.approvedAt = new Date().toISOString();
+    request.approvalNotes = notes;
+
+    res.json({ message: 'Request approved successfully', request });
+  } catch (error) {
+    console.error('Approve request error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Reject a request
+ * Rejects an approval request
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - reason: Reason for rejection
+ * 
+ * Response:
+ * - 200: Request rejected successfully
+ * - 400: Invalid request data
+ * - 401: Missing or invalid token
+ * - 404: Request not found
+ * - 500: Internal server error
+ */
+app.post('/api/approvals/requests/:requestId/reject', authenticateToken, (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { reason } = req.body;
+
+    const request = approvalRequests.find(r => r.id === requestId);
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    request.status = 'rejected';
+    request.rejectedBy = req.user.id;
+    request.rejectedAt = new Date().toISOString();
+    request.rejectionReason = reason;
+
+    res.json({ message: 'Request rejected successfully', request });
+  } catch (error) {
+    console.error('Reject request error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Delegate a request
+ * Delegates an approval request to another user
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - delegateId: ID of user to delegate to
+ * - reason: Reason for delegation
+ * 
+ * Response:
+ * - 200: Request delegated successfully
+ * - 400: Invalid request data
+ * - 401: Missing or invalid token
+ * - 404: Request not found
+ * - 500: Internal server error
+ */
+app.post('/api/approvals/requests/:requestId/delegate', authenticateToken, (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { delegateId, reason } = req.body;
+
+    const request = approvalRequests.find(r => r.id === requestId);
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    request.status = 'delegated';
+    request.delegationInfo = {
+      id: uuidv4(),
+      delegatorId: req.user.id,
+      delegateId,
+      reason,
+      status: 'active',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json({ message: 'Request delegated successfully', request });
+  } catch (error) {
+    console.error('Delegate request error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get delegations
+ * Returns delegation information
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Query Parameters:
+ * - status: Filter by delegation status
+ * 
+ * Response:
+ * - 200: Array of delegations
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.get('/api/approvals/delegations', authenticateToken, (req, res) => {
+  try {
+    let filteredDelegations = [...delegations];
+
+    if (req.query.status) {
+      filteredDelegations = filteredDelegations.filter(d => d.status === req.query.status);
+    }
+
+    res.json(filteredDelegations);
+  } catch (error) {
+    console.error('Get delegations error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Request delegation
+ * Creates a new delegation request
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required)
+ * 
+ * Body:
+ * - Delegation request data
+ * 
+ * Response:
+ * - 200: Delegation requested successfully
+ * - 400: Invalid delegation data
+ * - 401: Missing or invalid token
+ * - 500: Internal server error
+ */
+app.post('/api/approvals/delegations/request', authenticateToken, (req, res) => {
+  try {
+    const delegation = {
+      id: uuidv4(),
+      delegatorId: req.user.id,
+      ...req.body,
+      status: 'pending',
+      isActive: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    delegations.push(delegation);
+
+    res.json({ message: 'Delegation requested successfully', delegation });
+  } catch (error) {
+    console.error('Request delegation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get approval workflows
+ * Returns approval workflow configurations
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Response:
+ * - 200: Array of approval workflows
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.get('/api/approvals/workflows', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    res.json(approvalWorkflows);
+  } catch (error) {
+    console.error('Get approval workflows error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Create approval workflow
+ * Creates a new approval workflow
+ * 
+ * Headers:
+ * - Authorization: Bearer <jwt_token> (required, admin role)
+ * 
+ * Body:
+ * - Workflow configuration data
+ * 
+ * Response:
+ * - 200: Workflow created successfully
+ * - 400: Invalid workflow data
+ * - 401: Missing or invalid token
+ * - 403: Admin access required
+ * - 500: Internal server error
+ */
+app.post('/api/approvals/workflows', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const workflow = {
+      id: uuidv4(),
+      ...req.body,
+      createdBy: req.user.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    approvalWorkflows.push(workflow);
+
+    res.json({ message: 'Workflow created successfully', workflow });
+  } catch (error) {
+    console.error('Create approval workflow error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ===== ERROR HANDLING =====
 
 /**
@@ -1080,6 +2123,8 @@ app.listen(PORT, () => {
   console.log(`📝 Todo management: http://localhost:${PORT}/api/todos`);
   console.log(`📋 Report system: http://localhost:${PORT}/api/reports`);
   console.log(`⏰ Attendance tracking: http://localhost:${PORT}/api/attendance`);
+  console.log(`✅ Approval system: http://localhost:${PORT}/api/approvals`);
+  console.log(`💬 Chat system: http://localhost:${PORT}/api/chat`);
 });
 
 module.exports = app; 
