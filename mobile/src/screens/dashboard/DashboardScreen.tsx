@@ -16,265 +16,322 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import authService from '../../services/auth/authService';
-import { User, Store, Task } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface DashboardStats {
-  totalStores: number;
-  completedTasks: number;
-  pendingTasks: number;
-  todayPunchIns: number;
+interface DashboardMetric {
+  title: string;
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  onPress?: () => void;
 }
 
-export default function DashboardScreen({ navigation }: any) {
-  const [user, setUser] = useState<User | null>(null);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalStores: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    todayPunchIns: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
+interface RecentActivity {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  type: 'task' | 'report' | 'attendance' | 'notification';
+}
+
+export default function DashboardScreen() {
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [metrics, setMetrics] = useState<DashboardMetric[]>([
+    {
+      title: 'Active Tasks',
+      value: '5',
+      icon: 'list',
+      color: '#007AFF',
+    },
+    {
+      title: 'Completed Today',
+      value: '3',
+      icon: 'checkmark-circle',
+      color: '#34C759',
+    },
+    {
+      title: 'Hours Worked',
+      value: '8.5',
+      icon: 'time',
+      color: '#FF9500',
+    },
+    {
+      title: 'Reports Due',
+      value: '2',
+      icon: 'document-text',
+      color: '#FF3B30',
+    },
+  ]);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Get current user
-      const currentUser = authService.getAuthState().user;
-      setUser(currentUser);
-
-      // TODO: Load dashboard stats from API
-      // For now, using mock data
-      setStats({
-        totalStores: 12,
-        completedTasks: 8,
-        pendingTasks: 4,
-        todayPunchIns: 3,
-      });
-    } catch (error) {
-      console.error('Dashboard load error:', error);
-      Alert.alert('Error', 'Failed to load dashboard data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [recentActivity] = useState<RecentActivity[]>([
+    {
+      id: '1',
+      title: 'Task Completed',
+      description: 'Store inventory check completed',
+      time: '2 hours ago',
+      type: 'task',
+    },
+    {
+      id: '2',
+      title: 'Report Submitted',
+      description: 'Weekly sales report submitted',
+      time: '4 hours ago',
+      type: 'report',
+    },
+    {
+      id: '3',
+      title: 'Clock In',
+      description: 'You clocked in at 9:00 AM',
+      time: '8 hours ago',
+      type: 'attendance',
+    },
+    {
+      id: '4',
+      title: 'New Task Assigned',
+      description: 'New task: Store visit scheduled',
+      time: '1 day ago',
+      type: 'notification',
+    },
+  ]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadDashboard();
-    setRefreshing(false);
+    // Simulate API call
+    setTimeout(() => {
+      setRefreshing(false);
+      Alert.alert('Refreshed', 'Dashboard data updated!');
+    }, 1000);
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await authService.logout();
-          },
-        },
-      ]
-    );
+  const getActivityIcon = (type: RecentActivity['type']) => {
+    switch (type) {
+      case 'task':
+        return 'list';
+      case 'report':
+        return 'document-text';
+      case 'attendance':
+        return 'time';
+      case 'notification':
+        return 'notifications';
+      default:
+        return 'information-circle';
+    }
   };
 
-  const StatCard = ({ title, value, icon, color }: any) => (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <View style={styles.statHeader}>
-        <Ionicons name={icon} size={24} color={color} />
-        <Text style={styles.statTitle}>{title}</Text>
-      </View>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-    </View>
-  );
+  const getActivityColor = (type: RecentActivity['type']) => {
+    switch (type) {
+      case 'task':
+        return '#007AFF';
+      case 'report':
+        return '#34C759';
+      case 'attendance':
+        return '#FF9500';
+      case 'notification':
+        return '#FF3B30';
+      default:
+        return '#666';
+    }
+  };
 
-  const QuickAction = ({ title, icon, onPress, color }: any) => (
+  const QuickAction = ({ 
+    icon, 
+    title, 
+    onPress 
+  }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    onPress: () => void;
+  }) => (
     <TouchableOpacity style={styles.quickAction} onPress={onPress}>
-      <View style={[styles.quickActionIcon, { backgroundColor: color }]}>
-        <Ionicons name={icon} size={24} color="#ffffff" />
+      <View style={styles.quickActionIcon}>
+        <Ionicons name={icon} size={24} color="#007AFF" />
       </View>
-      <Text style={styles.quickActionTitle}>{title}</Text>
+      <Text style={styles.quickActionText}>{title}</Text>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.name || 'User'}</Text>
-        </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#ef4444" />
-        </TouchableOpacity>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* Welcome Section */}
+      <View style={styles.welcomeSection}>
+        <Text style={styles.welcomeText}>
+          Welcome back, {user?.name?.split(' ')[0] || 'User'}!
+        </Text>
+        <Text style={styles.dateText}>
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </Text>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Stats Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Overview</Text>
-          <View style={styles.statsGrid}>
-            <StatCard
-              title="Stores"
-              value={stats.totalStores}
-              icon="business-outline"
-              color="#3b82f6"
-            />
-            <StatCard
-              title="Completed Tasks"
-              value={stats.completedTasks}
-              icon="checkmark-circle-outline"
-              color="#10b981"
-            />
-            <StatCard
-              title="Pending Tasks"
-              value={stats.pendingTasks}
-              icon="time-outline"
-              color="#f59e0b"
-            />
-            <StatCard
-              title="Punch-ins"
-              value={stats.todayPunchIns}
-              icon="location-outline"
-              color="#8b5cf6"
-            />
-          </View>
+      {/* Metrics Grid */}
+      <View style={styles.metricsSection}>
+        <Text style={styles.sectionTitle}>Today's Overview</Text>
+        <View style={styles.metricsGrid}>
+          {metrics.map((metric, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.metricCard}
+              onPress={metric.onPress}
+            >
+              <View style={[styles.metricIcon, { backgroundColor: metric.color + '20' }]}>
+                <Ionicons name={metric.icon} size={24} color={metric.color} />
+              </View>
+              <Text style={styles.metricValue}>{metric.value}</Text>
+              <Text style={styles.metricTitle}>{metric.title}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
+      </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            <QuickAction
-              title="Punch In"
-              icon="location"
-              color="#3b82f6"
-              onPress={() => navigation.navigate('Stores')}
-            />
-            <QuickAction
-              title="View Tasks"
-              icon="list"
-              color="#10b981"
-              onPress={() => navigation.navigate('Tasks')}
-            />
-            <QuickAction
-              title="Submit Report"
-              icon="document-text"
-              color="#f59e0b"
-              onPress={() => navigation.navigate('Reports')}
-            />
-            <QuickAction
-              title="My Profile"
-              icon="person"
-              color="#8b5cf6"
-              onPress={() => Alert.alert('Profile', 'Profile screen coming soon')}
-            />
-          </View>
+      {/* Quick Actions */}
+      <View style={styles.quickActionsSection}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickActionsGrid}>
+          <QuickAction
+            icon="add-circle"
+            title="New Task"
+            onPress={() => Alert.alert('Coming Soon', 'Create new task feature')}
+          />
+          <QuickAction
+            icon="camera"
+            title="Clock In/Out"
+            onPress={() => Alert.alert('Coming Soon', 'Time tracking feature')}
+          />
+          <QuickAction
+            icon="document-text"
+            title="Submit Report"
+            onPress={() => Alert.alert('Coming Soon', 'Report submission feature')}
+          />
+          <QuickAction
+            icon="location"
+            title="Store Visit"
+            onPress={() => Alert.alert('Coming Soon', 'Store visit feature')}
+          />
         </View>
+      </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <View style={styles.activityCard}>
-            <Text style={styles.activityText}>
-              No recent activity to display
-            </Text>
-            <Text style={styles.activitySubtext}>
-              Your recent punch-ins and task completions will appear here
-            </Text>
+      {/* Recent Activity */}
+      <View style={styles.activitySection}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        {recentActivity.map((activity) => (
+          <View key={activity.id} style={styles.activityItem}>
+            <View style={[
+              styles.activityIcon,
+              { backgroundColor: getActivityColor(activity.type) + '20' }
+            ]}>
+              <Ionicons
+                name={getActivityIcon(activity.type)}
+                size={20}
+                color={getActivityColor(activity.type)}
+              />
+            </View>
+            <View style={styles.activityContent}>
+              <Text style={styles.activityTitle}>{activity.title}</Text>
+              <Text style={styles.activityDescription}>{activity.description}</Text>
+              <Text style={styles.activityTime}>{activity.time}</Text>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        ))}
+      </View>
+
+      {/* Bottom Spacing */}
+      <View style={styles.bottomSpacing} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f9fa',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  welcomeSection: {
+    backgroundColor: '#007AFF',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingVertical: 30,
+    paddingTop: 40,
   },
   welcomeText: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  userName: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#fff',
+    marginBottom: 4,
   },
-  logoutButton: {
-    padding: 8,
+  dateText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  content: {
-    flex: 1,
-  },
-  section: {
+  metricsSection: {
+    backgroundColor: '#fff',
+    margin: 20,
+    marginTop: -20,
+    borderRadius: 12,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 16,
   },
-  statsGrid: {
+  metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  statCard: {
+  metricCard: {
     width: '48%',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
     padding: 16,
     marginBottom: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: 'center',
   },
-  statHeader: {
-    flexDirection: 'row',
+  metricIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
-  statTitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginLeft: 8,
-  },
-  statValue: {
+  metricValue: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  metricTitle: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+  quickActionsSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   quickActionsGrid: {
     flexDirection: 'row',
@@ -283,50 +340,77 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     width: '48%',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginBottom: 12,
   },
   quickActionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  quickActionTitle: {
+  quickActionText: {
     fontSize: 14,
+    color: '#333',
     fontWeight: '500',
-    color: '#1e293b',
-    textAlign: 'center',
   },
-  activityCard: {
-    backgroundColor: '#ffffff',
+  activitySection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 20,
     borderRadius: 12,
     padding: 20,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  activityText: {
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
     fontSize: 16,
-    color: '#64748b',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  activityDescription: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 4,
   },
-  activitySubtext: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
+  activityTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  bottomSpacing: {
+    height: 20,
   },
 });

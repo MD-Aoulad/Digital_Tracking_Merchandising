@@ -37,7 +37,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       return;
     }
 
-    // console.log('🚀 Login button pressed with:', { email, password });
+    console.log('🚀 Login button pressed with:', { email, password });
     
     // Test network connectivity first (commented out for production)
     /*
@@ -59,10 +59,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     clearError();
     const success = await login(email, password);
     
-    // console.log('📱 Login result:', { success, error });
+    console.log('📱 Login result:', { success, error });
     
     if (!success && error) {
-      // console.log('❌ Showing error alert:', error);
+      console.log('❌ Showing error alert:', error);
       Alert.alert('Login Failed', error);
     }
   };
@@ -149,7 +149,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             >
               <Text style={styles.quickLoginText}>Login as Admin</Text>
             </TouchableOpacity>
-            {/* Debug button - uncomment for testing
+            {/* Debug button - uncomment for testing */}
             <TouchableOpacity
               style={[styles.quickLoginButton, { backgroundColor: '#f59e0b' }]}
               onPress={async () => {
@@ -167,7 +167,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             >
               <Text style={styles.quickLoginText}>Test API Connection</Text>
             </TouchableOpacity>
-            */}
           </View>
         </View>
 

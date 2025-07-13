@@ -1,358 +1,412 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  FlatList,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 
-interface Todo {
+interface Task {
   id: string;
   title: string;
-  description?: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'overdue';
   priority: 'low' | 'medium' | 'high';
-  completed: boolean;
-  createdAt: string;
-  completedAt?: string;
-  assignedTo: string;
+  dueDate: string;
   assignedBy: string;
-  assignedAt: string;
+  store?: string;
+  type: 'visit' | 'inventory' | 'report' | 'maintenance';
 }
 
 export default function TasksScreen() {
   const { user } = useAuth();
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: '1',
+      title: 'Store Inventory Check',
+      description: 'Complete inventory check for Store #123',
+      status: 'pending',
+      priority: 'high',
+      dueDate: '2024-01-15',
+      assignedBy: 'Manager',
+      store: 'Store #123',
+      type: 'inventory',
+    },
+    {
+      id: '2',
+      title: 'Sales Report Submission',
+      description: 'Submit weekly sales report',
+      status: 'in_progress',
+      priority: 'medium',
+      dueDate: '2024-01-14',
+      assignedBy: 'Admin',
+      type: 'report',
+    },
+    {
+      id: '3',
+      title: 'Store Visit',
+      description: 'Visit Store #456 for routine check',
+      status: 'completed',
+      priority: 'low',
+      dueDate: '2024-01-13',
+      assignedBy: 'Supervisor',
+      store: 'Store #456',
+      type: 'visit',
+    },
+    {
+      id: '4',
+      title: 'Equipment Maintenance',
+      description: 'Check and maintain store equipment',
+      status: 'overdue',
+      priority: 'high',
+      dueDate: '2024-01-12',
+      assignedBy: 'Manager',
+      store: 'Store #789',
+      type: 'maintenance',
+    },
+  ]);
 
-  const API_BASE_URL = 'http://192.168.178.150:5000/api';
-
-  const getAuthHeaders = () => {
-    const token = user?.token;
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
-    };
-  };
-
-  const loadTodos = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/todos`, {
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setTodos(data.todos || []);
-    } catch (err) {
-      console.error('Todo loading error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load todos');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleTodoComplete = async (todo: Todo) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/todos/${todo.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ completed: !todo.completed })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const updatedTodo = await response.json();
-      setTodos(prev => prev.map(t => t.id === todo.id ? updatedTodo.todo : t));
-    } catch (error) {
-      console.error('Toggle todo error:', error);
-      Alert.alert('Error', 'Failed to update todo');
-    }
-  };
+  const filteredTasks = tasks.filter(task => {
+    if (selectedFilter === 'all') return true;
+    return task.status === selectedFilter;
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadTodos();
-    setRefreshing(false);
+    // Simulate API call
+    setTimeout(() => {
+      setRefreshing(false);
+      Alert.alert('Refreshed', 'Tasks updated!');
+    }, 1000);
   };
 
-  useEffect(() => {
-    loadTodos();
-  }, [user]);
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return '#ef4444';
-      case 'medium': return '#f59e0b';
-      case 'low': return '#10b981';
-      default: return '#6b7280';
+  const getStatusColor = (status: Task['status']) => {
+    switch (status) {
+      case 'pending':
+        return '#FF9500';
+      case 'in_progress':
+        return '#007AFF';
+      case 'completed':
+        return '#34C759';
+      case 'overdue':
+        return '#FF3B30';
+      default:
+        return '#666';
     }
   };
 
-  const renderTodo = ({ item }: { item: Todo }) => (
-    <View style={styles.todoItem}>
-      <TouchableOpacity
-        style={styles.todoContent}
-        onPress={() => toggleTodoComplete(item)}
-      >
-        <View style={styles.todoHeader}>
-          <View style={styles.todoTitleRow}>
-            <Ionicons
-              name={item.completed ? "checkmark-circle" : "ellipse-outline"}
-              size={24}
-              color={item.completed ? "#10b981" : "#6b7280"}
-            />
-            <Text style={[
-              styles.todoTitle,
-              item.completed && styles.completedText
-            ]}>
-              {item.title}
-            </Text>
-          </View>
-          <View style={[
-            styles.priorityBadge,
-            { backgroundColor: getPriorityColor(item.priority) }
-          ]}>
-            <Text style={styles.priorityText}>{item.priority}</Text>
-          </View>
-        </View>
-        
-        {item.description && (
-          <Text style={[
-            styles.todoDescription,
-            item.completed && styles.completedText
-          ]}>
-            {item.description}
-          </Text>
-        )}
-        
-        <View style={styles.todoFooter}>
-          <Text style={styles.todoDate}>
-            Assigned: {new Date(item.assignedAt).toLocaleDateString()}
-          </Text>
-          {item.completedAt && (
-            <Text style={styles.todoDate}>
-              Completed: {new Date(item.completedAt).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    </View>
+  const getPriorityColor = (priority: Task['priority']) => {
+    switch (priority) {
+      case 'high':
+        return '#FF3B30';
+      case 'medium':
+        return '#FF9500';
+      case 'low':
+        return '#34C759';
+      default:
+        return '#666';
+    }
+  };
+
+  const getTypeIcon = (type: Task['type']) => {
+    switch (type) {
+      case 'visit':
+        return 'location';
+      case 'inventory':
+        return 'list';
+      case 'report':
+        return 'document-text';
+      case 'maintenance':
+        return 'construct';
+      default:
+        return 'help-circle';
+    }
+  };
+
+  const handleTaskPress = (task: Task) => {
+    Alert.alert(
+      task.title,
+      `Status: ${task.status}\nPriority: ${task.priority}\nDue: ${task.dueDate}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Mark Complete', onPress: () => markTaskComplete(task.id) },
+        { text: 'View Details', onPress: () => viewTaskDetails(task) },
+      ]
+    );
+  };
+
+  const markTaskComplete = (taskId: string) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, status: 'completed' as const } : task
+      )
+    );
+    Alert.alert('Success', 'Task marked as completed!');
+  };
+
+  const viewTaskDetails = (task: Task) => {
+    Alert.alert('Coming Soon', 'Detailed task view will be available soon!');
+  };
+
+  const FilterButton = ({ 
+    title, 
+    filter, 
+    isSelected 
+  }: {
+    title: string;
+    filter: typeof selectedFilter;
+    isSelected: boolean;
+  }) => (
+    <TouchableOpacity
+      style={[styles.filterButton, isSelected && styles.filterButtonActive]}
+      onPress={() => setSelectedFilter(filter)}
+    >
+      <Text style={[styles.filterButtonText, isSelected && styles.filterButtonTextActive]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
   );
 
-  if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Tasks</Text>
-          <Text style={styles.subtitle}>View and complete assigned tasks</Text>
+  const TaskCard = ({ task }: { task: Task }) => (
+    <TouchableOpacity
+      style={styles.taskCard}
+      onPress={() => handleTaskPress(task)}
+    >
+      <View style={styles.taskHeader}>
+        <View style={styles.taskTitleContainer}>
+          <Ionicons
+            name={getTypeIcon(task.type)}
+            size={20}
+            color="#007AFF"
+            style={styles.taskIcon}
+          />
+          <Text style={styles.taskTitle}>{task.title}</Text>
         </View>
-        <View style={styles.loadingContainer}>
-          <Ionicons name="refresh" size={32} color="#94a3b8" />
-          <Text style={styles.loadingText}>Loading tasks...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Tasks</Text>
-        <Text style={styles.subtitle}>View and complete assigned tasks</Text>
-      </View>
-      
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#ef4444" />
-          <Text style={styles.errorTitle}>Error loading tasks</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadTodos}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : todos.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="checkmark-circle" size={64} color="#94a3b8" />
-          <Text style={styles.emptyTitle}>No tasks assigned</Text>
-          <Text style={styles.emptyMessage}>
-            You don't have any tasks assigned to you yet.
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(task.status) + '20' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(task.status) }]}>
+            {task.status.replace('_', ' ').toUpperCase()}
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={todos}
-          renderItem={renderTodo}
-          keyExtractor={(item) => item.id}
-          style={styles.todoList}
-          contentContainerStyle={styles.todoListContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
-    </SafeAreaView>
+      </View>
+
+      <Text style={styles.taskDescription}>{task.description}</Text>
+
+      <View style={styles.taskFooter}>
+        <View style={styles.taskMeta}>
+          <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) + '20' }]}>
+            <Text style={[styles.priorityText, { color: getPriorityColor(task.priority) }]}>
+              {task.priority.toUpperCase()}
+            </Text>
+          </View>
+          {task.store && (
+            <Text style={styles.storeText}>{task.store}</Text>
+          )}
+        </View>
+        <Text style={styles.dueDateText}>Due: {task.dueDate}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Tasks</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => Alert.alert('Coming Soon', 'Create new task feature')}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Filters */}
+      <View style={styles.filtersContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <FilterButton title="All" filter="all" isSelected={selectedFilter === 'all'} />
+          <FilterButton title="Pending" filter="pending" isSelected={selectedFilter === 'pending'} />
+          <FilterButton title="In Progress" filter="in_progress" isSelected={selectedFilter === 'in_progress'} />
+          <FilterButton title="Completed" filter="completed" isSelected={selectedFilter === 'completed'} />
+        </ScrollView>
+      </View>
+
+      {/* Tasks List */}
+      <FlatList
+        data={filteredTasks}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <TaskCard task={item} />}
+        contentContainerStyle={styles.tasksList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="checkmark-circle" size={64} color="#ccc" />
+            <Text style={styles.emptyStateTitle}>No tasks found</Text>
+            <Text style={styles.emptyStateText}>
+              {selectedFilter === 'all' 
+                ? 'You have no tasks assigned yet.'
+                : `No ${selectedFilter.replace('_', ' ')} tasks found.`
+              }
+            </Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f9fa',
   },
   header: {
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 12,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginTop: 16,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#3b82f6',
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
   },
-  retryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  emptyContainer: {
-    flex: 1,
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 16,
+  filtersContainer: {
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
   },
-  emptyMessage: {
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  filterButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  filterButtonText: {
     fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
+    color: '#666',
+    fontWeight: '500',
   },
-  todoList: {
-    flex: 1,
+  filterButtonTextActive: {
+    color: '#fff',
   },
-  todoListContent: {
+  tasksList: {
     padding: 16,
   },
-  todoItem: {
-    backgroundColor: '#ffffff',
+  taskCard: {
+    backgroundColor: '#fff',
     borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  todoContent: {
-    padding: 16,
-  },
-  todoHeader: {
+  taskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
   },
-  todoTitleRow: {
+  taskTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 12,
   },
-  todoTitle: {
+  taskIcon: {
+    marginRight: 8,
+  },
+  taskTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
-    marginLeft: 12,
+    color: '#333',
     flex: 1,
   },
-  completedText: {
-    textDecorationLine: 'line-through',
-    color: '#94a3b8',
-  },
-  priorityBadge: {
+  statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  priorityText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
-    textTransform: 'uppercase',
+  statusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
   },
-  todoDescription: {
+  taskDescription: {
     fontSize: 14,
-    color: '#64748b',
-    marginBottom: 12,
+    color: '#666',
     lineHeight: 20,
+    marginBottom: 12,
   },
-  todoFooter: {
+  taskFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  todoDate: {
+  taskMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priorityBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  priorityText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  storeText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#666',
+  },
+  dueDateText: {
+    fontSize: 12,
+    color: '#999',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

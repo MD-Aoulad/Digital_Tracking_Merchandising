@@ -212,7 +212,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (storedUser && storedToken) {
         const userData = JSON.parse(storedUser);
         setUser({ ...userData, token: storedToken });
-        startSessionTimer();
+        // Start session timer after setting user
+        setTimeout(() => {
+          if (sessionTimer) {
+            clearTimeout(sessionTimer);
+          }
+          const timer = setTimeout(() => {
+            console.log('Session expired due to inactivity. Auto-logout initiated.');
+            logout();
+          }, SESSION_TIMEOUT_MS);
+          setSessionTimer(timer);
+        }, 0);
       }
     } catch (err) {
       console.error('Error initializing auth:', err);
@@ -228,10 +238,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     setError(null);
     
-    // console.log('🔐 Mobile Login Attempt:', { email, API_BASE_URL });
+    console.log('🔐 Mobile Login Attempt:', { email, API_BASE_URL });
     
     try {
-      // console.log('📡 Making login request to:', `${API_BASE_URL}/auth/login`);
+      console.log('📡 Making login request to:', `${API_BASE_URL}/auth/login`);
       
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -241,32 +251,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         body: JSON.stringify({ email, password }),
       });
 
-      // console.log('📡 Response status:', response.status);
-      // console.log('📡 Response headers:', response.headers);
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', response.headers);
 
       const data = await response.json();
-      // console.log('📡 Response data:', data);
+      console.log('📡 Response data:', data);
 
       if (!response.ok) {
-        // console.log('❌ Login failed:', data);
+        console.log('❌ Login failed:', data);
         throw new Error(data.message || 'Login failed');
       }
 
-      // console.log('✅ Login successful, processing user data');
+      console.log('✅ Login successful, processing user data');
       const userData = convertApiUserToAppUser(data.user);
       userData.token = data.token;
       
       setUser(userData);
-      startSessionTimer();
 
       // Store user data
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       await AsyncStorage.setItem('token', data.token);
 
-      // console.log('✅ User data stored, login complete');
+      console.log('✅ User data stored, login complete');
+      
+      // Start session timer after successful login
+      setTimeout(() => {
+        if (sessionTimer) {
+          clearTimeout(sessionTimer);
+        }
+        const timer = setTimeout(() => {
+          console.log('Session expired due to inactivity. Auto-logout initiated.');
+          logout();
+        }, SESSION_TIMEOUT_MS);
+        setSessionTimer(timer);
+      }, 0);
+
       return true;
     } catch (err) {
-      // console.log('❌ Login error:', err);
+      console.log('❌ Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
       return false;
@@ -295,12 +317,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initializeAuth();
   }, []);
 
-  // Start session timer when user changes
+  // Cleanup session timer on unmount
   useEffect(() => {
-    if (user) {
-      startSessionTimer();
-    }
-  }, [user, startSessionTimer]);
+    return () => {
+      if (sessionTimer) {
+        clearTimeout(sessionTimer);
+      }
+    };
+  }, [sessionTimer]);
 
   const value: AuthContextType = {
     user,
