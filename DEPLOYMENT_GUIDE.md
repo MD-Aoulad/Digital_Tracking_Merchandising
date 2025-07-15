@@ -509,3 +509,120 @@ When your startup grows and you have funding:
 5. **Domain**: Custom domain ($10-15/year)
 
 **Total upgrade cost**: ~$67/month for production-ready infrastructure. 
+
+---
+
+## 1. **Backend and Database Health**
+
+- **Backend Health:**  
+  The `/api/health` endpoint returns:
+  ```json
+  {
+    "status": "OK",
+    "message": "Workforce Management API is running",
+    "timestamp": "..."
+  }
+  ```
+  ✅ **Backend is running and responsive.**
+
+---
+
+## 2. **Demo Login via Direct API Call**
+
+- **Result:**  
+  ```json
+  {"error":"Invalid email or password"}
+  ```
+  ❌ **Login is still failing, even though the backend and database are up.**
+
+---
+
+## 3. **Authentication Code Consistency**
+
+- **Backend Code:**  
+  - The `/api/auth/login` endpoint **correctly queries the database** for the user by email.
+  - It uses `bcryptjs` to compare the provided password with the stored hash.
+  - The code is not using in-memory users for login; it is using the database.
+
+---
+
+## 4. **Root Cause Analysis**
+
+- **You have already:**
+  - Verified the database contains the correct users and bcryptjs-compatible hashes.
+  - Confirmed the backend is using the correct database and code.
+  - Confirmed the backend is running and accessible.
+
+- **But:**  
+  The login still fails with "Invalid email or password" even when using the correct credentials and hash.
+
+---
+
+## 5. **What Could Be Wrong?**
+
+### **A. Database User Table Schema**
+- The backend expects the columns: `email`, `password`, `name`, `role`, `department`, `status`, `created_at`.
+- If the column names or types are different, the query or password check could fail.
+
+### **B. Email Case Sensitivity**
+- The backend queries with `email.toLowerCase()`.  
+  If the email in the database is not all lowercase, the query may not find the user.
+
+### **C. Extra Spaces or Hidden Characters**
+- If the email or password in the database or request has extra spaces, the comparison will fail.
+
+### **D. Multiple Users Table**
+- If there are multiple `users` tables in different schemas or databases, the backend may be querying a different one than you checked.
+
+---
+
+## 6. **Expert Action Plan**
+
+### **Step 1: Confirm Email Case**
+Run this SQL and paste the output:
+```sql
+SELECT email, LENGTH(email), password FROM users WHERE LOWER(email) = 'admin@company.com';
+```
+- This will show if the email is stored in lowercase and if there are any hidden characters.
+
+### **Step 2: Confirm Only One Users Table**
+Run:
+```sql
+\\dt *users*
+```
+- This will list all tables named `users` in all schemas.
+
+### **Step 3: Add Debug Logging to Backend**
+Add a `console.log` in your `/api/auth/login` endpoint to print:
+- The email and password received
+- The user row fetched from the database
+- The result of the bcrypt comparison
+
+This will show exactly where the failure is.
+
+### **Step 4: Try Registering a New User**
+Use the `/api/auth/register` endpoint to create a new user with email `test@company.com` and password `password`, then try logging in with that user.  
+If this works, the issue is with the existing demo users' data.
+
+---
+
+## 7. **Summary Table**
+
+| Check                        | Status      | Next Action                                  |
+|------------------------------|-------------|-----------------------------------------------|
+| Backend health               | ✅ OK       | -                                             |
+| Database users present       | ✅ Yes      | -                                             |
+| bcryptjs hash correct        | ✅ Yes      | -                                             |
+| Login via API                | ❌ Fails    | Check email case, schema, debug logging       |
+| Code uses DB, not memory     | ✅ Yes      | -                                             |
+
+---
+
+## **What I Recommend Next**
+
+1. **Run the SQL checks above and share the output.**
+2. **Add debug logging to the backend login endpoint.**
+3. **Try registering and logging in with a new user.**
+
+Would you like me to guide you through these steps, or do you want to try them and report back?  
+If you want, I can provide the exact code to add debug logging to your backend for immediate insight. 

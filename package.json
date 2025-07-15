@@ -15,6 +15,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.0",
     "lucide-react": "^0.525.0",
+    "pg": "^8.16.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.60.0",
@@ -34,18 +35,15 @@
     "test:automated": "node scripts/automated-test-runner.js",
     "test:coverage": "npm test -- --coverage --watchAll=false",
     "test:ci": "npm test -- --watchAll=false --coverage --passWithNoTests",
-    
     "# Free Deployment Commands (Startup Edition)": "",
     "deploy:free": "./scripts/quick-deploy.sh",
     "deploy:vercel": "vercel --prod",
     "deploy:render": "echo 'Deploy to Render via GitHub integration (FREE)'",
     "deploy:mobile": "cd mobile && npx expo build:android --non-interactive && npx expo build:ios --non-interactive",
-    
     "# Local Development (FREE)": "",
     "deploy:local": "./scripts/deploy-local.sh",
     "deploy:docker": "docker-compose up -d --build",
     "deploy:docker:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
-    
     "# Docker Commands (Local - FREE)": "",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
@@ -53,7 +51,6 @@
     "docker:logs": "docker-compose logs -f",
     "docker:restart": "docker-compose restart",
     "docker:clean": "docker-compose down -v --remove-orphans",
-    
     "# Monitoring & Database (FREE)": "",
     "monitoring:start": "docker-compose --profile monitoring up -d",
     "monitoring:stop": "docker-compose --profile monitoring down",
@@ -61,13 +58,11 @@
     "db:stop": "docker-compose --profile database down",
     "cache:start": "docker-compose --profile cache up -d",
     "cache:stop": "docker-compose --profile cache down",
-    
     "# Setup Commands (FREE)": "",
     "setup:github-secrets": "echo 'See GITHUB_SECRETS_SETUP.md for free CI/CD setup'",
     "setup:vercel": "npm install -g vercel && vercel",
     "setup:render": "echo 'Go to render.com and create free web service'",
     "setup:supabase": "echo 'Go to supabase.com and create free database'",
-    
     "# Monitoring Commands (FREE)": "",
     "usage:check": "echo '📊 Check free tier usage:' && echo 'GitHub: https://github.com/settings/billing' && echo 'Vercel: vercel usage' && echo 'Render: https://dashboard.render.com' && echo 'Supabase: https://supabase.com/dashboard'",
     "usage:optimize": "echo '💡 See FREE_TIER_STRATEGIES.md for optimization tips'",

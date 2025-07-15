@@ -375,29 +375,25 @@ const MembersPage: React.FC<MembersPageProps> = ({ userRole }) => {
    * Handles saving a new or updated member
    * @param member - The member data to save
    */
-  const handleSaveMember = (member: Member) => {
-    console.log('Saving member:', member);
-    
-    // If this is a new member (no id), add it to the mock data
-    if (!member.id) {
-      const newMember: Member = {
-        ...member,
-        id: `member-${Date.now()}`,
-        userId: `user-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastLoginAt: undefined
-      };
-      
-      // Add to mock members array (in a real app, this would be handled by state management)
-      // mockMembers.push(newMember); // This line is no longer needed as members state is managed by API
-      
-      // Show success message
-      alert('User created successfully! You can now log in to the mobile app with this account.');
+  const handleSaveMember = async (member: Member) => {
+    try {
+      if (selectedMember) {
+        // Editing existing member
+        await api.admin.updateUser(member.userId, {
+          name: member.name || '',
+          role: member.role || 'employee',
+          department: member.department || '',
+          status: member.status || 'active'
+        });
+      }
+      // Refresh the members list
+      await fetchMembers();
+      setShowMemberModal(false);
+      setSelectedMember(null);
+    } catch (error: any) {
+      console.error('Error saving member:', error);
+      setError(error.message || 'Failed to save member');
     }
-    
-    setShowMemberModal(false);
-    setSelectedMember(null);
   };
 
   /**

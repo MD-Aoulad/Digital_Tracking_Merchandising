@@ -1,3 +1,90 @@
+# Project File & Directory Overview
+
+This section provides a high-level overview of the files and directories in this project, explaining the purpose of each. Use this as a reference for navigation, onboarding, and debugging.
+
+## Top-Level Files & Directories
+
+- **backend/**: Node.js/Express backend API server, database logic, and backend tests.
+- **src/**: Main React frontend application source code.
+- **mobile/**: React Native mobile app (Expo/managed workflow).
+- **WorkforceMobileApp/**: Native mobile app (bare workflow, Android/iOS code).
+- **WorkforceMobileExpo/**: Expo-based mobile app (web and mobile support).
+- **docs/**: Feature documentation, requirements, and technical guides.
+- **scripts/**: Utility scripts for development, testing, and deployment.
+- **public/**: Static assets for the frontend (if using Create React App).
+- **test, test-report-automated.html/json, test-health-report.html/json, test-report.xml**: Test output and health reports.
+- **README.md**: Main project readme and quickstart.
+- **DOCUMENTATION.md**: This documentation file.
+- **package.json, package-lock.json**: Project dependencies and scripts.
+- **docker-compose.yml, Dockerfile.frontend, nginx.conf, nginx-frontend.conf**: Deployment and infrastructure config.
+- **.gitignore, .github/**: Git and GitHub configuration.
+- **Other .md files**: Guides, plans, and status reports.
+
+---
+
+## backend/
+- **server.js**: Main backend server (Express, API endpoints, DB connection).
+- **package.json, package-lock.json**: Backend dependencies and scripts.
+- **healthcheck.js**: Health check endpoint for monitoring.
+- **Dockerfile**: Docker build for backend.
+- **swagger.json**: API documentation (Swagger/OpenAPI spec).
+- **__tests__/**: Backend unit, integration, and security tests.
+- **README.md**: Backend-specific documentation.
+
+## src/
+- **App.tsx, App.test.tsx**: Main React app entry and test.
+- **index.tsx**: ReactDOM entry point.
+- **components/**: All React UI components (pages, features, common UI).
+- **pages/**: Top-level page components (routing targets).
+- **contexts/**: React context providers (e.g., AuthContext).
+- **services/**: API service logic (fetch, hooks, etc.).
+- **core/**: Shared logic, hooks, and types for modular architecture.
+- **lib/**: Utility libraries (i18n, helpers).
+- **types/**: TypeScript type definitions.
+- **config/**: Frontend config (API endpoints, etc.).
+- **__tests__/**: Frontend unit/integration tests.
+- **index.css, App.css**: Global and app styles.
+
+## mobile/
+- **App.tsx**: Entry point for the mobile app.
+- **src/**: Mobile-specific components, screens, contexts, types, and utils.
+- **assets/**: Images and icons for mobile app.
+- **__tests__/**: Mobile app tests.
+- **MOBILE_DEVELOPMENT_GUIDE.md, README.md**: Mobile app documentation.
+
+## WorkforceMobileApp/
+- **App.tsx**: Native app entry point.
+- **android/, ios/**: Native platform code (Android/iOS).
+- **src/**: Shared mobile app logic/components.
+- **vendor/**: Third-party dependencies/bundles.
+- **__tests__/**: Native app tests.
+- **README.md**: Native app documentation.
+
+## WorkforceMobileExpo/
+- **App.tsx**: Expo app entry point.
+- **src/**: Expo-specific screens, contexts, and logic.
+- **web/**: Web entry point for Expo web builds.
+- **assets/**: Images/icons for Expo app.
+- **README.md**: Expo app documentation.
+
+## docs/
+- **MERCHANDISING_TODO_FEATURES.md, JOURNEY_PLAN_FEATURE.md, etc.**: Feature specs and requirements.
+- **features/**: Subdirectory for feature-specific docs.
+- **ui-layout/**: UI/UX layout documentation.
+- **TODO_FEATURE.md, GRANT_LEAVE_FEATURE.md**: Detailed feature guides.
+- **PROFESSIONAL_DB_UI_INTEGRATION.md**: DB and UI integration notes.
+
+## scripts/
+- **start-dev.sh, dev-todo-feature.sh, test-auth-flow.sh, etc.**: Shell scripts for starting dev servers, running tests, and automation.
+- **automated-test-runner.js, test-health-checker.js, continuous-test-monitor.js**: Node.js scripts for test automation and monitoring.
+- **quick-deploy.sh, deploy-local.sh**: Deployment scripts.
+
+---
+
+For more details on any file or directory, see the corresponding README or documentation file, or ask for a deep dive on a specific area.
+
+---
+
 # Digital Tracking Merchandising - Complete Documentation
 
 ## 📋 Table of Contents

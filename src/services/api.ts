@@ -721,6 +721,22 @@ export const adminAPI = {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ message: string }>(response);
+  },
+
+  /**
+   * Update a user by ID (admin only)
+   * 
+   * @param id - User ID to update
+   * @param userData - User data to update
+   * @returns Promise with updated user data
+   */
+  updateUser: async (id: string, userData: { name: string; role: string; department: string; status: string }): Promise<{ user: User; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(userData),
+    });
+    return handleResponse<{ user: User; message: string }>(response);
   }
 };
 

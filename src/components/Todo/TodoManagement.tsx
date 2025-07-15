@@ -5,6 +5,7 @@ interface TodoManagementProps {
   task?: TodoTask;
   templates: TodoTemplate[];
   employees: User[];
+  workplaces: { id: string; name: string }[];
   onSave: (task: TodoTask) => void;
   onCancel: () => void;
   userRole: UserRole;
@@ -14,6 +15,7 @@ const TodoManagement: React.FC<TodoManagementProps> = ({
   task,
   templates,
   employees,
+  workplaces,
   onSave,
   onCancel,
   userRole
@@ -28,6 +30,7 @@ const TodoManagement: React.FC<TodoManagementProps> = ({
       assignedTo: [],
       assignedWorkplaces: [],
       priority: 'medium',
+      difficulty: 'medium',
       status: 'pending',
       category: '',
       dueDate: '',
@@ -73,6 +76,7 @@ const TodoManagement: React.FC<TodoManagementProps> = ({
         description: template.description,
         category: template.category,
         priority: template.priority,
+        difficulty: template.difficulty,
         estimatedDuration: template.estimatedDuration,
         isRepeating: template.isRepeating,
         repeatPattern: template.repeatPattern,
@@ -221,8 +225,44 @@ const TodoManagement: React.FC<TodoManagementProps> = ({
             />
           </div>
 
+          {/* Priority and Difficulty */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priority *
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => handleInputChange('priority', e.target.value)}
+                required
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Difficulty
+              </label>
+              <select
+                value={formData.difficulty || 'medium'}
+                onChange={(e) => handleInputChange('difficulty', e.target.value)}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+          </div>
+
           {/* Assignment */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Assign to Employees */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Assign to Employees *
@@ -246,21 +286,26 @@ const TodoManagement: React.FC<TodoManagementProps> = ({
               </select>
               <p className="mt-1 text-sm text-gray-500">Hold Ctrl/Cmd to select multiple employees</p>
             </div>
-
+            {/* Assign to Workplaces */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Priority
+                Assign to Workplaces
               </label>
               <select
-                value={formData.priority}
-                onChange={(e) => handleInputChange('priority', e.target.value)}
+                multiple
+                value={formData.assignedWorkplaces}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => option.value);
+                  handleArrayChange('assignedWorkplaces', selected);
+                }}
                 className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                size={4}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
+                {workplaces.map((wp) => (
+                  <option key={wp.id} value={wp.id}>{wp.name}</option>
+                ))}
               </select>
+              <p className="mt-1 text-sm text-gray-500">Hold Ctrl/Cmd to select multiple workplaces</p>
             </div>
           </div>
 
@@ -380,6 +425,45 @@ const TodoManagement: React.FC<TodoManagementProps> = ({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Status Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) => handleInputChange('status', e.target.value)}
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              <option value="pending">Pending</option>
+              <option value="in-progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
+            <input
+              type="file"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                const attachments = files.map((file, idx) => ({
+                  id: `file-${Date.now()}-${idx}`,
+                  fileName: file.name,
+                  fileType: file.type,
+                  fileUrl: '', // Placeholder, should be set after upload
+                  fileSize: file.size,
+                  uploadedAt: new Date().toISOString(),
+                  uploadedBy: '',
+                }));
+                setFormData(prev => ({ ...prev, attachments }));
+              }}
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+            <p className="mt-1 text-sm text-gray-500">You can upload multiple files (photos, docs, etc.)</p>
           </div>
 
           {/* Advanced Options Toggle */}

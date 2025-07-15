@@ -28,8 +28,7 @@ const SessionTimeoutTest: React.FC = () => {
 
     const interval = setInterval(() => {
       const now = new Date();
-      setLastActivity(now);
-      
+      // setLastActivity(now); // Removed to prevent infinite render loop
       // Calculate time until expiry (simplified - in real app this would be more complex)
       const sessionEndTime = new Date(sessionStartTime!.getTime() + (sessionTimeout * 60 * 1000));
       const timeLeft = Math.max(0, sessionEndTime.getTime() - now.getTime());

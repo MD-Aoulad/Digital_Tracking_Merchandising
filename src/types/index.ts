@@ -1255,6 +1255,7 @@ export interface TodoTask {
   assignedTo: string[];          // Employee IDs assigned to this task
   assignedWorkplaces?: string[]; // Workplace IDs (if assigned by workplace)
   priority: 'low' | 'medium' | 'high' | 'urgent';  // Task priority
+  difficulty?: 'easy' | 'medium' | 'hard';  // Task difficulty level
   status: 'pending' | 'in-progress' | 'completed' | 'overdue' | 'cancelled';  // Task status
   category: string;              // Task category
   dueDate: string;               // Due date (YYYY-MM-DD)

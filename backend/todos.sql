@@ -1,0 +1,28 @@
+-- To-Do Table Migration for Fieldforce Operations
+CREATE TABLE IF NOT EXISTS todos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    assigned_to TEXT[] NOT NULL,
+    assigned_workplaces TEXT[] DEFAULT '{}',
+    priority TEXT NOT NULL DEFAULT 'medium',
+    status TEXT NOT NULL DEFAULT 'pending',
+    category TEXT,
+    due_date DATE,
+    due_time TIME,
+    estimated_duration INTEGER DEFAULT 30,
+    is_repeating BOOLEAN DEFAULT FALSE,
+    repeat_pattern JSONB,
+    reminders JSONB,
+    attachments JSONB,
+    requires_photo BOOLEAN DEFAULT FALSE,
+    requires_location BOOLEAN DEFAULT FALSE,
+    requires_signature BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    tags TEXT[] DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by TEXT,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    cancellation_reason TEXT
+); 

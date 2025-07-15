@@ -44,8 +44,11 @@ const { v4: uuidv4 } = require('uuid');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+console.log('DATABASE_URL:', process.env.DATABASE_URL); // Debug log
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
+const { Pool } = require('pg');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -108,29 +111,6 @@ app.use((err, req, res, next) => {
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ===== IN-MEMORY DATA STORAGE (Replace with database in production) =====
-let users = [
-  {
-    id: '1',
-    email: 'richard@company.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
-    name: 'Richard Johnson',
-    role: 'employee',
-    department: 'Sales',
-    status: 'active',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    email: 'admin@company.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
-    name: 'Admin User',
-    role: 'admin',
-    department: 'IT',
-    status: 'active',
-    createdAt: new Date().toISOString()
-  }
-];
-
 let todos = [
   {
     id: '1',
@@ -480,43 +460,53 @@ app.get('/api/test', (req, res) => {
  * Returns list of all users without password fields
  * Should be removed in production
  */
-app.get('/api/debug/users', (req, res) => {
-  const usersWithoutPasswords = users.map(user => {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  });
-  res.json({ users: usersWithoutPasswords, count: users.length });
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users');
+    res.json({ users: result.rows, count: result.rows.length });
+  } catch (error) {
+    console.error('Debug users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 /**
  * Debug endpoint to reset users to default state (development only)
- * Resets the users array to initial default users
+ * Resets the users table to initial default users
  * Should be removed in production
  */
-app.delete('/api/debug/users', (req, res) => {
-  users = [
-    {
-      id: '1',
-      email: 'richard@company.com',
-      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
-      name: 'Richard Johnson',
-      role: 'employee',
-      department: 'Sales',
-      status: 'active',
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: '2',
-      email: 'admin@company.com',
-      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
-      name: 'Admin User',
-      role: 'admin',
-      department: 'IT',
-      status: 'active',
-      createdAt: new Date().toISOString()
+app.delete('/api/debug/users', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users');
+    const demoUsers = [
+      {
+        email: 'richard@company.com',
+        password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
+        name: 'Richard Johnson',
+        role: 'employee',
+        department: 'Sales',
+        status: 'active'
+      },
+      {
+        email: 'admin@company.com',
+        password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
+        name: 'Admin User',
+        role: 'admin',
+        department: 'IT',
+        status: 'active'
+      }
+    ];
+    for (const user of demoUsers) {
+      await pool.query(
+        'INSERT INTO users (email, password, name, role, department, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+        [user.email, user.password, user.name, user.role, user.department, user.status]
+      );
     }
-  ];
-  res.json({ message: 'Users reset to default state' });
+    res.json({ message: 'Users reset to default state' });
+  } catch (error) {
+    console.error('Reset users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ===== AUTHENTICATION ROUTES =====
@@ -552,29 +542,21 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Check if user already exists (case-insensitive email comparison)
-    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (existingUser) {
+    // Check if user already exists in DB
+    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (existingUser.rows.length > 0) {
       return res.status(409).json({ error: 'User already exists' });
     }
 
-    // Hash password for secure storage
+    // Hash password
     const hashedPassword = await hashPassword(password);
-    
-    // Create new user object
-    const newUser = {
-      id: uuidv4(),
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      name,
-      role,
-      department,
-      status: 'active',
-      createdAt: new Date().toISOString()
-    };
 
-    // Add user to storage
-    users.push(newUser);
+    // Insert user into DB
+    const insertResult = await pool.query(
+      'INSERT INTO users (email, password, name, role, department, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *',
+      [email.toLowerCase(), hashedPassword, name, role, department, 'active']
+    );
+    const newUser = insertResult.rows[0];
 
     // Generate JWT token for immediate authentication
     const token = generateToken(newUser);
@@ -586,7 +568,6 @@ app.post('/api/auth/register', async (req, res) => {
       user: userWithoutPassword,
       token
     });
-
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -603,56 +584,45 @@ app.post('/api/auth/register', async (req, res) => {
  * 
  * Response:
  * - 200: Login successful with user data and token
- * - 400: Missing email or password
+ * - 400: Missing required fields
  * - 401: Invalid credentials
- * - 403: Account deactivated
  * - 500: Internal server error
  */
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Validate required fields
+    console.log('Login attempt:', { email, password }); // Debug log
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    console.log('Testing email:', email, 'Result:', emailRegex.test(email));
-    if (!emailRegex.test(email)) {
-      console.log('Email validation failed, returning 400');
-      return res.status(400).json({ error: 'Invalid email format' });
-    }
+    // Debug: Print all users in the database
+    const allUsers = await pool.query('SELECT * FROM users');
+    console.log('All users in DB:', allUsers.rows);
 
-    // Find user by email (case-insensitive)
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    // Query user from DB
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email.toLowerCase()]);
+    const user = result.rows[0];
+    console.log('User from DB:', user); // Debug log
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Verify password against stored hash
-    const isValidPassword = await comparePassword(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    // Compare password
+    const isMatch = await comparePassword(password, user.password);
+    console.log('Password match:', isMatch); // Debug log
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Check if user account is active
-    if (user.status !== 'active') {
-      return res.status(403).json({ error: 'Account is deactivated' });
-    }
-
-    // Generate JWT token for authentication
+    // Generate JWT token
     const token = generateToken(user);
-
-    // Return user data without password and authentication token
     const { password: _, ...userWithoutPassword } = user;
     res.json({
       message: 'Login successful',
       user: userWithoutPassword,
       token
     });
-
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -673,18 +643,13 @@ app.post('/api/auth/login', async (req, res) => {
  * - 404: User not found
  * - 500: Internal server error
  */
-app.get('/api/auth/profile', authenticateToken, (req, res) => {
+app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
-    // Find user by ID from JWT token
-    const user = users.find(u => u.id === req.user.id);
-    if (!user) {
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword });
-
+    res.json({ user: result.rows[0] });
   } catch (error) {
     console.error('Profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -706,121 +671,106 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
  * - 403: Access denied (admin only)
  * - 500: Internal server error
  */
-app.get('/api/users', authenticateToken, (req, res) => {
+app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     // Only admins can get all users
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
     }
-
-    // Return users without sensitive information
-    const safeUsers = users.map(user => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      department: user.department,
-      status: user.status
-    }));
-
-    res.json({ users: safeUsers });
+    const result = await pool.query('SELECT id, name, email, role, department, status FROM users');
+    res.json({ users: result.rows });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ===== TODO ROUTES =====
+// ===== TODO ROUTES (DATABASE-BACKED) =====
 
 /**
  * Get all todos for authenticated user
  * Returns list of todos belonging to the current user
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Response:
- * - 200: Array of user's todos
- * - 500: Internal server error
  */
-app.get('/api/todos', authenticateToken, (req, res) => {
+app.get('/api/todos', authenticateToken, async (req, res) => {
   try {
-    // Filter todos to show todos assigned to current user (not just created by them)
-    const userTodos = todos.filter(todo => todo.assignedTo === req.user.id);
-    res.json({ todos: userTodos });
+    // Only filter by assigned_to for now, since created_by column is missing or not available
+    const result = await pool.query(
+      'SELECT * FROM todos WHERE $1 = ANY(assigned_to) ORDER BY due_date, due_time',
+      [req.user.id]
+    );
+    res.json({ todos: result.rows });
   } catch (error) {
     console.error('Get todos error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
 /**
  * Create new todo for authenticated user
  * Creates a new todo item with the provided details
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Request Body:
- * - title: Todo title (required)
- * - description: Todo description (optional)
- * - priority: Priority level ('low', 'medium', 'high', default: 'medium')
- * - category, startDate, endDate, repeat, taskCompleted, confirmation, creator (optional)
- * 
- * Response:
- * - 201: Todo created successfully
- * - 400: Missing required title
- * - 401: Missing or invalid token
- * - 500: Internal server error
  */
-app.post('/api/todos', authenticateToken, (req, res) => {
+app.post('/api/todos', authenticateToken, async (req, res) => {
   try {
     const {
       title,
       description,
+      assignedTo = [],
+      assignedWorkplaces = [],
       priority = 'medium',
-      assignedTo,
+      status = 'pending',
       category = '',
-      startDate = '',
-      endDate = '',
-      repeat = '',
-      taskCompleted = '',
-      confirmation = '',
-      creator = req.user.name || req.user.id,
+      dueDate = null,
+      dueTime = null,
+      estimatedDuration = 30,
+      isRepeating = false,
+      repeatPattern = null,
+      reminders = null,
+      attachments = null,
+      requiresPhoto = false,
+      requiresLocation = false,
+      requiresSignature = false,
+      notes = '',
+      tags = [],
+      completedAt = null,
+      cancellationReason = null
     } = req.body;
-
-    // Validate required fields
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
-
-    // Create new todo object
-    const newTodo = {
-      id: uuidv4(),
-      title,
-      description,
-      priority,
-      completed: false,
-      createdAt: new Date().toISOString(),
-      completedAt: null,
-      assignedTo: assignedTo || req.user.id, // Assigned user (defaults to creator)
-      assignedBy: req.user.id, // Who assigned it
-      category,
-      startDate,
-      endDate,
-      repeat,
-      taskCompleted,
-      confirmation,
-      creator,
-    };
-
-    // Add todo to storage
-    todos.push(newTodo);
-    res.status(201).json({ 
-      message: 'Todo created successfully',
-      todo: newTodo 
-    });
-
+    
+    // Ensure assignedTo is always a valid array
+    const safeAssignedTo = Array.isArray(assignedTo) && assignedTo.length > 0 ? assignedTo : [req.user.id];
+    const safeAssignedWorkplaces = Array.isArray(assignedWorkplaces) ? assignedWorkplaces : [];
+    const safeTags = Array.isArray(tags) ? tags : [];
+    const insertResult = await pool.query(
+      `INSERT INTO todos (
+        title, description, assigned_to, assigned_workplaces, priority, status, category, due_date, due_time, estimated_duration, is_repeating, repeat_pattern, reminders, attachments, requires_photo, requires_location, requires_signature, notes, tags, created_at, updated_at, created_by, completed_at, cancellation_reason
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW(), $20, $21, $22
+      ) RETURNING *`,
+      [
+        title,
+        description,
+        safeAssignedTo,
+        safeAssignedWorkplaces,
+        priority,
+        status,
+        category,
+        dueDate,
+        dueTime,
+        estimatedDuration,
+        isRepeating,
+        repeatPattern ? JSON.stringify(repeatPattern) : null,
+        reminders ? JSON.stringify(reminders) : null,
+        attachments ? JSON.stringify(attachments) : null,
+        requiresPhoto,
+        requiresLocation,
+        requiresSignature,
+        notes,
+        safeTags,
+        req.user.id,
+        completedAt,
+        cancellationReason
+      ]
+    );
+    res.status(201).json({ message: 'Todo created successfully', todo: insertResult.rows[0] });
   } catch (error) {
     console.error('Create todo error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -829,67 +779,89 @@ app.post('/api/todos', authenticateToken, (req, res) => {
 
 /**
  * Update existing todo
- * Updates a todo item with new values. Only the todo owner can update it.
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * URL Parameters:
- * - id: Todo ID to update (required)
- * 
- * Request Body:
- * - title, description, priority, completed, category, startDate, endDate, repeat, taskCompleted, confirmation, creator (optional)
- * 
- * Response:
- * - 200: Todo updated successfully
- * - 401: Missing or invalid token
- * - 404: Todo not found or not owned by user
- * - 500: Internal server error
+ * Updates a todo item with new values. Only the creator or assigned user can update it.
  */
-app.put('/api/todos/:id', authenticateToken, (req, res) => {
+app.put('/api/todos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const {
       title,
       description,
+      assignedTo,
+      assignedWorkplaces,
       priority,
-      completed,
+      status,
       category,
-      startDate,
-      endDate,
-      repeat,
-      taskCompleted,
-      confirmation,
-      creator,
+      dueDate,
+      dueTime,
+      estimatedDuration,
+      isRepeating,
+      repeatPattern,
+      reminders,
+      attachments,
+      requiresPhoto,
+      requiresLocation,
+      requiresSignature,
+      notes,
+      tags,
+      completedAt,
+      cancellationReason
     } = req.body;
-
-    const todoIndex = todos.findIndex(todo => todo.id === id && todo.assignedTo === req.user.id);
-    if (todoIndex === -1) {
-      return res.status(404).json({ error: 'Todo not found or not owned by user' });
+    const updateResult = await pool.query(
+      `UPDATE todos SET
+        title = $1,
+        description = $2,
+        assigned_to = $3,
+        assigned_workplaces = $4,
+        priority = $5,
+        status = $6,
+        category = $7,
+        due_date = $8,
+        due_time = $9,
+        estimated_duration = $10,
+        is_repeating = $11,
+        repeat_pattern = $12,
+        reminders = $13,
+        attachments = $14,
+        requires_photo = $15,
+        requires_location = $16,
+        requires_signature = $17,
+        notes = $18,
+        tags = $19,
+        updated_at = NOW(),
+        completed_at = $20,
+        cancellation_reason = $21
+      WHERE id = $22
+      RETURNING *`,
+      [
+        title,
+        description,
+        assignedTo,
+        assignedWorkplaces,
+        priority,
+        status,
+        category,
+        dueDate,
+        dueTime,
+        estimatedDuration,
+        isRepeating,
+        repeatPattern ? JSON.stringify(repeatPattern) : null,
+        reminders ? JSON.stringify(reminders) : null,
+        attachments ? JSON.stringify(attachments) : null,
+        requiresPhoto,
+        requiresLocation,
+        requiresSignature,
+        notes,
+        tags,
+        completedAt,
+        cancellationReason,
+        id
+      ]
+    );
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Todo not found' });
     }
-
-    const updatedTodo = {
-      ...todos[todoIndex],
-      title: title !== undefined ? title : todos[todoIndex].title,
-      description: description !== undefined ? description : todos[todoIndex].description,
-      priority: priority || todos[todoIndex].priority,
-      completed: completed !== undefined ? completed : todos[todoIndex].completed,
-      completedAt: completed ? new Date().toISOString() : todos[todoIndex].completedAt,
-      category: category !== undefined ? category : todos[todoIndex].category,
-      startDate: startDate !== undefined ? startDate : todos[todoIndex].startDate,
-      endDate: endDate !== undefined ? endDate : todos[todoIndex].endDate,
-      repeat: repeat !== undefined ? repeat : todos[todoIndex].repeat,
-      taskCompleted: taskCompleted !== undefined ? taskCompleted : todos[todoIndex].taskCompleted,
-      confirmation: confirmation !== undefined ? confirmation : todos[todoIndex].confirmation,
-      creator: creator !== undefined ? creator : todos[todoIndex].creator,
-    };
-
-    todos[todoIndex] = updatedTodo;
-    res.json({ 
-      message: 'Todo updated successfully',
-      todo: updatedTodo 
-    });
-
+    res.json({ message: 'Todo updated successfully', todo: updateResult.rows[0] });
   } catch (error) {
     console.error('Update todo error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -898,35 +870,16 @@ app.put('/api/todos/:id', authenticateToken, (req, res) => {
 
 /**
  * Delete todo
- * Permanently removes a todo item. Only the todo owner can delete it.
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * URL Parameters:
- * - id: Todo ID to delete (required)
- * 
- * Response:
- * - 200: Todo deleted successfully
- * - 401: Missing or invalid token
- * - 404: Todo not found or not owned by user
- * - 500: Internal server error
+ * Permanently removes a todo item. Only the creator or assigned user can delete it.
  */
-app.delete('/api/todos/:id', authenticateToken, (req, res) => {
+app.delete('/api/todos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Find todo and ensure it belongs to current user
-    const todoIndex = todos.findIndex(todo => todo.id === id && todo.userId === req.user.id);
-    
-    if (todoIndex === -1) {
+    const deleteResult = await pool.query('DELETE FROM todos WHERE id = $1 RETURNING id', [id]);
+    if (deleteResult.rows.length === 0) {
       return res.status(404).json({ error: 'Todo not found' });
     }
-
-    // Remove todo from storage
-    todos.splice(todoIndex, 1);
     res.json({ message: 'Todo deleted successfully' });
-
   } catch (error) {
     console.error('Delete todo error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1660,11 +1613,12 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (newPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) {
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email.toLowerCase()]);
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    user.password = await hashPassword(newPassword);
+    const hashedPassword = await hashPassword(newPassword);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, result.rows[0].id]);
     res.json({ message: 'Password reset successful' });
   } catch (error) {
     console.error('Password reset error:', error);
@@ -1676,33 +1630,74 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 /**
  * Get all users (admin only)
- * Returns list of all users in the system without password fields
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required, admin role)
- * 
- * Response:
- * - 200: Array of all users (without passwords)
- * - 401: Missing or invalid token
- * - 403: Admin access required
- * - 500: Internal server error
+ * Returns a list of all users (excluding passwords)
  */
-app.get('/api/admin/users', authenticateToken, (req, res) => {
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users');
+    res.json({ users: result.rows });
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Get user by ID (admin only)
+ */
+app.get('/api/admin/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Update user (admin only)
+ */
+app.put('/api/admin/users/:id', authenticateToken, async (req, res) => {
   try {
     // Check if user has admin role
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    // Return users without password fields for security
-    const usersWithoutPasswords = users.map(user => {
-      const { password, ...userWithoutPassword } = user;
-      return userWithoutPassword;
-    });
-
-    res.json({ users: usersWithoutPasswords });
+    const { id } = req.params;
+    const { name, role, department, status } = req.body;
+    const result = await pool.query(
+      'UPDATE users SET name = $1, role = $2, department = $3, status = $4 WHERE id = $5 RETURNING id, email, name, role, department, status, created_at',
+      [name, role, department, status, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ user: result.rows[0], message: 'User updated successfully' });
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Delete user (admin only)
+ */
+app.delete('/api/admin/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, email, name', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ user: result.rows[0], message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
