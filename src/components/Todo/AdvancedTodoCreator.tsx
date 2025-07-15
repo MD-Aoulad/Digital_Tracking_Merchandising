@@ -24,21 +24,14 @@ import {
   GripVertical, 
   Settings, 
   Users, 
-  Calendar,
   Save,
-  Eye,
-  Copy,
-  Download,
-  Upload
+  Eye
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   QuestionType, 
   TodoQuestion, 
   QuestionOption, 
-  QuestionValidation,
-  RatingScale,
-  MatrixQuestion,
-  ConditionalLogic,
   AdvancedTodo
 } from '../../types';
 
@@ -55,6 +48,8 @@ const AdvancedTodoCreator: React.FC<AdvancedTodoCreatorProps> = ({
   initialData,
   isTemplate = false
 }) => {
+  const { user } = useAuth();
+  
   // Form state
   const [formData, setFormData] = useState<Partial<AdvancedTodo>>({
     title: '',
@@ -74,7 +69,6 @@ const AdvancedTodoCreator: React.FC<AdvancedTodoCreatorProps> = ({
   // UI state
   const [activeTab, setActiveTab] = useState<'basic' | 'questions' | 'settings' | 'preview'>('basic');
   const [showQuestionModal, setShowQuestionModal] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<TodoQuestion | null>(null);
   const [questionType, setQuestionType] = useState<QuestionType>(QuestionType.TEXT_ANSWER);
   const [users, setUsers] = useState<any[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -150,25 +144,7 @@ const AdvancedTodoCreator: React.FC<AdvancedTodoCreatorProps> = ({
     }));
   };
 
-  /**
-   * Reorder questions using drag and drop
-   */
-  const reorderQuestions = (fromIndex: number, toIndex: number) => {
-    const questions = [...(formData.questions || [])];
-    const [movedQuestion] = questions.splice(fromIndex, 1);
-    questions.splice(toIndex, 0, movedQuestion);
-    
-    // Update order numbers
-    const updatedQuestions = questions.map((q, index) => ({
-      ...q,
-      order: index + 1
-    }));
 
-    setFormData(prev => ({
-      ...prev,
-      questions: updatedQuestions
-    }));
-  };
 
   /**
    * Save the advanced todo
@@ -182,13 +158,22 @@ const AdvancedTodoCreator: React.FC<AdvancedTodoCreatorProps> = ({
       return;
     }
 
+    // Validate that at least one user is assigned
+    if (!formData.assignedTo || formData.assignedTo.length === 0) {
+      alert('Please assign the todo to at least one user');
+      return;
+    }
+
+    // Get current user ID from auth context or use a default
+    const currentUserId = user?.id || '1'; // Default to admin user
+
     const todo: AdvancedTodo = {
       id: initialData?.id || `todo_${Date.now()}`,
       title: formData.title!,
       description: formData.description || '',
       questions: formData.questions!,
-      assignedTo: formData.assignedTo || [],
-      assignedBy: 'current_user_id', // TODO: Get from auth context
+      assignedTo: formData.assignedTo,
+      assignedBy: currentUserId,
       category: formData.category || 'General',
       difficulty: formData.difficulty || 'medium',
       estimatedDuration: formData.estimatedDuration || 30,
@@ -223,6 +208,7 @@ const AdvancedTodoCreator: React.FC<AdvancedTodoCreatorProps> = ({
       dependencies: []
     };
 
+    console.log('Saving advanced todo:', todo);
     onSave(todo);
   };
 

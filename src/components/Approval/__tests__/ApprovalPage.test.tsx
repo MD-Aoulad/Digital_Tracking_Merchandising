@@ -66,11 +66,11 @@ describe('ApprovalPage', () => {
 
     test('renders all tabs', () => {
       renderWithProviders(<ApprovalPage />);
-      expect(screen.getByText('Requests')).toBeInTheDocument();
-      expect(screen.getByText('Settings')).toBeInTheDocument();
-      expect(screen.getByText('Delegation')).toBeInTheDocument();
-      expect(screen.getByText('Workflows')).toBeInTheDocument();
-      expect(screen.getByText('Statistics')).toBeInTheDocument();
+      expect(screen.getByText('Approval Requests')).toBeInTheDocument();
+      expect(screen.getByText('Approval Settings')).toBeInTheDocument();
+      expect(screen.getByText('Delegation Management')).toBeInTheDocument();
+      expect(screen.getByText('Approval Workflows')).toBeInTheDocument();
+      expect(screen.getByText('Approval Statistics')).toBeInTheDocument();
     });
 
     test('shows requests tab by default', () => {
@@ -83,7 +83,7 @@ describe('ApprovalPage', () => {
     test('switches to settings tab', async () => {
       renderWithProviders(<ApprovalPage />);
       
-      const settingsTab = screen.getByText('Settings');
+      const settingsTab = screen.getByText('Approval Settings');
       fireEvent.click(settingsTab);
       
       await waitFor(() => {
@@ -94,7 +94,7 @@ describe('ApprovalPage', () => {
     test('switches to delegation tab', async () => {
       renderWithProviders(<ApprovalPage />);
       
-      const delegationTab = screen.getByText('Delegation');
+      const delegationTab = screen.getByText('Delegation Management');
       fireEvent.click(delegationTab);
       
       await waitFor(() => {
@@ -105,18 +105,18 @@ describe('ApprovalPage', () => {
     test('switches to workflows tab', async () => {
       renderWithProviders(<ApprovalPage />);
       
-      const workflowsTab = screen.getByText('Workflows');
+      const workflowsTab = screen.getByText('Approval Workflows');
       fireEvent.click(workflowsTab);
       
       await waitFor(() => {
-        expect(screen.getByText('Workflow Management')).toBeInTheDocument();
+        expect(screen.getByText('Approval Workflows')).toBeInTheDocument();
       });
     });
 
     test('switches to statistics tab', async () => {
       renderWithProviders(<ApprovalPage />);
       
-      const statisticsTab = screen.getByText('Statistics');
+      const statisticsTab = screen.getByText('Approval Statistics');
       fireEvent.click(statisticsTab);
       
       await waitFor(() => {

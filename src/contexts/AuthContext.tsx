@@ -17,6 +17,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, UserRole } from '../types';
 import { authAPI, User as ApiUser } from '../services/api';
 
@@ -37,80 +38,70 @@ interface AuthContextType {
   resetSessionTimer: () => void;        // Reset session timer
 }
 
-// Create the authentication context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ===== CONSTANTS =====
 
-// Session timeout configuration (30 minutes)
 const SESSION_TIMEOUT_MINUTES = 30;
 const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_MINUTES * 60 * 1000;
 
-/**
- * Role-Based Permission Mapping
- * 
- * Defines the permissions available to each user role. This implements
- * a Role-Based Access Control (RBAC) system where permissions are
- * granted based on user roles.
- */
+// ===== ROLE PERMISSIONS =====
+
 const rolePermissions: Record<UserRole, string[]> = {
   [UserRole.ADMIN]: [
     'dashboard:view',
-    'attendance:view',
-    'attendance:manage',
-    'schedule:view',
-    'schedule:manage',
-    'leave:view',
-    'leave:manage',
-    'tasks:view',
-    'tasks:manage',
-    'chat:view',
-    'chat:manage',
+    'dashboard:edit',
+    'todos:view',
+    'todos:create',
+    'todos:edit',
+    'todos:delete',
+    'todos:assign',
     'reports:view',
-    'reports:manage',
-    'documents:view',
-    'documents:manage',
-    'operations:view',
-    'operations:manage',
-    'surveys:view',
-    'surveys:manage',
-    'users:manage',
-    'settings:manage'
+    'reports:create',
+    'reports:edit',
+    'reports:delete',
+    'reports:approve',
+    'attendance:view',
+    'attendance:edit',
+    'users:view',
+    'users:create',
+    'users:edit',
+    'users:delete',
+    'settings:view',
+    'settings:edit',
+    'admin:access'
   ],
   [UserRole.EDITOR]: [
     'dashboard:view',
-    'attendance:view',
-    'attendance:manage',
-    'schedule:view',
-    'schedule:manage',
-    'leave:view',
-    'leave:manage',
-    'tasks:view',
-    'tasks:manage',
-    'chat:view',
-    'chat:manage',
+    'todos:view',
+    'todos:create',
+    'todos:edit',
+    'todos:delete',
     'reports:view',
-    'reports:manage',
-    'documents:view',
-    'documents:manage',
-    'surveys:view',
-    'surveys:manage',
-    'operations:view',
-    'operations:manage'
+    'reports:create',
+    'reports:edit',
+    'attendance:view',
+    'attendance:edit',
+    'settings:view'
   ],
   [UserRole.VIEWER]: [
     'dashboard:view',
-    'attendance:view',
-    'schedule:view',
-    'leave:view',
-    'tasks:view',
-    'chat:view',
+    'todos:view',
     'reports:view',
-    'documents:view',
-    'surveys:view'
+    'attendance:view',
+    'settings:view'
   ]
 };
 
+// ===== CONTEXT CREATION =====
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// ===== UTILITY FUNCTIONS =====
+
 /**
- * Convert API User to App User
+ * Convert API user format to application user format
+ * 
+ * @param apiUser - User data from API response
+ * @returns User object in application format
  */
 const convertApiUserToAppUser = (apiUser: ApiUser): User => {
   return {
@@ -141,9 +132,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [sessionTimeout] = useState<number>(SESSION_TIMEOUT_MINUTES);
   const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
 
   /**
-   * Logout function - clears user state and redirects to login
+   * Logout function - clears user state and navigates to login
    */
   const logout = useCallback(() => {
     console.log('Logging out user...');
@@ -155,9 +147,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     authAPI.logout();
     
-    // Force redirect to login page
-    window.location.href = '/login';
-  }, [sessionTimer]);
+    // ✅ FIXED: Use React Router navigation instead of window.location.href
+    navigate('/login', { replace: true });
+  }, [sessionTimer, navigate]);
 
   /**
    * Start session timeout timer

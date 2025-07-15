@@ -11,6 +11,7 @@
  * - Integration with all major platform modules
  * - Real authentication with protected routes
  * - Loading states and error handling
+ * - Logout confirmation dialog
  * 
  * @author Workforce Management Team
  * @version 1.0.0
@@ -48,6 +49,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Import Layout component
 import Layout from './components/Layout/Layout';
+
+// Import LogoutConfirmation component
+import { LogoutConfirmation, useLogoutConfirmation } from './components/common/LogoutConfirmation';
 
 /**
  * Protected Route Component
@@ -91,114 +95,135 @@ const TodoPageWrapper: React.FC = () => {
 };
 
 /**
+ * App Content Component
+ * Contains the main app content with logout confirmation
+ */
+const AppContent: React.FC = () => {
+  const { isOpen, showLogoutConfirmation, hideLogoutConfirmation, confirmLogout } = useLogoutConfirmation();
+
+  return (
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Layout onLogoutClick={showLogoutConfirmation} />}>
+          <Route index element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="attendance" element={
+            <ProtectedRoute>
+              <AttendancePage />
+            </ProtectedRoute>
+          } />
+          <Route path="schedule" element={
+            <ProtectedRoute>
+              <SchedulePage />
+            </ProtectedRoute>
+          } />
+          <Route path="leave" element={
+            <ProtectedRoute>
+              <LeavePage />
+            </ProtectedRoute>
+          } />
+          <Route path="grant-leave" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN}>
+              <GrantLeavePage />
+            </ProtectedRoute>
+          } />
+          <Route path="journey" element={
+            <ProtectedRoute>
+              <JourneyPlanPage />
+            </ProtectedRoute>
+          } />
+          <Route path="journey/settings" element={
+            <ProtectedRoute>
+              <JourneyPlanSettings />
+            </ProtectedRoute>
+          } />
+          <Route path="todo" element={
+            <ProtectedRoute>
+              <TodoPageWrapper />
+            </ProtectedRoute>
+          } />
+          <Route path="chat" element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          } />
+          <Route path="reports" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN}>
+              <ReportPage />
+            </ProtectedRoute>
+          } />
+          <Route path="approval" element={
+            <ProtectedRoute>
+              <ApprovalPage />
+            </ProtectedRoute>
+          } />
+          <Route path="members" element={
+            <ProtectedRoute>
+              <MembersPage userRole={UserRole.VIEWER} />
+            </ProtectedRoute>
+          } />
+          <Route path="groups" element={
+            <ProtectedRoute>
+              <GroupPage />
+            </ProtectedRoute>
+          } />
+          <Route path="workplace" element={
+            <ProtectedRoute>
+              <WorkplacePage />
+            </ProtectedRoute>
+          } />
+          <Route path="settings" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN}>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="admin" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN}>
+              <AdminTab currentUserRole={MemberRole.EMPLOYEE} />
+            </ProtectedRoute>
+          } />
+          <Route path="posting-board" element={
+            <ProtectedRoute>
+              <PostingBoardPage userRole={UserRole.VIEWER} />
+            </ProtectedRoute>
+          } />
+          <Route path="unauthorized" element={
+            <div className="min-h-screen flex items-center justify-center bg-gray-100">
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+                <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
+                <a href="/" className="text-primary-600 hover:text-primary-700">
+                  Return to Dashboard
+                </a>
+              </div>
+            </div>
+          } />
+          <Route path="*" element={<ComingSoonPage feature="coming soon" />} />
+        </Route>
+      </Routes>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmation
+        isOpen={isOpen}
+        onClose={hideLogoutConfirmation}
+        onConfirm={confirmLogout}
+      />
+    </>
+  );
+};
+
+/**
  * Main App component
  */
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Layout />}>
-            <Route index element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } />
-            <Route path="attendance" element={
-              <ProtectedRoute>
-                <AttendancePage />
-              </ProtectedRoute>
-            } />
-            <Route path="schedule" element={
-              <ProtectedRoute>
-                <SchedulePage />
-              </ProtectedRoute>
-            } />
-            <Route path="leave" element={
-              <ProtectedRoute>
-                <LeavePage />
-              </ProtectedRoute>
-            } />
-            <Route path="grant-leave" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <GrantLeavePage />
-              </ProtectedRoute>
-            } />
-            <Route path="journey" element={
-              <ProtectedRoute>
-                <JourneyPlanPage />
-              </ProtectedRoute>
-            } />
-            <Route path="journey/settings" element={
-              <ProtectedRoute>
-                <JourneyPlanSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="todo" element={
-              <ProtectedRoute>
-                <TodoPageWrapper />
-              </ProtectedRoute>
-            } />
-            <Route path="chat" element={
-              <ProtectedRoute>
-                <ChatPage />
-              </ProtectedRoute>
-            } />
-            <Route path="reports" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <ReportPage />
-              </ProtectedRoute>
-            } />
-            <Route path="approval" element={
-              <ProtectedRoute>
-                <ApprovalPage />
-              </ProtectedRoute>
-            } />
-            <Route path="members" element={
-              <ProtectedRoute>
-                <MembersPage userRole={UserRole.VIEWER} />
-              </ProtectedRoute>
-            } />
-            <Route path="groups" element={
-              <ProtectedRoute>
-                <GroupPage />
-              </ProtectedRoute>
-            } />
-            <Route path="workplace" element={
-              <ProtectedRoute>
-                <WorkplacePage />
-              </ProtectedRoute>
-            } />
-            <Route path="settings" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <SettingsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="admin" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AdminTab currentUserRole={MemberRole.EMPLOYEE} />
-              </ProtectedRoute>
-            } />
-            <Route path="posting-board" element={
-              <ProtectedRoute>
-                <PostingBoardPage userRole={UserRole.VIEWER} />
-              </ProtectedRoute>
-            } />
-            <Route path="unauthorized" element={
-              <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <div className="text-center">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-                  <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
-                  <a href="/" className="text-primary-600 hover:text-primary-700">
-                    Return to Dashboard
-                  </a>
-                </div>
-              </div>
-            } />
-            <Route path="*" element={<ComingSoonPage feature="coming soon" />} />
-          </Route>
-        </Routes>
+        <AppContent />
       </Router>
     </AuthProvider>
   );

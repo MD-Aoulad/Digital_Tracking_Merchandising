@@ -110,7 +110,7 @@ describe('AdvancedTodoCreator', () => {
       );
 
       fireEvent.click(screen.getByText('Settings'));
-      expect(screen.getByText('Assign To')).toBeInTheDocument();
+      expect(screen.getByText('Assign To Users')).toBeInTheDocument();
     });
   });
 
@@ -229,7 +229,7 @@ describe('AdvancedTodoCreator', () => {
       fireEvent.click(screen.getByText('Questions'));
       await user.click(screen.getByTestId('add-question-tab-button'));
       await user.click(screen.getByTestId('add-question-modal-button'));
-      await user.type(screen.getByPlaceholderText('Question title'), 'Test Question');
+      await user.type(screen.getByPlaceholderText('Question Title *'), 'Test Question');
 
       // Check preview
       fireEvent.click(screen.getByText('Preview'));
@@ -289,7 +289,7 @@ describe('AdvancedTodoCreator', () => {
       fireEvent.click(screen.getByText('Questions'));
       await user.click(screen.getByTestId('add-question-tab-button'));
       await user.click(screen.getByTestId('add-question-modal-button'));
-      await user.type(screen.getByPlaceholderText('Question title'), 'Test Question');
+      await user.type(screen.getByPlaceholderText('Question Title *'), 'Test Question');
 
       // Save
       await user.click(screen.getByText('Save'));
@@ -360,7 +360,7 @@ describe('AdvancedTodoCreator', () => {
       expect(screen.getByTestId('add-question-tab-button')).toBeInTheDocument();
 
       fireEvent.click(screen.getByText('Settings'));
-      expect(screen.getByText('Assign To')).toBeInTheDocument();
+      expect(screen.getByText('Assign To Users')).toBeInTheDocument();
 
       fireEvent.click(screen.getByText('Basic Info'));
       expect(screen.getByLabelText(/Title/)).toBeInTheDocument();

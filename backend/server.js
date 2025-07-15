@@ -142,7 +142,117 @@ let users = [
   }
 ];
 
-let todos = [];
+let todos = [
+  {
+    id: '1',
+    title: 'Mystore Zugang',
+    description: 'Access to the store system',
+    priority: 'medium',
+    completed: false,
+    createdAt: '2025-07-14T00:00:00Z',
+    completedAt: null,
+    assignedTo: '256',
+    assignedBy: 'C_20',
+    category: 'Promoter ToDo (TV | HA)',
+    startDate: '2025.07.14 (Mo) 00:00',
+    endDate: '2025.07.18 (Fr) 23:59',
+    repeat: 'None',
+    taskCompleted: '11.7% (30/256)',
+    confirmation: '-',
+    creator: 'C_20',
+  },
+  {
+    id: '2',
+    title: 'VSX Lifestyle Weeks 7. Juli bis zum 10. August II',
+    description: 'Lifestyle campaign tasks',
+    priority: 'medium',
+    completed: false,
+    createdAt: '2025-07-14T00:00:00Z',
+    completedAt: null,
+    assignedTo: '213',
+    assignedBy: 'C_20',
+    category: 'BA - ToDo (TV & Promoter ToDo (TV)',
+    startDate: '2025.07.14 (Mo) 00:00',
+    endDate: '2025.07.20 (So) 23:59',
+    repeat: 'None',
+    taskCompleted: '0.0% (0/213)',
+    confirmation: '-',
+    creator: 'C_20',
+  },
+  {
+    id: '3',
+    title: 'Weekly Report Feedbackbogen',
+    description: 'Weekly feedback report',
+    priority: 'medium',
+    completed: false,
+    createdAt: '2025-07-14T00:00:00Z',
+    completedAt: null,
+    assignedTo: '404',
+    assignedBy: 'C_20',
+    category: 'Promoter ToDo (TV)',
+    startDate: '2025.07.14 (Mo) 00:00',
+    endDate: '2025.07.20 (So) 23:59',
+    repeat: 'Every week - Mo',
+    taskCompleted: '2.2% (9/404)',
+    confirmation: '-',
+    creator: 'C_20',
+  },
+  {
+    id: '4',
+    title: '98 Zoll - MSD Eingangsbereich, Gewinnspiel Update',
+    description: 'Update for entrance area and contest',
+    priority: 'high',
+    completed: false,
+    createdAt: '2025-07-11T00:00:00Z',
+    completedAt: null,
+    assignedTo: '39',
+    assignedBy: 'Backoffice',
+    category: 'BA - ToDo (TV)',
+    startDate: '2025.07.11 (Fr) 00:00',
+    endDate: '2025.07.31 (Th) 23:59',
+    repeat: 'None',
+    taskCompleted: '87.2% (34/39)',
+    confirmation: '0.0% (0/39)',
+    creator: 'Backoffice',
+  },
+  {
+    id: '5',
+    title: 'Jet Qualitätssicherung',
+    description: 'Quality assurance for Jet',
+    priority: 'high',
+    completed: true,
+    createdAt: '2025-07-11T00:00:00Z',
+    completedAt: '2025-07-31T23:59:00Z',
+    assignedTo: '88',
+    assignedBy: 'Backoffice',
+    category: 'Promoter ToDo (HA)',
+    startDate: '2025.07.11 (Fr) 00:00',
+    endDate: '2025.07.31 (Th) 23:59',
+    repeat: 'Every week - Fr',
+    taskCompleted: '38.6% (34/88)',
+    confirmation: '-',
+    creator: 'Backoffice',
+  },
+  {
+    id: '6',
+    title: 'Roll-Out: Buying Guide',
+    description: 'Buying guide rollout',
+    priority: 'medium',
+    completed: false,
+    createdAt: '2025-07-14T00:00:00Z',
+    completedAt: null,
+    assignedTo: '217',
+    assignedBy: 'C_80',
+    category: 'Promoter ToDo (TV)',
+    startDate: '2025.07.14 (Mo) 00:00',
+    endDate: '2025.07.19 (Sa) 23:59',
+    repeat: 'None',
+    taskCompleted: '16.6% (36/217)',
+    confirmation: '0.0% (0/217)',
+    creator: 'C_80',
+  },
+];
+
 let advancedTodos = []; // New storage for advanced todos with questions
 let todoSubmissions = []; // Storage for todo responses/submissions
 let todoTemplates = []; // Storage for reusable todo templates
@@ -642,7 +752,6 @@ app.get('/api/users', authenticateToken, (req, res) => {
  * 
  * Response:
  * - 200: Array of user's todos
- * - 401: Missing or invalid token
  * - 500: Internal server error
  */
 app.get('/api/todos', authenticateToken, (req, res) => {
@@ -667,6 +776,7 @@ app.get('/api/todos', authenticateToken, (req, res) => {
  * - title: Todo title (required)
  * - description: Todo description (optional)
  * - priority: Priority level ('low', 'medium', 'high', default: 'medium')
+ * - category, startDate, endDate, repeat, taskCompleted, confirmation, creator (optional)
  * 
  * Response:
  * - 201: Todo created successfully
@@ -676,7 +786,19 @@ app.get('/api/todos', authenticateToken, (req, res) => {
  */
 app.post('/api/todos', authenticateToken, (req, res) => {
   try {
-    const { title, description, priority = 'medium', assignedTo } = req.body;
+    const {
+      title,
+      description,
+      priority = 'medium',
+      assignedTo,
+      category = '',
+      startDate = '',
+      endDate = '',
+      repeat = '',
+      taskCompleted = '',
+      confirmation = '',
+      creator = req.user.name || req.user.id,
+    } = req.body;
 
     // Validate required fields
     if (!title) {
@@ -692,10 +814,15 @@ app.post('/api/todos', authenticateToken, (req, res) => {
       completed: false,
       createdAt: new Date().toISOString(),
       completedAt: null,
-      userId: req.user.id, // Creator
       assignedTo: assignedTo || req.user.id, // Assigned user (defaults to creator)
       assignedBy: req.user.id, // Who assigned it
-      assignedAt: new Date().toISOString()
+      category,
+      startDate,
+      endDate,
+      repeat,
+      taskCompleted,
+      confirmation,
+      creator,
     };
 
     // Add todo to storage
@@ -722,10 +849,7 @@ app.post('/api/todos', authenticateToken, (req, res) => {
  * - id: Todo ID to update (required)
  * 
  * Request Body:
- * - title: New todo title (optional)
- * - description: New todo description (optional)
- * - priority: New priority level (optional)
- * - completed: Completion status (optional)
+ * - title, description, priority, completed, category, startDate, endDate, repeat, taskCompleted, confirmation, creator (optional)
  * 
  * Response:
  * - 200: Todo updated successfully
@@ -736,25 +860,41 @@ app.post('/api/todos', authenticateToken, (req, res) => {
 app.put('/api/todos/:id', authenticateToken, (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, priority, completed } = req.body;
+    const {
+      title,
+      description,
+      priority,
+      completed,
+      category,
+      startDate,
+      endDate,
+      repeat,
+      taskCompleted,
+      confirmation,
+      creator,
+    } = req.body;
 
-    // Find todo and ensure it belongs to current user
-    const todoIndex = todos.findIndex(todo => todo.id === id && todo.userId === req.user.id);
+    const todoIndex = todos.findIndex(todo => todo.id === id && todo.assignedTo === req.user.id);
     if (todoIndex === -1) {
-      return res.status(404).json({ error: 'Todo not found' });
+      return res.status(404).json({ error: 'Todo not found or not owned by user' });
     }
 
-    // Update todo with new values (preserve existing values if not provided)
     const updatedTodo = {
       ...todos[todoIndex],
-      title: title || todos[todoIndex].title,
+      title: title !== undefined ? title : todos[todoIndex].title,
       description: description !== undefined ? description : todos[todoIndex].description,
       priority: priority || todos[todoIndex].priority,
       completed: completed !== undefined ? completed : todos[todoIndex].completed,
-      completedAt: completed ? new Date().toISOString() : null
+      completedAt: completed ? new Date().toISOString() : todos[todoIndex].completedAt,
+      category: category !== undefined ? category : todos[todoIndex].category,
+      startDate: startDate !== undefined ? startDate : todos[todoIndex].startDate,
+      endDate: endDate !== undefined ? endDate : todos[todoIndex].endDate,
+      repeat: repeat !== undefined ? repeat : todos[todoIndex].repeat,
+      taskCompleted: taskCompleted !== undefined ? taskCompleted : todos[todoIndex].taskCompleted,
+      confirmation: confirmation !== undefined ? confirmation : todos[todoIndex].confirmation,
+      creator: creator !== undefined ? creator : todos[todoIndex].creator,
     };
 
-    // Save updated todo
     todos[todoIndex] = updatedTodo;
     res.json({ 
       message: 'Todo updated successfully',

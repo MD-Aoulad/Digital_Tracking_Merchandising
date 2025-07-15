@@ -1,0 +1,187 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`TodoStatusTab matches snapshot 1`] = `
+<DocumentFragment>
+  <div>
+    <div
+      class="flex space-x-4 mb-6"
+    >
+      <div
+        class="bg-blue-50 rounded-lg p-4 flex-1 text-center"
+      >
+        <div
+          class="text-2xl font-bold text-blue-700"
+        >
+          0
+        </div>
+        <div
+          class="text-sm text-blue-700 font-semibold"
+        >
+          Ongoing
+        </div>
+      </div>
+      <div
+        class="bg-gray-100 rounded-lg p-4 flex-1 text-center"
+      >
+        <div
+          class="text-2xl font-bold text-gray-700"
+        >
+          0
+        </div>
+        <div
+          class="text-sm text-gray-700 font-semibold"
+        >
+          Closed
+        </div>
+      </div>
+      <div
+        class="bg-gray-100 rounded-lg p-4 flex-1 text-center"
+      >
+        <div
+          class="text-2xl font-bold text-gray-700"
+        >
+          0
+        </div>
+        <div
+          class="text-sm text-gray-700 font-semibold"
+        >
+          Not completed
+        </div>
+      </div>
+      <div
+        class="bg-gray-100 rounded-lg p-4 flex-1 text-center"
+      >
+        <div
+          class="text-2xl font-bold text-gray-700"
+        >
+          0
+        </div>
+        <div
+          class="text-sm text-gray-700 font-semibold"
+        >
+          Not confirmed
+        </div>
+      </div>
+    </div>
+    <div
+      class="bg-white rounded-lg shadow p-6"
+    >
+      <div
+        class="text-gray-500 mb-2"
+      >
+        Loading...
+      </div>
+      <form
+        class="flex flex-wrap items-center gap-4 mb-4"
+      >
+        <input
+          class="border rounded px-2 py-1 text-sm"
+          placeholder="From"
+          type="date"
+          value=""
+        />
+        <span>
+          -
+        </span>
+        <input
+          class="border rounded px-2 py-1 text-sm"
+          placeholder="To"
+          type="date"
+          value=""
+        />
+        <select
+          class="border rounded px-2 py-1 text-sm"
+        >
+          <option
+            value=""
+          >
+            Category
+          </option>
+        </select>
+        <select
+          class="border rounded px-2 py-1 text-sm"
+        >
+          <option
+            value=""
+          >
+            Status
+          </option>
+        </select>
+      </form>
+      <table
+        class="min-w-full divide-y divide-gray-200"
+      >
+        <thead
+          class="bg-gray-100"
+        >
+          <tr>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              No.
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Title
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Category
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Start date
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              End date
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Repeat
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Assigned to
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Status
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Task completed
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Confirmation
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Creator
+            </th>
+            <th
+              class="px-2 py-2 text-xs font-medium text-gray-500 uppercase"
+            >
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody
+          class="bg-white divide-y divide-gray-100"
+        />
+      </table>
+    </div>
+  </div>
+</DocumentFragment>
+`;

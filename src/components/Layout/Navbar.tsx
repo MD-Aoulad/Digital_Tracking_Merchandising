@@ -6,6 +6,7 @@
  * - User notifications dropdown
  * - User profile dropdown with logout
  * - Application branding and navigation
+ * - Logout confirmation integration
  * 
  * Features:
  * - Sticky positioning for always-visible navigation
@@ -13,6 +14,7 @@
  * - Animated dropdowns using Framer Motion
  * - Real-time notification indicators
  * - User authentication state management
+ * - Logout confirmation support
  * 
  * @author Workforce Management Team
  * @version 1.0.0
@@ -38,6 +40,7 @@ import LanguageSelector from '../LanguageSelector';
 interface NavbarProps {
   onSidebarToggle?: () => void;    // Optional function to toggle sidebar visibility
   sidebarOpen?: boolean;           // Optional current sidebar open state
+  onLogoutClick?: () => void;      // Optional function for logout confirmation
 }
 
 /**
@@ -48,9 +51,10 @@ interface NavbarProps {
  * 
  * @param onSidebarToggle - Optional function to toggle mobile sidebar
  * @param sidebarOpen - Optional current sidebar state
+ * @param onLogoutClick - Optional function for logout confirmation
  * @returns JSX element with complete navigation bar
  */
-const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
+const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen, onLogoutClick }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   
@@ -60,10 +64,15 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
 
   /**
    * Handle user logout
-   * Closes profile dropdown and calls logout function from auth context
+   * Uses logout confirmation if provided, otherwise calls logout directly
    */
   const handleLogout = () => {
-    logout();
+    if (onLogoutClick) {
+      onLogoutClick();
+    } else {
+      // Fallback to direct logout if no confirmation handler provided
+      logout();
+    }
     setProfileDropdownOpen(false);
   };
 
@@ -199,9 +208,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen }) => {
                   </button>
                 </div>
                 
-                {/* Logout section */}
-                <div className="border-t border-gray-200 pt-1">
-                  <button
+                {/* Logout action */}
+                <div className="py-1 border-t border-gray-200">
+                  <button 
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
                   >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TodoTemplate, TodoSettings, UserRole, AdvancedTodo, TodoSubmission } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import TodoSettingsComponent from './TodoSettings';
@@ -134,7 +134,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
    * Loads todos from the API for the authenticated user
    * Handles loading states and error handling
    */
-  const loadTodos = async () => {
+  const loadTodos = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -150,12 +150,12 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   /**
    * Loads advanced todos from the API
    */
-  const loadAdvancedTodos = async () => {
+  const loadAdvancedTodos = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -171,24 +171,29 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   /**
    * Creates a new advanced todo
    */
   const handleCreateAdvancedTodo = async (advancedTodo: AdvancedTodo) => {
     try {
+      console.log('Creating advanced todo:', advancedTodo);
+      
       const response = await apiRequest('/advanced-todos', {
         method: 'POST',
         body: JSON.stringify(advancedTodo)
       });
       
+      console.log('Advanced todo created successfully:', response);
       setAdvancedTodos(prev => [...prev, response.advancedTodo]);
       setShowAdvancedCreator(false);
       toast.success('Advanced todo created successfully');
     } catch (err) {
       console.error('Advanced todo creation error:', err);
-      toast.error('Failed to create advanced todo');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create advanced todo';
+      toast.error(errorMessage);
+      alert(`Failed to create advanced todo: ${errorMessage}`);
     }
   };
 
@@ -241,7 +246,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
       loadTodos();
       loadAdvancedTodos();
     }
-  }, [user]);
+  }, [user, loadTodos, loadAdvancedTodos]);
 
   // Form state for creating new todos
   const [formData, setFormData] = useState({
@@ -259,7 +264,7 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
    * Loads users for the assignment dropdown (admin only)
    * Fetches all users that can be assigned todos
    */
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     if (userRole !== 'admin') return;
     
     setLoadingUsers(true);
@@ -272,14 +277,14 @@ const TodoPage: React.FC<TodoPageProps> = ({ userRole }) => {
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [userRole]);
 
   // Load users when component mounts (admin only)
   useEffect(() => {
     if (userRole === 'admin') {
       loadUsers();
     }
-  }, [userRole]);
+  }, [userRole, loadUsers]);
 
   /**
    * Handles form submission for creating new todos
