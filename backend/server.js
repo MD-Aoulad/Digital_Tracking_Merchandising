@@ -16,9 +16,9 @@
  * Security Features:
  * - Password hashing with bcrypt
  * - JWT token authentication
- * - Rate limiting to prevent abuse
  * - CORS configuration for cross-origin requests
  * - Helmet.js for security headers
+ * - Rate limiting (currently DISABLED for local development; re-enable for production/cloud)
  * 
  * Data Storage:
  * - Currently uses in-memory storage (replace with database in production)
@@ -91,18 +91,7 @@ app.use(cors({
   optionsSuccessStatus: 200 // Return 200 for OPTIONS requests
 }));
 
-// Rate limiting middleware - prevents API abuse
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes time window
-  max: process.env.NODE_ENV === 'development' ? 10000 : 1000, // Much higher limit for development
-  message: {
-    error: 'Rate limit exceeded. Please wait 1 minute before trying again.',
-    retryAfter: 60
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-app.use(limiter);
+// Rate limiting is currently DISABLED for local development. See above to re-enable for production/cloud.
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
