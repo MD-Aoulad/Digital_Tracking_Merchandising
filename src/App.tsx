@@ -40,6 +40,7 @@ import ApprovalPage from './components/Approval/ApprovalPage';
 import ChatPage from './components/Chat/ChatPage';
 import ComingSoonPage from './components/ComingSoonPage';
 import Login from './pages/Login';
+import SimulationPage from './components/Operations/SimulationPage';
 
 // Import type definitions
 import { UserRole, MemberRole } from './types';
@@ -189,6 +190,11 @@ const AppContent: React.FC = () => {
           <Route path="posting-board" element={
             <ProtectedRoute>
               <PostingBoardPage userRole={UserRole.VIEWER} />
+            </ProtectedRoute>
+          } />
+          <Route path="simulation" element={
+            <ProtectedRoute>
+              <SimulationPage />
             </ProtectedRoute>
           } />
           <Route path="unauthorized" element={

@@ -38,7 +38,8 @@ import {
   Bot,
   Gift,
   Building2,
-  Home
+  Home,
+  Target
 } from 'lucide-react';
 
 /**
@@ -77,6 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { title: 'Grant Leave', path: '/grant-leave', icon: <Gift size={20} /> },
         { title: 'Overtime', path: '/overtime', icon: <Clock size={20} /> },
         { title: 'Journey Plan', path: '/journey', icon: <Map size={20} /> },
+        { title: 'Simulation', path: '/simulation', icon: <Target size={20} /> },
       ],
     },
     {
