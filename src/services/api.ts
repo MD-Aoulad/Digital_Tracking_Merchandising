@@ -707,6 +707,20 @@ export const adminAPI = {
     });
     
     return handleResponse<{ attendance: Record<string, Record<string, Attendance>> }>(response);
+  },
+
+  /**
+   * Delete a user by ID (admin only)
+   * 
+   * @param id - User ID to delete
+   * @returns Promise with deletion confirmation
+   */
+  deleteUser: async (id: string): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ message: string }>(response);
   }
 };
 
