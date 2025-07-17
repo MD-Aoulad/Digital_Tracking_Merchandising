@@ -8,158 +8,191 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { shadowStyles } from '../utils/shadows';
+import { apiService } from '../services/api';
 
-// Mock chat data
-const mockChannels = [
-  {
-    id: '1',
-    name: 'General',
-    description: 'General team discussions',
-    type: 'general',
-    memberCount: 12,
-    lastMessage: 'Meeting scheduled for tomorrow at 10 AM',
-    lastMessageTime: '2 hours ago',
-    unreadCount: 3,
-    isOnline: true,
-  },
-  {
-    id: '2',
-    name: 'Sales Team',
-    description: 'Sales and marketing updates',
-    type: 'department',
-    memberCount: 8,
-    lastMessage: 'New leads added to the pipeline',
-    lastMessageTime: '1 hour ago',
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: '3',
-    name: 'Operations',
-    description: 'Operations and logistics',
-    type: 'department',
-    memberCount: 6,
-    lastMessage: 'Inventory check completed',
-    lastMessageTime: '30 min ago',
-    unreadCount: 1,
-    isOnline: true,
-  },
-  {
-    id: '4',
-    name: 'Project Alpha',
-    description: 'Project Alpha team discussions',
-    type: 'project',
-    memberCount: 5,
-    lastMessage: 'Phase 1 deliverables ready for review',
-    lastMessageTime: '15 min ago',
-    unreadCount: 0,
-    isOnline: false,
-  },
-];
+// Chat types
+interface ChatMessage {
+  id: string;
+  content: string;
+  senderId: string;
+  createdAt: string;
+  sender?: {
+    name: string;
+    email: string;
+  };
+}
 
-const mockDirectMessages = [
-  {
-    id: 'dm1',
-    name: 'Sarah Johnson',
-    role: 'Sales Representative',
-    lastMessage: 'Can you review the proposal?',
-    lastMessageTime: '5 min ago',
-    unreadCount: 1,
-    isOnline: true,
-    avatar: null,
-  },
-  {
-    id: 'dm2',
-    name: 'Mike Chen',
-    role: 'Operations Specialist',
-    lastMessage: 'Task completed successfully',
-    lastMessageTime: '1 hour ago',
-    unreadCount: 0,
-    isOnline: true,
-    avatar: null,
-  },
-  {
-    id: 'dm3',
-    name: 'Lisa Wang',
-    role: 'Team Lead',
-    lastMessage: 'Great work on the presentation!',
-    lastMessageTime: '2 hours ago',
-    unreadCount: 0,
-    isOnline: false,
-    avatar: null,
-  },
-];
+interface ChatChannel {
+  id: string | number;
+  name: string;
+  description?: string;
+  type: string;
+  memberCount?: number;
+  lastMessage?: ChatMessage;
+}
 
 const ChatScreen: React.FC = () => {
   const { user } = useAuth();
   const navigation = useNavigation();
+  const route = useRoute();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'channels' | 'direct'>('channels');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  
+  // Get channel from navigation params
+  const channel = (route.params as any)?.channel as ChatChannel;
+  const currentUser = (route.params as any)?.currentUser;
+
+  useEffect(() => {
+    console.log('=== CHAT SCREEN USE EFFECT ===');
+    console.log('Channel ID in useEffect:', channel?.id);
+    console.log('Channel object in useEffect:', channel);
+    
+    if (channel?.id) {
+      console.log('Calling loadMessages from useEffect');
+      loadMessages();
+    } else {
+      console.log('No channel ID in useEffect, not calling loadMessages');
+    }
+  }, [channel?.id]);
+
+  const loadMessages = async () => {
+    console.log('=== CHAT DEBUG ===');
+    console.log('Channel object:', channel);
+    console.log('Channel ID:', channel?.id);
+    console.log('Channel ID type:', typeof channel?.id);
+    
+    if (!channel?.id) {
+      console.log('No channel ID, returning early');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log('Making API call to getChatMessages with channel ID:', channel.id.toString());
+      
+      const response = await apiService.getChatMessages(channel.id.toString());
+      console.log('API Response:', response);
+      console.log('Response success:', response.success);
+      console.log('Response data:', response.data);
+      console.log('Response error:', response.error);
+      
+      if (response.success && response.data) {
+        console.log('Setting messages:', response.data);
+        setMessages(response.data);
+      } else {
+        console.error('Failed to load messages:', response.error);
+        // Show demo messages if API fails
+        setMessages([
+          {
+            id: '1',
+            content: 'Welcome to the channel!',
+            senderId: 'system',
+            createdAt: new Date().toISOString(),
+            sender: { name: 'System', email: 'system@company.com' }
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      // Show demo messages on error
+      setMessages([
+        {
+          id: '1',
+          content: 'Welcome to the channel!',
+          senderId: 'system',
+          createdAt: new Date().toISOString(),
+          sender: { name: 'System', email: 'system@company.com' }
+        }
+      ]);
+    } finally {
+      console.log('Setting loading to false');
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !channel?.id?.toString() || sending) return;
+    
+    try {
+      setSending(true);
+      const messageContent = newMessage.trim();
+      setNewMessage('');
+      // Optimistically add message to UI
+      const optimisticMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: messageContent,
+        senderId: user?.id?.toString() || '0',
+        createdAt: new Date().toISOString(),
+        sender: { name: user?.name || 'You', email: user?.email || '' }
+      };
+      setMessages(prev => [...prev, optimisticMessage]);
+      // Call backend API to persist the message
+      const response = await apiService.sendChatMessage(channel.id.toString(), {
+        content: messageContent,
+        messageType: 'text',
+      });
+      if (response.success) {
+        // Reload messages from backend to ensure consistency
+        await loadMessages();
+      } else {
+        Alert.alert('Error', 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate API call
-    setTimeout(() => setRefreshing(false), 1000);
+    await loadMessages();
+    setRefreshing(false);
   };
 
-  const handleChannelPress = (channel: any) => {
-    Alert.alert('Channel Chat', `Opening ${channel.name} channel...`);
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleDirectMessagePress = (contact: any) => {
-    Alert.alert('Direct Message', `Opening chat with ${contact.name}...`);
-  };
-
-  const renderChannelItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.channelItem} onPress={() => handleChannelPress(item)}>
-      <View style={styles.channelIcon}>
-        <Ionicons name="chatbubbles" size={20} color="#fff" />
-      </View>
-             <View style={styles.channelInfo}>
-         <Text style={styles.channelName}>{item.name}</Text>
-         <Text style={styles.channelLastMessage}>{item.lastMessage}</Text>
-        <View style={styles.channelMeta}>
-          <Text style={styles.channelTime}>{item.lastMessageTime}</Text>
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
+    const isOwnMessage = item.senderId === user?.id?.toString();
+    
+    return (
+      <View style={[styles.messageContainer, isOwnMessage && styles.ownMessage]}>
+        <View style={[styles.messageBubble, isOwnMessage && styles.ownMessageBubble]}>
+          {!isOwnMessage && item.sender && (
+            <Text style={styles.senderName}>{item.sender.name}</Text>
+          )}
+          <Text style={[styles.messageText, isOwnMessage && styles.ownMessageText]}>
+            {item.content}
+          </Text>
+          <Text style={[styles.messageTime, isOwnMessage && styles.ownMessageTime]}>
+            {formatTime(item.createdAt)}
+          </Text>
         </View>
       </View>
-      <View style={styles.unreadBadge}>
-        <Text style={styles.unreadCount}>{item.unreadCount}</Text>
-      </View>
-      <View style={[styles.onlineIndicator, { backgroundColor: item.isOnline ? '#10b981' : '#6b7280' }]} />
-    </TouchableOpacity>
-  );
-
-  const renderDirectMessageItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.directMessageItem} onPress={() => handleDirectMessagePress(item)}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
-      </View>
-             <View style={styles.contactInfo}>
-         <Text style={styles.contactName}>{item.name}</Text>
-         <Text style={styles.contactRole}>{item.role}</Text>
-         <Text style={styles.contactLastMessage}>{item.lastMessage}</Text>
-        <View style={styles.contactMeta}>
-          <Text style={styles.contactTime}>{item.lastMessageTime}</Text>
-        </View>
-      </View>
-      <View style={styles.onlineIndicator} />
-    </TouchableOpacity>
-  );
-
-  const getChannelColor = (type: string) => {
-    switch (type) {
-      case 'general': return '#3b82f6';
-      case 'department': return '#10b981';
-      case 'project': return '#f59e0b';
-      default: return '#6b7280';
-    }
+    );
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading messages...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -168,95 +201,64 @@ const ChatScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Team Chat</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Coming Soon', 'New chat feature will be available soon!')}>
-          <Ionicons name="add" size={24} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#6b7280" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search conversations..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close" size={20} color="#6b7280" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'channels' && styles.activeTab]}
-          onPress={() => setActiveTab('channels')}
-        >
-                     <Ionicons 
-             name="chatbubbles" 
-             size={20} 
-             color={activeTab === 'channels' ? '#007AFF' : '#6b7280'} 
-           />
-          <Text style={[styles.tabText, activeTab === 'channels' && styles.activeTabText]}>
-            Channels
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>#{channel?.name || 'Channel'}</Text>
+          <Text style={styles.headerSubtitle}>
+            {channel?.memberCount || 0} members
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'direct' && styles.activeTab]}
-          onPress={() => setActiveTab('direct')}
-        >
-          <Ionicons 
-            name="person" 
-            size={20} 
-            color={activeTab === 'direct' ? '#007AFF' : '#6b7280'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'direct' && styles.activeTabText]}>
-            Direct Messages
-          </Text>
+        </View>
+        <TouchableOpacity onPress={() => Alert.alert('Channel Info', 'Channel information coming soon!')}>
+          <Ionicons name="information-circle" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Chat List */}
+      {/* Messages List */}
       <FlatList
-        data={activeTab === 'channels' ? mockChannels : mockDirectMessages}
-        renderItem={activeTab === 'channels' ? renderChannelItem : renderDirectMessageItem}
+        data={messages}
+        renderItem={renderMessage}
         keyExtractor={(item) => item.id}
-        style={styles.chatList}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        style={styles.messagesList}
+        contentContainerStyle={styles.messagesContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="chatbubbles" size={64} color="#d1d5db" />
-            <Text style={styles.emptyStateTitle}>No conversations found</Text>
+            <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyStateTitle}>No messages yet</Text>
             <Text style={styles.emptyStateSubtitle}>
-              {searchQuery ? 'Try adjusting your search' : 'Start a new conversation'}
+              Start the conversation by sending a message
             </Text>
           </View>
         }
+        inverted={false}
       />
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity 
-          style={styles.quickActionButton}
-          onPress={() => Alert.alert('Coming Soon', 'New channel creation will be available soon!')}
+      {/* Message Input */}
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.messageInput}
+          placeholder="Type a message..."
+          value={newMessage}
+          onChangeText={setNewMessage}
+          multiline
+          maxLength={1000}
+        />
+        <TouchableOpacity
+          style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
+          onPress={sendMessage}
+          disabled={!newMessage.trim() || sending}
         >
-          <View style={styles.quickActionIcon}>
-            <Ionicons name="add-circle" size={16} color="#007AFF" />
-          </View>
-          <Text style={styles.quickActionText}>New Channel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.quickActionButton}
-          onPress={() => Alert.alert('Coming Soon', 'New direct message feature will be available soon!')}
-        >
-          <View style={styles.quickActionIcon}>
-            <Ionicons name="person-add" size={16} color="#007AFF" />
-          </View>
-          <Text style={styles.quickActionText}>New Message</Text>
+          {sending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="send" size={20} color="#fff" />
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -268,226 +270,134 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e0e0e0',
+  },
+  headerInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    margin: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  activeTab: {
-    backgroundColor: '#f3f4f6',
-  },
-  tabText: {
+  headerSubtitle: {
     fontSize: 14,
     color: '#6b7280',
-    fontWeight: '500',
-    marginLeft: 4,
   },
-  activeTabText: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  chatList: {
+  messagesList: {
     flex: 1,
   },
-  channelItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+  messagesContent: {
     padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 12,
-    ...shadowStyles.small,
   },
-  channelIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  messageContainer: {
+    marginBottom: 12,
+    alignItems: 'flex-start',
   },
-  channelInfo: {
-    flex: 1,
-  },
-  channelName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  channelLastMessage: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  channelMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  channelTime: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginRight: 8,
-  },
-  unreadBadge: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  unreadCount: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  directMessageItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 12,
-    ...shadowStyles.small,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  contactInfo: {
-    flex: 1,
-  },
-  contactName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  contactRole: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  contactLastMessage: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  contactMeta: {
+  ownMessage: {
     alignItems: 'flex-end',
   },
-  contactTime: {
+  messageBubble: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+    maxWidth: '80%',
+    ...shadowStyles.small,
+  },
+  ownMessageBubble: {
+    backgroundColor: '#007AFF',
+  },
+  senderName: {
     fontSize: 12,
-    color: '#9ca3af',
+    fontWeight: '600',
+    color: '#6b7280',
     marginBottom: 4,
   },
-  onlineIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
+  messageText: {
+    fontSize: 16,
+    color: '#1f2937',
+    lineHeight: 20,
+  },
+  ownMessageText: {
+    color: '#fff',
+  },
+  messageTime: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  ownMessageTime: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    paddingVertical: 60,
   },
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#6b7280',
     marginTop: 16,
-    marginBottom: 8,
   },
   emptyStateSubtitle: {
     fontSize: 14,
     color: '#9ca3af',
     textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 32,
   },
-  quickActions: {
+  inputContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  quickActionButton: {
-    flex: 1,
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    ...shadowStyles.small,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
-  quickActionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  messageInput: {
+    flex: 1,
     backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 8,
+    maxHeight: 100,
+    fontSize: 16,
+  },
+  sendButton: {
+    backgroundColor: '#007AFF',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  quickActionText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#1f2937',
-    textAlign: 'center',
+  sendButtonDisabled: {
+    backgroundColor: '#d1d5db',
   },
 });
 

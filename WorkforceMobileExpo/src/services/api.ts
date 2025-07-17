@@ -108,6 +108,12 @@ class ApiService {
         };
       }
 
+      // If the backend already returns {success: true, data: ...}, use that structure
+      if (data.success !== undefined) {
+        return data;
+      }
+
+      // Otherwise, wrap the response
       return {
         success: true,
         data,
@@ -179,6 +185,22 @@ class ApiService {
     } catch (error) {
       console.error('Error removing stored user:', error);
     }
+  }
+
+  // Chat API methods
+  async getChatChannels(): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>('/chat/channels');
+  }
+
+  async getChatMessages(channelId: string): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>(`/chat/channels/${channelId}/messages`);
+  }
+
+  async sendChatMessage(channelId: string, data: { content: string; messageType?: string }): Promise<ApiResponse<any>> {
+    return this.request<any>(`/chat/channels/${channelId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 
