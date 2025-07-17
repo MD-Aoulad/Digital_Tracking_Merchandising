@@ -54,6 +54,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
+// Debug configuration
+const DEBUG_MODE = process.env.DEBUG === 'true' || process.env.NODE_ENV === 'development';
+
 // ===== MIDDLEWARE CONFIGURATION =====
 
 // Security middleware - adds various HTTP headers for security
@@ -228,127 +231,7 @@ let todoTemplates = []; // Storage for reusable todo templates
 let reports = [];
 let attendanceData = {};
 
-// Chat system data storage
-let chatSettings = {
-  id: '1',
-  isEnabled: true,
-  allowFileSharing: true,
-  maxFileSize: 10,
-  allowedFileTypes: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt'],
-  allowReactions: true,
-  allowEditing: true,
-  editTimeLimit: 5,
-  allowDeletion: true,
-  deletionTimeLimit: 10,
-  messageRetentionDays: 365,
-  helpDeskEnabled: true,
-  helpDeskSettings: {
-    autoAssignEnabled: true,
-    defaultResponseTime: 24,
-    escalationEnabled: true,
-    escalationTimeLimit: 48,
-    allowEmployeeCreation: false,
-    requireApproval: true,
-    categories: ['personnel', 'vmd', 'inventory'],
-    priorityLevels: ['low', 'medium', 'high', 'urgent']
-  },
-  notificationSettings: {
-    emailNotifications: true,
-    pushNotifications: true,
-    smsNotifications: false,
-    mentionNotifications: true,
-    channelNotifications: true,
-    helpDeskNotifications: true,
-    quietHours: {
-      enabled: false,
-      startTime: '22:00',
-      endTime: '08:00',
-      timezone: 'UTC'
-    }
-  },
-  createdBy: '1',
-  updatedAt: new Date().toISOString()
-};
-
-let chatChannels = [
-  {
-    id: '1',
-    name: 'General',
-    description: 'Company-wide announcements and general discussions',
-    type: 'general',
-    members: ['1', '2'],
-    admins: ['1'],
-    createdBy: '1',
-    isPrivate: false,
-    isArchived: false,
-    notificationSettings: {
-      mentions: true,
-      allMessages: false,
-      importantOnly: true,
-      quietHours: {
-        enabled: false,
-        startTime: '22:00',
-        endTime: '08:00',
-        timezone: 'UTC'
-      }
-    },
-    memberCount: 2,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
-  }
-];
-
-let chatMessages = [
-  {
-    id: '1',
-    senderId: '2',
-    channelId: '1',
-    content: 'Good morning team!',
-    type: 'text',
-    readBy: ['1', '2'],
-    createdAt: '2024-01-15T09:00:00Z',
-    updatedAt: '2024-01-15T09:00:00Z',
-    isEdited: false,
-    isDeleted: false
-  }
-];
-
-let helpDeskChannels = [
-  {
-    id: 'hd1',
-    name: 'Personnel Manager',
-    description: 'Contact for vacation/annual leave, HR issues, and personnel matters',
-    category: 'personnel',
-    assignedManagers: ['1'],
-    contactPersons: ['1'],
-    topics: ['Vacation Request', 'Annual Leave', 'HR Issues', 'Benefits'],
-    priority: 'medium',
-    responseTime: 24,
-    isActive: true,
-    autoAssign: true,
-    createdBy: '1',
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
-  },
-  {
-    id: 'hd2',
-    name: 'VMD Manager',
-    description: 'Contact for visual merchandising, store layout, and display issues',
-    category: 'vmd',
-    assignedManagers: ['2'],
-    contactPersons: ['2'],
-    topics: ['Store Layout', 'Display Issues', 'Visual Merchandising', 'Product Placement'],
-    priority: 'high',
-    responseTime: 12,
-    isActive: true,
-    autoAssign: true,
-    createdBy: '1',
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
-  }
-];
-
-let helpDeskRequests = [];
+// Chat system data storage - Removed old in-memory system, using database-based system instead
 
 // ===== TEST-ONLY ENDPOINTS FOR CLEAN TESTING =====
 if (process.env.NODE_ENV === 'test') {
@@ -384,7 +267,11 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
-    // Add user data to request object for use in route handlers
+    // Force user.id to be an integer
+    user.id = parseInt(user.id, 10);
+    if (DEBUG_MODE) {
+      console.log('Decoded JWT user:', user); // Debug log
+    }
     req.user = user;
     next();
   });
@@ -591,26 +478,28 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt:', { email, password }); // Debug log
+    if (DEBUG_MODE) {
+      console.log('Login attempt:', { email, password: '***' }); // Debug log
+    }
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Debug: Print all users in the database
-    const allUsers = await pool.query('SELECT * FROM users');
-    console.log('All users in DB:', allUsers.rows);
-
     // Query user from DB
     const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email.toLowerCase()]);
     const user = result.rows[0];
-    console.log('User from DB:', user); // Debug log
+    if (DEBUG_MODE) {
+      console.log('User from DB:', user ? { id: user.id, email: user.email, role: user.role } : null); // Debug log
+    }
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Compare password
     const isMatch = await comparePassword(password, user.password);
-    console.log('Password match:', isMatch); // Debug log
+    if (DEBUG_MODE) {
+      console.log('Password match:', isMatch); // Debug log
+    }
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -1784,432 +1673,7 @@ app.get('/api/admin/attendance', authenticateToken, (req, res) => {
 });
 
 // ===== CHAT SYSTEM ENDPOINTS =====
-
-/**
- * Get chat settings
- * Returns current chat system configuration
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required, admin role)
- * 
- * Response:
- * - 200: Chat settings
- * - 401: Missing or invalid token
- * - 403: Admin access required
- * - 500: Internal server error
- */
-app.get('/api/chat/settings', authenticateToken, (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    res.json(chatSettings);
-  } catch (error) {
-    console.error('Get chat settings error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Update chat settings
- * Updates chat system configuration
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required, admin role)
- * 
- * Body:
- * - Updated chat settings
- * 
- * Response:
- * - 200: Settings updated successfully
- * - 400: Invalid settings data
- * - 401: Missing or invalid token
- * - 403: Admin access required
- * - 500: Internal server error
- */
-app.put('/api/chat/settings', authenticateToken, (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    chatSettings = {
-      ...chatSettings,
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-
-    res.json({ message: 'Chat settings updated successfully', settings: chatSettings });
-  } catch (error) {
-    console.error('Update chat settings error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Get chat channels
- * Returns available chat channels for the user
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Response:
- * - 200: Array of chat channels
- * - 401: Missing or invalid token
- * - 500: Internal server error
- */
-app.get('/api/chat/channels', authenticateToken, (req, res) => {
-  try {
-    // Filter channels based on user membership
-    const userChannels = chatChannels.filter(channel => 
-      channel.members.includes(req.user.id) || channel.admins.includes(req.user.id)
-    );
-
-    res.json(userChannels);
-  } catch (error) {
-    console.error('Get chat channels error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Create chat channel
- * Creates a new chat channel
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Body:
- * - Channel configuration data
- * 
- * Response:
- * - 200: Channel created successfully
- * - 400: Invalid channel data
- * - 401: Missing or invalid token
- * - 500: Internal server error
- */
-app.post('/api/chat/channels', authenticateToken, (req, res) => {
-  try {
-    const channel = {
-      id: uuidv4(),
-      ...req.body,
-      members: req.body.members || [req.user.id],
-      admins: req.body.admins || [req.user.id],
-      createdBy: req.user.id,
-      isPrivate: req.body.isPrivate || false,
-      isArchived: false,
-      memberCount: (req.body.members || [req.user.id]).length,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    chatChannels.push(channel);
-
-    res.json({ message: 'Channel created successfully', channel });
-  } catch (error) {
-    console.error('Create chat channel error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Get chat messages
- * Returns messages for a specific channel
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Query Parameters:
- * - channelId: Channel ID to get messages for
- * - limit: Number of messages to return (default: 50)
- * - before: Get messages before this timestamp
- * 
- * Response:
- * - 200: Array of chat messages
- * - 401: Missing or invalid token
- * - 500: Internal server error
- */
-app.get('/api/chat/messages', authenticateToken, (req, res) => {
-  try {
-    const { channelId, limit = 50, before } = req.query;
-    
-    if (!channelId) {
-      return res.status(400).json({ error: 'Channel ID is required' });
-    }
-
-    // Check if user has access to this channel
-    const channel = chatChannels.find(c => c.id === channelId);
-    if (!channel || (!channel.members.includes(req.user.id) && !channel.admins.includes(req.user.id))) {
-      return res.status(403).json({ error: 'Access denied to this channel' });
-    }
-
-    let filteredMessages = chatMessages.filter(msg => msg.channelId === channelId);
-
-    if (before) {
-      filteredMessages = filteredMessages.filter(msg => new Date(msg.createdAt) < new Date(before));
-    }
-
-    // Sort by creation date (newest first) and limit
-    filteredMessages = filteredMessages
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, parseInt(limit));
-
-    res.json(filteredMessages);
-  } catch (error) {
-    console.error('Get chat messages error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Send chat message
- * Sends a new message to a channel
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Body:
- * - Message data (channelId, content, type, etc.)
- * 
- * Response:
- * - 200: Message sent successfully
- * - 400: Invalid message data
- * - 401: Missing or invalid token
- * - 403: Access denied to channel
- * - 500: Internal server error
- */
-app.post('/api/chat/messages', authenticateToken, (req, res) => {
-  try {
-    const { channelId, content, type = 'text', replyTo, attachments } = req.body;
-
-    if (!channelId || !content) {
-      return res.status(400).json({ error: 'Channel ID and content are required' });
-    }
-
-    // Check if user has access to this channel
-    const channel = chatChannels.find(c => c.id === channelId);
-    if (!channel || (!channel.members.includes(req.user.id) && !channel.admins.includes(req.user.id))) {
-      return res.status(403).json({ error: 'Access denied to this channel' });
-    }
-
-    const message = {
-      id: uuidv4(),
-      senderId: req.user.id,
-      channelId,
-      content,
-      type,
-      readBy: [req.user.id],
-      replyTo,
-      attachments: attachments || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isEdited: false,
-      isDeleted: false
-    };
-
-    chatMessages.push(message);
-
-    // Update channel's last message
-    const channelIndex = chatChannels.findIndex(c => c.id === channelId);
-    if (channelIndex !== -1) {
-      chatChannels[channelIndex].lastMessage = message;
-      chatChannels[channelIndex].updatedAt = new Date().toISOString();
-    }
-
-    res.json({ message: 'Message sent successfully', chatMessage: message });
-  } catch (error) {
-    console.error('Send chat message error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Get help desk channels
- * Returns available help desk channels
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Response:
- * - 200: Array of help desk channels
- * - 401: Missing or invalid token
- * - 500: Internal server error
- */
-app.get('/api/chat/help-desk/channels', authenticateToken, (req, res) => {
-  try {
-    res.json(helpDeskChannels);
-  } catch (error) {
-    console.error('Get help desk channels error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Get help desk requests
- * Returns help desk requests for the user
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Query Parameters:
- * - status: Filter by request status
- * - category: Filter by request category
- * 
- * Response:
- * - 200: Array of help desk requests
- * - 401: Missing or invalid token
- * - 500: Internal server error
- */
-app.get('/api/chat/help-desk/requests', authenticateToken, (req, res) => {
-  try {
-    let filteredRequests = helpDeskRequests.filter(req => req.requesterId === req.user.id);
-
-    if (req.query.status) {
-      filteredRequests = filteredRequests.filter(r => r.status === req.query.status);
-    }
-
-    if (req.query.category) {
-      filteredRequests = filteredRequests.filter(r => r.category === req.query.category);
-    }
-
-    res.json(filteredRequests);
-  } catch (error) {
-    console.error('Get help desk requests error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Create help desk request
- * Creates a new help desk request
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Body:
- * - Request data (channelId, title, description, category, priority, etc.)
- * 
- * Response:
- * - 200: Request created successfully
- * - 400: Invalid request data
- * - 401: Missing or invalid token
- * - 500: Internal server error
- */
-app.post('/api/chat/help-desk/requests', authenticateToken, (req, res) => {
-  try {
-    const { channelId, title, description, category, priority = 'medium', tags = [] } = req.body;
-
-    if (!channelId || !title || !description) {
-      return res.status(400).json({ error: 'Channel ID, title, and description are required' });
-    }
-
-    // Check if help desk channel exists
-    const helpDeskChannel = helpDeskChannels.find(c => c.id === channelId);
-    if (!helpDeskChannel) {
-      return res.status(400).json({ error: 'Invalid help desk channel' });
-    }
-
-    const request = {
-      id: uuidv4(),
-      channelId,
-      requesterId: req.user.id,
-      requesterName: req.user.name,
-      requesterEmail: req.user.email,
-      title,
-      description,
-      category,
-      priority,
-      status: 'open',
-      messages: [
-        {
-          id: uuidv4(),
-          senderId: req.user.id,
-          channelId,
-          content: description,
-          type: 'help-desk',
-          readBy: [req.user.id],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isEdited: false,
-          isDeleted: false
-        }
-      ],
-      tags,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    helpDeskRequests.push(request);
-
-    res.json({ message: 'Help desk request created successfully', request });
-  } catch (error) {
-    console.error('Create help desk request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Send message to help desk request
- * Sends a message to a specific help desk request
- * 
- * Headers:
- * - Authorization: Bearer <jwt_token> (required)
- * 
- * Body:
- * - Message data (requestId, content)
- * 
- * Response:
- * - 200: Message sent successfully
- * - 400: Invalid message data
- * - 401: Missing or invalid token
- * - 403: Access denied to request
- * - 500: Internal server error
- */
-app.post('/api/chat/help-desk/messages', authenticateToken, (req, res) => {
-  try {
-    const { requestId, content } = req.body;
-
-    if (!requestId || !content) {
-      return res.status(400).json({ error: 'Request ID and content are required' });
-    }
-
-    // Find the help desk request
-    const requestIndex = helpDeskRequests.findIndex(r => r.id === requestId);
-    if (requestIndex === -1) {
-      return res.status(404).json({ error: 'Help desk request not found' });
-    }
-
-    const request = helpDeskRequests[requestIndex];
-
-    // Check if user has access to this request
-    if (request.requesterId !== req.user.id && !request.assignedTo) {
-      return res.status(403).json({ error: 'Access denied to this request' });
-    }
-
-    const message = {
-      id: uuidv4(),
-      senderId: req.user.id,
-      channelId: request.channelId,
-      content,
-      type: 'help-desk',
-      readBy: [req.user.id],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isEdited: false,
-      isDeleted: false
-    };
-
-    // Add message to request
-    helpDeskRequests[requestIndex].messages.push(message);
-    helpDeskRequests[requestIndex].updatedAt = new Date().toISOString();
-
-    res.json({ message: 'Message sent successfully', chatMessage: message });
-  } catch (error) {
-    console.error('Send help desk message error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Note: Old in-memory chat system removed. Using new database-based chat system instead.
 
 // ===== APPROVAL SYSTEM ENDPOINTS =====
 
@@ -2662,6 +2126,47 @@ app.post('/api/approvals/workflows', authenticateToken, (req, res) => {
   }
 });
 
+// ===== CHAT SYSTEM HEALTH CHECK =====
+
+// Simple health check for chat system availability
+app.get('/api/chat/health', (req, res) => {
+  if (chatRouter) {
+    res.json({
+      status: 'healthy',
+      tablesExist: true,
+      message: 'Chat system is ready'
+    });
+  } else {
+    res.json({
+      status: 'unavailable',
+      tablesExist: false,
+      message: 'Chat tables not found. Run database migration to enable chat features.'
+    });
+  }
+});
+
+// ===== CHAT API ROUTES =====
+
+// Import and use the comprehensive chat API conditionally
+let chatRouter = null;
+let initializeWebSocket = null;
+
+// Try to load chat API, but don't crash if it fails
+try {
+  const chatApi = require('./chat-api');
+  chatRouter = chatApi.router;
+  initializeWebSocket = chatApi.initializeWebSocket;
+  console.log('✅ Chat API loaded successfully');
+} catch (error) {
+  console.log('⚠️ Chat API not available:', error.message);
+  console.log('💡 To enable chat features, run the database migration script');
+}
+
+// Only mount chat routes if chat API is available
+if (chatRouter) {
+  app.use('/api/chat', chatRouter);
+}
+
 // ===== ERROR HANDLING =====
 
 /**
@@ -2721,7 +2226,18 @@ app.use('*', (req, res) => {
 
 // Only start the server if not in test mode
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = require('http').createServer(app);
+  
+  // Initialize WebSocket server if available
+  if (initializeWebSocket) {
+    initializeWebSocket(server).catch(error => {
+      console.error('Failed to initialize WebSocket server:', error);
+    });
+  } else {
+    console.log('⚠️ WebSocket server not available - chat features disabled');
+  }
+  
+  server.listen(PORT, () => {
     console.log(`🚀 Workforce Management API Server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🔗 API Documentation: http://localhost:${PORT}/api/docs`);
@@ -2730,7 +2246,13 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`📋 Report system: http://localhost:${PORT}/api/reports`);
     console.log(`⏰ Attendance tracking: http://localhost:${PORT}/api/attendance`);
     console.log(`✅ Approval system: http://localhost:${PORT}/api/approvals`);
-    console.log(`💬 Chat system: http://localhost:${PORT}/api/chat`);
+    if (chatRouter) {
+      console.log(`💬 Chat system: http://localhost:${PORT}/api/chat`);
+      console.log(`🔌 WebSocket server: ws://localhost:${PORT}/ws`);
+    } else {
+      console.log(`💬 Chat system: Disabled (tables not found)`);
+      console.log(`🔌 WebSocket server: Disabled`);
+    }
   });
 }
 

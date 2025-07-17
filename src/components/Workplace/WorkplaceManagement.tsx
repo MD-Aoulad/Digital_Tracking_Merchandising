@@ -6,7 +6,14 @@ import {
   MapPin,
   Building2,
   Search,
-  Filter
+  Filter,
+  Download,
+  Users,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Target,
+  BarChart3
 } from 'lucide-react';
 import { Workplace } from '../../types';
 
@@ -19,23 +26,27 @@ import { Workplace } from '../../types';
  * - Workplace type management
  * - Location management
  * - Custom properties integration
+ * - Dashboard statistics
+ * - Location accuracy tracking
+ * - Channel distribution
+ * - Employee assignment tracking
  */
 const WorkplaceManagement: React.FC = () => {
   const [workplaces, setWorkplaces] = useState<Workplace[]>([
     {
       id: '1',
-      name: 'Main Office',
-      code: 'MO-001',
-      address: '123 Business St, Gangnam-gu, Seoul',
+      name: 'BIG ONE Handels GmbH/ Os...',
+      code: '20311',
+      address: 'Pagenstecherstr. 63 a, 49090, Osnabrück, Niedersachsen, Germany',
       stateId: '1',
       cityId: '3',
-      district: 'Gangnam-gu',
+      district: 'Nord',
       type: 'registered',
       isActive: true,
-      isDefault: true,
+      isDefault: false,
       location: {
-        lat: 37.5665,
-        lng: 126.9780
+        lat: 52.2799,
+        lng: 8.0472
       },
       customProperties: [],
       createdBy: 'admin',
@@ -44,18 +55,78 @@ const WorkplaceManagement: React.FC = () => {
     },
     {
       id: '2',
-      name: 'Busan Branch',
-      code: 'BB-001',
-      address: '456 Harbor Ave, Seo-gu, Busan',
+      name: '#SamsungZeil (Showcase)/ Fra...',
+      code: '15235',
+      address: 'Zeil 119, 60313, Frankfurt am Main, Hessen, Germany',
       stateId: '2',
       cityId: '4',
-      district: 'Seo-gu',
+      district: 'West 1',
       type: 'registered',
       isActive: true,
       isDefault: false,
       location: {
-        lat: 35.1796,
-        lng: 129.0756
+        lat: 50.1109,
+        lng: 8.6821
+      },
+      customProperties: [],
+      createdBy: 'admin',
+      createdAt: '2025-01-15T00:00:00Z',
+      updatedAt: '2025-01-15T00:00:00Z'
+    },
+    {
+      id: '3',
+      name: '3K-Kuechen Esslingen/ Essling...',
+      code: '25280',
+      address: 'Heilbronner Str. 50, 73728, Esslingen, Baden-Württemberg, Germany',
+      stateId: '3',
+      cityId: '5',
+      district: 'Süd',
+      type: 'registered',
+      isActive: true,
+      isDefault: false,
+      location: {
+        lat: 48.7426,
+        lng: 9.3201
+      },
+      customProperties: [],
+      createdBy: 'admin',
+      createdAt: '2025-01-15T00:00:00Z',
+      updatedAt: '2025-01-15T00:00:00Z'
+    },
+    {
+      id: '4',
+      name: '4kitchen GmbH/ Neufahrn bei...',
+      code: '22926',
+      address: 'Dorfstraße 34, 85375, Neufahrn bei Freising, Bayern, Germany',
+      stateId: '4',
+      cityId: '6',
+      district: 'Süd',
+      type: 'registered',
+      isActive: true,
+      isDefault: false,
+      location: {
+        lat: 48.3158,
+        lng: 11.6635
+      },
+      customProperties: [],
+      createdBy: 'admin',
+      createdAt: '2025-01-15T00:00:00Z',
+      updatedAt: '2025-01-15T00:00:00Z'
+    },
+    {
+      id: '5',
+      name: 'A & K 10.000 Hausgeräte u. Kü...',
+      code: '21268',
+      address: 'Neutorstraße 83, 26721, Emden, Niedersachsen, Germany',
+      stateId: '1',
+      cityId: '7',
+      district: 'Nord',
+      type: 'registered',
+      isActive: true,
+      isDefault: false,
+      location: {
+        lat: 53.3675,
+        lng: 7.2078
       },
       customProperties: [],
       createdBy: 'admin',
@@ -69,6 +140,29 @@ const WorkplaceManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<'status' | 'settings'>('status');
+
+  // Dashboard statistics
+  const dashboardStats = {
+    totalWorkplaces: 5741,
+    locationAccuracy: {
+      verifiedByAdmin: 1221,
+      rooftopLevel: 4393,
+      inaccurate: 127,
+      total: 5741
+    },
+    channelDistribution: {
+      mass: 2845,
+      bg: 2060,
+      others: 836,
+      total: 5741
+    },
+    employeeAssignment: {
+      allocated: 205,
+      unallocated: 5536,
+      total: 5741
+    }
+  };
 
   const handleAddWorkplace = () => {
     setEditingWorkplace(null);
@@ -136,6 +230,41 @@ const WorkplaceManagement: React.FC = () => {
     }
   };
 
+  const getLocationAccuracyColor = (workplace: Workplace) => {
+    // Mock location accuracy based on workplace ID
+    const accuracyMap: { [key: string]: string } = {
+      '1': 'bg-blue-100 text-blue-800', // Verified by admin
+      '2': 'bg-green-100 text-green-800', // Rooftop level
+      '3': 'bg-green-100 text-green-800', // Rooftop level
+      '4': 'bg-green-100 text-green-800', // Rooftop level
+      '5': 'bg-green-100 text-green-800'  // Rooftop level
+    };
+    return accuracyMap[workplace.id] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getLocationAccuracyLabel = (workplace: Workplace) => {
+    const accuracyMap: { [key: string]: string } = {
+      '1': 'Location verified by admin',
+      '2': 'Rooftop level accuracy',
+      '3': 'Rooftop level accuracy',
+      '4': 'Rooftop level accuracy',
+      '5': 'Rooftop level accuracy'
+    };
+    return accuracyMap[workplace.id] || 'Unknown';
+  };
+
+  const getEmployeeCount = (workplace: Workplace) => {
+    // Mock employee count based on workplace ID
+    const employeeMap: { [key: string]: number } = {
+      '1': 0,
+      '2': 1,
+      '3': 0,
+      '4': 0,
+      '5': 0
+    };
+    return employeeMap[workplace.id] || 0;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -148,157 +277,321 @@ const WorkplaceManagement: React.FC = () => {
                 Manage registered workplaces, fixed workplaces, and temporary workplace settings.
               </p>
             </div>
+            <div className="flex items-center space-x-2">
+              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <Plus className="h-4 w-4 mr-2" />
+                Add a workplace
+              </button>
+              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <Plus className="h-4 w-4 mr-2" />
+                Add in bulk
+              </button>
+              <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit in bulk
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex space-x-8">
             <button
-              onClick={handleAddWorkplace}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              onClick={() => setActiveTab('status')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'status'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Workplace
+              Status
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Settings
             </button>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search workplaces by name, code, or address..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+      {activeTab === 'status' && (
+        <>
+          {/* Dashboard Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Workplace Summary */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Workplace</h3>
+              <p className="text-sm text-gray-600 mb-2">No. of total workplaces</p>
+              <p className="text-3xl font-bold text-gray-900">{dashboardStats.totalWorkplaces.toLocaleString()}</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Types</option>
-                <option value="registered">Registered</option>
-                <option value="fixed">Fixed</option>
-                <option value="temporary">Temporary</option>
-              </select>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Workplaces List */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Workplaces</h3>
-            <span className="text-sm text-gray-600">{filteredWorkplaces.length} workplaces</span>
-          </div>
-        </div>
-        
-        {filteredWorkplaces.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No workplaces found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || filterType !== 'all' || filterStatus !== 'all' 
-                ? 'Try adjusting your search or filter criteria.' 
-                : 'Get started by creating a new workplace.'}
-            </p>
-            {!searchTerm && filterType === 'all' && filterStatus === 'all' && (
-              <div className="mt-6">
-                <button
-                  onClick={handleAddWorkplace}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Workplace
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredWorkplaces.map((workplace) => (
-              <div key={workplace.id} className="p-6">
+            {/* Location Accuracy */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Location accuracy</h3>
+              <p className="text-sm text-gray-600 mb-4">All {dashboardStats.totalWorkplaces.toLocaleString()} workplaces</p>
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <MapPin className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h4 className="text-lg font-medium text-gray-900">{workplace.name}</h4>
-                        <span className="text-sm text-gray-500">({workplace.code})</span>
-                        {workplace.isDefault && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{workplace.address}</p>
-                      <div className="flex items-center space-x-4 mt-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(workplace.type)}`}>
-                          {getTypeLabel(workplace.type)}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Lat: {workplace.location.lat.toFixed(4)}, Lng: {workplace.location.lng.toFixed(4)}
-                        </span>
-                      </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-600">Location verified by admin</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {dashboardStats.locationAccuracy.verifiedByAdmin.toLocaleString()} ({((dashboardStats.locationAccuracy.verifiedByAdmin / dashboardStats.locationAccuracy.total) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-600">Rooftop level accuracy</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {dashboardStats.locationAccuracy.rooftopLevel.toLocaleString()} ({((dashboardStats.locationAccuracy.rooftopLevel / dashboardStats.locationAccuracy.total) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-600">Inaccurate</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {dashboardStats.locationAccuracy.inaccurate.toLocaleString()} ({((dashboardStats.locationAccuracy.inaccurate / dashboardStats.locationAccuracy.total) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Channel Distribution */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Channel</h3>
+              <p className="text-sm text-gray-600 mb-4">All {dashboardStats.totalWorkplaces.toLocaleString()} workplaces</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-600">Mass</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {dashboardStats.channelDistribution.mass.toLocaleString()} ({((dashboardStats.channelDistribution.mass / dashboardStats.channelDistribution.total) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-600">BG</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {dashboardStats.channelDistribution.bg.toLocaleString()} ({((dashboardStats.channelDistribution.bg / dashboardStats.channelDistribution.total) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-gray-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-600">Others</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {dashboardStats.channelDistribution.others.toLocaleString()} ({((dashboardStats.channelDistribution.others / dashboardStats.channelDistribution.total) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Employee Assignment Statistics */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Users className="h-5 w-5 text-gray-600 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">Workplaces assigned to employees</h3>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">
+                {((dashboardStats.employeeAssignment.allocated / dashboardStats.employeeAssignment.total) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="mt-4 flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Allocated</span>
+                <span className="text-sm font-medium text-gray-900">{dashboardStats.employeeAssignment.allocated.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Unallocated</span>
+                <span className="text-sm font-medium text-gray-900">{dashboardStats.employeeAssignment.unallocated.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search workplaces by name, code, or address..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleToggleActive(workplace.id)}
-                      className={`inline-flex items-center px-3 py-1 text-sm font-medium rounded-md ${
-                        workplace.isActive
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                      }`}
+                    <Filter className="h-4 w-4 text-gray-400" />
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      {workplace.isActive ? 'Active' : 'Inactive'}
-                    </button>
-                    {!workplace.isDefault && (
-                      <button
-                        onClick={() => handleSetDefault(workplace.id)}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Set Default
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleEdit(workplace)}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      <option value="all">All Types</option>
+                      <option value="registered">Registered</option>
+                      <option value="fixed">Fixed</option>
+                      <option value="temporary">Temporary</option>
+                    </select>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <Pencil className="h-3 w-3 mr-1" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(workplace.id)}
-                      className="inline-flex items-center px-3 py-1 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      Delete
-                    </button>
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Workplaces List */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-blue-600 cursor-pointer">All {filteredWorkplaces.length}</span>
+                </div>
+                <button className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </button>
+              </div>
+            </div>
+            
+            {filteredWorkplaces.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No workplaces found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {searchTerm || filterType !== 'all' || filterStatus !== 'all' 
+                    ? 'Try adjusting your search or filter criteria.' 
+                    : 'Get started by creating a new workplace.'}
+                </p>
+                {!searchTerm && filterType === 'all' && filterStatus === 'all' && (
+                  <div className="mt-6">
+                    <button
+                      onClick={handleAddWorkplace}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Workplace
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        No.
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Workplace name Code
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Distributor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        District
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        State
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Address
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Accuracy
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Employee
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredWorkplaces.map((workplace, index) => (
+                      <tr key={workplace.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {index + 1}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{workplace.name}</div>
+                            <div className="text-sm text-gray-500">Code: {workplace.code}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {workplace.district === 'Nord' ? 'EP' : workplace.district === 'West 1' ? 'VIP' : 'KSP'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {workplace.district}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {workplace.address.split(', ').slice(-2).join(', ')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {workplace.address}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLocationAccuracyColor(workplace)}`}>
+                            {getLocationAccuracyLabel(workplace)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {getEmployeeCount(workplace) > 0 ? getEmployeeCount(workplace) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Workplace Settings</h3>
+          <p className="text-gray-600">Workplace management settings and configuration options will be displayed here.</p>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {showAddModal && (

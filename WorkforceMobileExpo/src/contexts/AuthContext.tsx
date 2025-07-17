@@ -1,17 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// User interface
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'employee' | 'manager';
-  department?: string;
-  position?: string;
-  phone?: string;
-  avatar?: string;
-}
+import { apiService, User } from '../services/api';
 
 // Auth context interface
 interface AuthContextType {
@@ -20,37 +8,6 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
 }
-
-// Mock users data including Richard
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@company.com',
-    name: 'Admin User',
-    role: 'admin',
-    department: 'Management',
-    position: 'System Administrator',
-    phone: '+1234567890'
-  },
-  {
-    id: '2',
-    email: 'richard@company.com',
-    name: 'Richard',
-    role: 'employee',
-    department: 'Sales',
-    position: 'Sales Representative',
-    phone: '+1234567891'
-  },
-  {
-    id: '3',
-    email: 'manager@company.com',
-    name: 'Manager User',
-    role: 'manager',
-    department: 'Operations',
-    position: 'Operations Manager',
-    phone: '+1234567892'
-  }
-];
 
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,34 +24,56 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkUserSession = async () => {
     try {
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      // Check if user is authenticated with the backend
+      const isAuthenticated = await apiService.isAuthenticated();
+      
+      if (isAuthenticated) {
+        // Get user profile from backend
+        const profileResponse = await apiService.getProfile();
+        if (profileResponse.success && profileResponse.data) {
+          setUser(profileResponse.data.user);
+          await apiService.storeUser(profileResponse.data.user);
+        }
+      } else {
+        // Fallback to stored user data
+        const storedUser = await apiService.getStoredUser();
+        if (storedUser) {
+          setUser(storedUser);
+        }
       }
     } catch (error) {
       console.error('Error checking user session:', error);
+      // Fallback to stored user data on error
+      try {
+        const storedUser = await apiService.getStoredUser();
+        if (storedUser) {
+          setUser(storedUser);
+        }
+      } catch (fallbackError) {
+        console.error('Error getting stored user:', fallbackError);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    console.log('Mobile login attempt:', { email, password });
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await apiService.login(email, password);
+      console.log('Login response:', response);
       
-      // Mock authentication - in production, this would call an API
-      const foundUser = mockUsers.find(u => u.email === email);
-      
-      if (foundUser && password === 'password') { // Simple mock password
-        setUser(foundUser);
-        await AsyncStorage.setItem('user', JSON.stringify(foundUser));
+      if (response.success && response.data) {
+        console.log('Login successful for:', email);
+        setUser(response.data.user);
+        await apiService.storeUser(response.data.user);
         setIsLoading(false);
         return true;
       }
       
+      console.log('Login failed for:', email, response.error);
       setIsLoading(false);
       return false;
     } catch (error) {
@@ -107,7 +86,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       setUser(null);
-      await AsyncStorage.removeItem('user');
+      await apiService.logout();
+      await apiService.removeStoredUser();
     } catch (error) {
       console.error('Logout error:', error);
     }

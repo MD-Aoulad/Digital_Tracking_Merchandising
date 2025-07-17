@@ -12,23 +12,52 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { shadowStyles } from '../utils/shadows';
 
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
+  const navigation = useNavigation();
 
   const handleLogin = async () => {
+    console.log('Login button pressed with:', { email, password });
+    
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
+    console.log('Attempting login...');
     const success = await login(email, password);
-    if (!success) {
-      Alert.alert('Login Failed', 'Invalid email or password. Try: richard@company.com / password');
+    console.log('Login result:', success);
+    
+    if (success) {
+      console.log('Login successful, navigating to Dashboard...');
+      // Navigate to Dashboard
+      (navigation as any).navigate('Dashboard');
+    } else {
+      Alert.alert(
+        'Login Failed', 
+        'Unable to connect to the server or invalid credentials.\n\n' +
+        'Please check:\n' +
+        '• Backend server is running on port 5000\n' +
+        '• You\'re connected to the same WiFi network\n' +
+        '• Try the demo credentials: richard@company.com / password'
+      );
+    }
+  };
+
+  const clearStoredData = async () => {
+    try {
+      await AsyncStorage.clear();
+      Alert.alert('Success', 'All stored data cleared. Please restart the app.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to clear stored data');
     }
   };
 
@@ -49,7 +78,7 @@ const LoginScreen: React.FC = () => {
           <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>
 
-        <View style={styles.form}>
+        <View style={[styles.form, shadowStyles.large]}>
           <View style={styles.inputContainer}>
             <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
@@ -120,6 +149,12 @@ const LoginScreen: React.FC = () => {
             Email: richard@company.com{'\n'}
             Password: password
           </Text>
+          <TouchableOpacity
+            style={styles.clearDataButton}
+            onPress={clearStoredData}
+          >
+            <Text style={styles.clearDataText}>Clear Stored Data</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -156,14 +191,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -232,10 +261,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 18,
+    marginBottom: 16,
+  },
+  clearDataButton: {
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  clearDataText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

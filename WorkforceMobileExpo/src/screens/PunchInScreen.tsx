@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { shadowStyles } from '../utils/shadows';
 
 interface PunchRecord {
   id: string;
@@ -263,18 +264,11 @@ const styles = StyleSheet.create({
   },
   clockContainer: {
     backgroundColor: '#fff',
-    margin: 20,
-    padding: 30,
     borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    marginBottom: 24,
+    ...shadowStyles.large,
   },
   timeText: {
     fontSize: 48,
@@ -292,19 +286,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   punchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
+    backgroundColor: '#007AFF',
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    marginBottom: 16,
+    ...shadowStyles.medium,
   },
   clockInButton: {
     backgroundColor: '#4CAF50',
@@ -327,20 +315,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   infoCard: {
-    flex: 1,
     backgroundColor: '#fff',
-    padding: 16,
     borderRadius: 12,
-    marginHorizontal: 5,
+    padding: 16,
+    marginBottom: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadowStyles.small,
   },
   infoTitle: {
     fontSize: 14,

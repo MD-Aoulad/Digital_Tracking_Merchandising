@@ -114,7 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       label: 'Administration',
       items: [
         { title: 'Groups', path: '/groups', icon: <Users size={20} /> },
-        { title: 'Workplaces', path: '/workplaces', icon: <Building2 size={20} /> },
+        { title: 'Workplaces', path: '/workplace', icon: <Building2 size={20} /> },
         { title: 'Members', path: '/members', icon: <Users size={20} /> },
       ],
     },

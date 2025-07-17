@@ -779,6 +779,9 @@ export interface TaskCategory {
 // COMMUNICATION TYPES
 // ============================================================================
 
+// Import chat types
+export * from './chat';
+
 /**
  * Individual message in chat system
  */

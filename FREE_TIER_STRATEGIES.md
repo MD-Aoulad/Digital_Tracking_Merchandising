@@ -1,3 +1,4 @@
+
 # Free Tier Strategies - Stay Free Longer!
 
 This guide helps you maximize your free tier usage and understand what happens when you exceed limits.
