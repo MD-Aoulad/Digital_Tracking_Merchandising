@@ -18,7 +18,7 @@ interface TodoPageProps {
 }
 
 // Direct API functions for todo operations
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.178.150:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 /**
  * Creates authentication headers for API requests

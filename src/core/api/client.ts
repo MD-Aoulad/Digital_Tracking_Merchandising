@@ -9,7 +9,7 @@ import { ApiResponse } from '../types';
 
 // ===== CONFIGURATION =====
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.178.150:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const RETRY_DELAY = 60000; // 1 minute for rate limiting
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,14 @@ const ProfileScreen: React.FC = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
+
+  // Force redirect to Login if user is null
+  useEffect(() => {
+    if (!user) {
+      console.log('User is null, navigating to Login...');
+      navigation.navigate('Login' as never);
+    }
+  }, [user, navigation]);
 
   const pickImage = async () => {
     try {
@@ -76,14 +84,20 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', onPress: logout, style: 'destructive' },
-      ]
-    );
+    console.log('Logout button pressed');
+    console.log('Current user:', user);
+    console.log('Logout function available:', typeof logout);
+    
+    // For testing - direct logout without confirmation
+    console.log('Executing logout function directly...');
+    logout();
+    console.log('Logout function called');
+    
+    // Force navigation to login as backup
+    setTimeout(() => {
+      console.log('Forcing navigation to login...');
+      navigation.navigate('Login' as never);
+    }, 500);
   };
 
   const ProfileSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -120,9 +134,14 @@ const ProfileScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings' as never)}>
-          <Ionicons name="settings" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings' as never)} style={styles.headerButton}>
+            <Ionicons name="settings" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.headerButton}>
+            <Ionicons name="log-out" size={24} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -306,10 +325,12 @@ const ProfileScreen: React.FC = () => {
         </ProfileSection>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out" size={20} color="#ef4444" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.logoutSection}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out" size={20} color="#ef4444" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -333,6 +354,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    marginLeft: 16,
   },
   content: {
     flex: 1,
@@ -448,12 +476,21 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginLeft: 12,
   },
+  logoutSection: {
+    backgroundColor: '#fff',
+    margin: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
-    margin: 20,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,

@@ -26,6 +26,13 @@ const Stack = createStackNavigator();
 function AppContent() {
   const { user, isLoading } = useAuth();
   const [showOnboarding, setShowOnboarding] = React.useState<boolean | null>(null);
+  
+  // Debug logging for navigation
+  console.log('=== NAVIGATION DEBUG ===');
+  console.log('Current user:', user);
+  console.log('Is loading:', isLoading);
+  console.log('Show onboarding:', showOnboarding);
+  console.log('Initial route name:', showOnboarding ? "Onboarding" : (user ? "Dashboard" : "Login"));
 
   React.useEffect(() => {
     const checkOnboarding = async () => {

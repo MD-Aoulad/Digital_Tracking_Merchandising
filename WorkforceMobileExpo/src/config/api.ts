@@ -5,7 +5,7 @@
 export const API_CONFIG = {
   // Use your computer's IP address for mobile development
   // You can find this by running 'ipconfig' on Windows or 'ifconfig' on Mac/Linux
-  BASE_URL: 'http://192.168.178.150:5000/api', // Update this IP address
+  BASE_URL: 'http://localhost:5000/api', // For local development
   
   // Alternative URLs for different scenarios:
   // LOCALHOST: 'http://localhost:5000/api', // For web development

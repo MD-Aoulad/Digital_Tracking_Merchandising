@@ -43,7 +43,7 @@ const AuthDebug: React.FC = () => {
 
   const testAuthAPI = async () => {
     try {
-      const response = await fetch('http://192.168.178.150:5000/api/todos', {
+      const response = await fetch('http://localhost:5000/api/todos', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'

@@ -29,7 +29,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE_URL = 'http://192.168.178.150:5000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // ===== TYPE DEFINITIONS =====
 

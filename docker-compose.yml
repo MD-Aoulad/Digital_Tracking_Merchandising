@@ -1,11 +1,12 @@
 version: '3.8'
 
 services:
-  # Frontend React App
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        - REACT_APP_API_URL=http://localhost:5000/api
     ports:
       - "3000:3000"
     environment:
@@ -17,7 +18,21 @@ services:
       - app-network
     restart: unless-stopped
 
-  # Backend Node.js API
+  mobile-app:
+    build:
+      context: ./WorkforceMobileExpo
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -28,46 +43,39 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - DATABASE_URL=${DATABASE_URL:-sqlite:./database.sqlite}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-workforce_user}:${POSTGRES_PASSWORD:-workforce_password}@postgres:5432/${POSTGRES_DB:-workforce_db}
+      - REDIS_URL=redis://redis:6379
       - CORS_ORIGIN=http://localhost:3000
     volumes:
       - backend-data:/app/data
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      - frontend
-      - backend
+      - postgres
+      - redis
     networks:
       - app-network
     restart: unless-stopped
 
-  # PostgreSQL Database (optional)
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=workforce_db
+      - POSTGRES_DB=${POSTGRES_DB:-workforce_db}
       - POSTGRES_USER=${POSTGRES_USER:-workforce_user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-workforce_password}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./backend/todos.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./backend/chat_system.sql:/docker-entrypoint-initdb.d/02-init.sql:ro
+      - ./backend/members.sql:/docker-entrypoint-initdb.d/00-members.sql:ro
     networks:
       - app-network
     restart: unless-stopped
-    profiles:
-      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-workforce_user} -d ${POSTGRES_DB:-workforce_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  # Redis Cache (optional)
   redis:
     image: redis:7-alpine
     ports:
@@ -77,10 +85,20 @@ services:
     networks:
       - app-network
     restart: unless-stopped
-    profiles:
-      - cache
 
-  # Monitoring with Prometheus
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -88,20 +106,10 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
     networks:
       - app-network
     restart: unless-stopped
-    profiles:
-      - monitoring
 
-  # Grafana Dashboard
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -112,11 +120,39 @@ services:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
     networks:
       - app-network
     restart: unless-stopped
-    profiles:
-      - monitoring
+
+  db-backup:
+    image: postgres:15-alpine
+    volumes:
+      - ./backups:/backups
+      - postgres-data:/var/lib/postgresql/data:ro
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-workforce_db}
+      - POSTGRES_USER=${POSTGRES_USER:-workforce_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-workforce_password}
+    entrypoint: ["sh", "-c", "while true; do pg_dump -h postgres -U $${POSTGRES_USER} $${POSTGRES_DB} > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql; find /backups -name 'backup_*.sql' -mtime +7 -delete; sleep 86400; done"]
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  haproxy:
+    image: haproxy:2.8-alpine
+    ports:
+      - "8080:80"
+      - "8404:8404"  # HAProxy stats
+    volumes:
+      - ./monitoring/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
 
 volumes:
   backend-data:

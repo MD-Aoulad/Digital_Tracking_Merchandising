@@ -84,12 +84,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    console.log('=== LOGOUT FUNCTION CALLED ===');
+    console.log('Current user state before logout:', user);
+    
+    // Clear user state immediately to trigger navigation
+    setUser(null);
+    console.log('User state cleared, should trigger navigation');
+    
     try {
-      setUser(null);
-      await apiService.logout();
-      await apiService.removeStoredUser();
+      // Clear stored data (these can fail without affecting logout)
+      await Promise.allSettled([
+        apiService.logout(),
+        apiService.removeStoredUser()
+      ]);
+      console.log('Logout completed successfully');
+      
+      // Force a re-render by updating state again
+      setTimeout(() => {
+        console.log('Forcing navigation update...');
+        setUser(null);
+      }, 100);
+      
     } catch (error) {
       console.error('Logout error:', error);
+      // User is already logged out due to setUser(null) above
     }
   };
 

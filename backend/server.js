@@ -349,7 +349,7 @@ app.get('/api/test', (req, res) => {
  */
 app.get('/api/debug/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users');
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM members');
     res.json({ users: result.rows, count: result.rows.length });
   } catch (error) {
     console.error('Debug users error:', error);
@@ -364,7 +364,7 @@ app.get('/api/debug/users', async (req, res) => {
  */
 app.delete('/api/debug/users', async (req, res) => {
   try {
-    await pool.query('DELETE FROM users');
+    await pool.query('DELETE FROM members');
     const demoUsers = [
       {
         email: 'richard@company.com',
@@ -385,7 +385,7 @@ app.delete('/api/debug/users', async (req, res) => {
     ];
     for (const user of demoUsers) {
       await pool.query(
-        'INSERT INTO users (email, password, name, role, department, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+        'INSERT INTO members (email, password, name, role, department, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
         [user.email, user.password, user.name, user.role, user.department, user.status]
       );
     }
@@ -430,7 +430,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     // Check if user already exists in DB
-    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    const existingUser = await pool.query('SELECT * FROM members WHERE email = $1', [email.toLowerCase()]);
     if (existingUser.rows.length > 0) {
       return res.status(409).json({ error: 'User already exists' });
     }
@@ -440,7 +440,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Insert user into DB
     const insertResult = await pool.query(
-      'INSERT INTO users (email, password, name, role, department, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *',
+      'INSERT INTO members (email, password, name, role, department, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *',
       [email.toLowerCase(), hashedPassword, name, role, department, 'active']
     );
     const newUser = insertResult.rows[0];
@@ -486,7 +486,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Query user from DB
-    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email.toLowerCase()]);
+    const result = await pool.query('SELECT * FROM members WHERE LOWER(email) = $1', [email.toLowerCase()]);
     const user = result.rows[0];
     if (DEBUG_MODE) {
       console.log('User from DB:', user ? { id: user.id, email: user.email, role: user.role } : null); // Debug log
@@ -534,7 +534,7 @@ app.post('/api/auth/login', async (req, res) => {
  */
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users WHERE id = $1', [req.user.id]);
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM members WHERE id = $1', [req.user.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -566,7 +566,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin only.' });
     }
-    const result = await pool.query('SELECT id, name, email, role, department, status FROM users');
+    const result = await pool.query('SELECT id, name, email, role, department, status FROM members');
     res.json({ users: result.rows });
   } catch (error) {
     console.error('Get users error:', error);
@@ -1502,12 +1502,12 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (newPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email.toLowerCase()]);
+    const result = await pool.query('SELECT * FROM members WHERE LOWER(email) = $1', [email.toLowerCase()]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     const hashedPassword = await hashPassword(newPassword);
-    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, result.rows[0].id]);
+    await pool.query('UPDATE members SET password = $1 WHERE id = $2', [hashedPassword, result.rows[0].id]);
     res.json({ message: 'Password reset successful' });
   } catch (error) {
     console.error('Password reset error:', error);
@@ -1523,7 +1523,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
  */
 app.get('/api/admin/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users');
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM members');
     res.json({ users: result.rows });
   } catch (error) {
     console.error('Get all users error:', error);
@@ -1537,7 +1537,7 @@ app.get('/api/admin/users', async (req, res) => {
 app.get('/api/admin/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM users WHERE id = $1', [id]);
+    const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM members WHERE id = $1', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -1561,7 +1561,7 @@ app.put('/api/admin/users/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { name, role, department, status } = req.body;
     const result = await pool.query(
-      'UPDATE users SET name = $1, role = $2, department = $3, status = $4 WHERE id = $5 RETURNING id, email, name, role, department, status, created_at',
+      'UPDATE members SET name = $1, role = $2, department = $3, status = $4 WHERE id = $5 RETURNING id, email, name, role, department, status, created_at',
       [name, role, department, status, id]
     );
     if (result.rows.length === 0) {
@@ -1580,7 +1580,7 @@ app.put('/api/admin/users/:id', authenticateToken, async (req, res) => {
 app.delete('/api/admin/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, email, name', [id]);
+    const result = await pool.query('DELETE FROM members WHERE id = $1 RETURNING id, email, name', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }

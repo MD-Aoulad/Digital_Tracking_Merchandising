@@ -15,14 +15,13 @@ const isTest = process.env.NODE_ENV === 'test';
 export const API_CONFIG = {
   // Base URLs - update these to match your setup
   BASE_URL: isDevelopment 
-    ? 'http://192.168.178.150:5000/api'  // Development - your computer's IP
+    ? 'http://localhost:5000/api'  // Development - localhost
     : 'https://your-production-api.com/api', // Production - update this
   
   // Alternative localhost for development
-  LOCAL_URL: 'http://localhost:5000/api',
-  
+  LOCAL_URL: 'http://localhost:5000', 
   // Network URL for mobile devices
-  NETWORK_URL: 'http://192.168.178.150:5000/api',
+  NETWORK_URL: 'http://localhost:5000/api',
   
   // Timeouts
   TIMEOUT: 30000, // 30 seconds

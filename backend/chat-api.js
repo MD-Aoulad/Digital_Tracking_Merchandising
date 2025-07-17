@@ -467,7 +467,7 @@ router.get('/channels/:id/messages', authenticateToken, requireChatTables, async
           )
         ) FILTER (WHERE ma.id IS NOT NULL) as attachments
       FROM chat_messages m
-      LEFT JOIN users u ON m.sender_id = u.id
+      LEFT JOIN members u ON m.sender_id = u.id
       LEFT JOIN chat_message_reactions mr ON m.id = mr.message_id
       LEFT JOIN chat_message_attachments ma ON m.id = ma.message_id
       WHERE m.channel_id = $1 AND m.is_deleted = false
@@ -681,7 +681,7 @@ router.get('/moderation/flagged', authenticateToken, requireChatTables, async (r
 
     // Check if user has moderation permissions
     const dbPool = getPool();
-    const userCheck = await dbPool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    const userCheck = await dbPool.query('SELECT role FROM members WHERE id = $1', [userId]);
     if (!['admin', 'hr'].includes(userCheck.rows[0]?.role)) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -698,7 +698,7 @@ router.get('/moderation/flagged', authenticateToken, requireChatTables, async (r
         ) as flagged_by_user
       FROM chat_content_moderation cm
       JOIN chat_messages m ON cm.message_id = m.id
-      JOIN users u ON cm.flagged_by = u.id
+      JOIN members u ON cm.flagged_by = u.id
       WHERE cm.status = $1
       ORDER BY cm.created_at DESC
       LIMIT $2 OFFSET $3
@@ -820,7 +820,7 @@ router.get('/search', authenticateToken, requireChatTables, async (req, res) => 
         ) as sender,
         c.name as channel_name
       FROM chat_messages m
-      JOIN users u ON m.sender_id = u.id
+      JOIN members u ON m.sender_id = u.id
       JOIN chat_channels c ON m.channel_id = c.id
       JOIN chat_channel_members ccm ON c.id = ccm.channel_id
       WHERE ccm.user_id = $1 AND ccm.is_active = true

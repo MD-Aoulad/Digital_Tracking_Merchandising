@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS chat_channels (
     is_archived BOOLEAN DEFAULT FALSE,
     is_readonly BOOLEAN DEFAULT FALSE,
     max_members INTEGER DEFAULT 1000,
-    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_by INTEGER NOT NULL REFERENCES members(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_activity_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS chat_channels (
 CREATE TABLE IF NOT EXISTS chat_channel_members (
     id SERIAL PRIMARY KEY,
     channel_id INTEGER NOT NULL REFERENCES chat_channels(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
     role VARCHAR(50) NOT NULL DEFAULT 'member', -- owner, admin, moderator, member
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     is_active BOOLEAN DEFAULT TRUE,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS chat_channel_members (
 CREATE TABLE IF NOT EXISTS chat_messages (
     id SERIAL PRIMARY KEY,
     channel_id INTEGER NOT NULL REFERENCES chat_channels(id) ON DELETE CASCADE,
-    sender_id INTEGER NOT NULL REFERENCES users(id),
+    sender_id INTEGER NOT NULL REFERENCES members(id),
     content TEXT NOT NULL,
     message_type VARCHAR(50) DEFAULT 'text', -- text, image, file, system, announcement
     reply_to_id INTEGER REFERENCES chat_messages(id),
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     is_pinned BOOLEAN DEFAULT FALSE,
     is_flagged BOOLEAN DEFAULT FALSE,
     flag_reason TEXT,
-    flagged_by INTEGER REFERENCES users(id),
+    flagged_by INTEGER REFERENCES members(id),
     flagged_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS chat_message_attachments (
 CREATE TABLE IF NOT EXISTS chat_message_reactions (
     id SERIAL PRIMARY KEY,
     message_id INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES members(id),
     reaction_type VARCHAR(50) NOT NULL, -- emoji or reaction name
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(message_id, user_id, reaction_type)
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS chat_message_reactions (
 CREATE TABLE IF NOT EXISTS chat_message_reads (
     id SERIAL PRIMARY KEY,
     message_id INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES members(id),
     read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(message_id, user_id)
 );
@@ -86,8 +86,8 @@ CREATE TABLE IF NOT EXISTS chat_message_reads (
 -- Direct Messages Table
 CREATE TABLE IF NOT EXISTS chat_direct_messages (
     id SERIAL PRIMARY KEY,
-    sender_id INTEGER NOT NULL REFERENCES users(id),
-    recipient_id INTEGER NOT NULL REFERENCES users(id),
+    sender_id INTEGER NOT NULL REFERENCES members(id),
+    recipient_id INTEGER NOT NULL REFERENCES members(id),
     content TEXT NOT NULL,
     message_type VARCHAR(50) DEFAULT 'text',
     is_read BOOLEAN DEFAULT FALSE,
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS chat_direct_messages (
 -- User Status Table
 CREATE TABLE IF NOT EXISTS chat_user_status (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
     status VARCHAR(50) DEFAULT 'offline', -- online, offline, away, busy, invisible
     last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     is_typing BOOLEAN DEFAULT FALSE,
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS chat_user_status (
 -- User Chat Settings Table
 CREATE TABLE IF NOT EXISTS chat_settings (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
     notifications_enabled BOOLEAN DEFAULT TRUE,
     sound_enabled BOOLEAN DEFAULT TRUE,
     desktop_notifications BOOLEAN DEFAULT TRUE,
@@ -129,11 +129,11 @@ CREATE TABLE IF NOT EXISTS chat_settings (
 CREATE TABLE IF NOT EXISTS chat_content_moderation (
     id SERIAL PRIMARY KEY,
     message_id INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
-    flagged_by INTEGER NOT NULL REFERENCES users(id),
+    flagged_by INTEGER NOT NULL REFERENCES members(id),
     reason TEXT NOT NULL,
     severity VARCHAR(50) DEFAULT 'medium', -- low, medium, high, critical
     status VARCHAR(50) DEFAULT 'pending', -- pending, reviewed, resolved, dismissed
-    reviewed_by INTEGER REFERENCES users(id),
+    reviewed_by INTEGER REFERENCES members(id),
     reviewed_at TIMESTAMP WITH TIME ZONE,
     action_taken VARCHAR(255),
     notes TEXT,
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS chat_content_moderation (
 CREATE TABLE IF NOT EXISTS chat_audit_log (
     id SERIAL PRIMARY KEY,
     action VARCHAR(100) NOT NULL, -- message_sent, message_deleted, user_joined, etc.
-    user_id INTEGER REFERENCES users(id),
+    user_id INTEGER REFERENCES members(id),
     channel_id INTEGER REFERENCES chat_channels(id),
     message_id INTEGER REFERENCES chat_messages(id),
     details JSONB DEFAULT '{}',
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS chat_audit_log (
 -- GDPR Requests Table
 CREATE TABLE IF NOT EXISTS chat_gdpr_requests (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES members(id),
     request_type VARCHAR(50) NOT NULL, -- data_export, data_deletion, data_correction
     status VARCHAR(50) DEFAULT 'pending', -- pending, processing, completed, failed
     requested_data JSONB DEFAULT '{}',
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS chat_analytics (
 -- User Activity Table
 CREATE TABLE IF NOT EXISTS chat_user_activity (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES members(id),
     channel_id INTEGER REFERENCES chat_channels(id),
     date DATE NOT NULL,
     messages_sent INTEGER DEFAULT 0,
