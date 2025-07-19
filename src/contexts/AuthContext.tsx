@@ -1,8 +1,9 @@
 /**
- * Authentication Context - Workforce Management Platform
+ * Enhanced Authentication Context - Workforce Management Platform
  * 
  * This context provides authentication and authorization functionality for the application.
- * It manages user sessions, role-based permissions, and authentication state.
+ * It manages user sessions, role-based permissions, and authentication state with
+ * advanced error handling, timeout management, and retry mechanisms.
  * 
  * Features:
  * - User authentication and session management
@@ -11,37 +12,58 @@
  * - Backend API integration
  * - Session timeout management (30 minutes inactivity)
  * - Automatic logout on inactivity
+ * - Enhanced error handling and retry mechanisms
+ * - Service health monitoring
+ * - Authentication statistics tracking
  * 
  * @author Workforce Management Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, UserRole } from '../types';
-import { authAPI, User as ApiUser } from '../services/api';
+import { login as authLogin, logout as authLogout, getProfile, AuthError } from '../services/auth';
 
-/**
- * Authentication Context Type Definition
- * 
- * Defines the structure and methods available in the authentication context.
- */
-interface AuthContextType {
-  user: User | null;                    // Current authenticated user
-  login: (email: string, password: string) => Promise<boolean>;  // Login function
-  logout: () => void;                   // Logout function
-  isLoading: boolean;                   // Loading state for auth operations
-  hasPermission: (permission: string) => boolean;  // Permission checker
-  error: string | null;                 // Error message
-  clearError: () => void;               // Clear error message
-  sessionTimeout: number;               // Session timeout in minutes
-  resetSessionTimer: () => void;        // Reset session timer
+// ===== TYPES =====
+
+interface AuthErrorState {
+  type: 'timeout' | 'network' | 'credentials' | 'server' | 'validation' | 'unknown';
+  message: string;
+  retryable: boolean;
+  code?: number;
+  timestamp: number;
+}
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: AuthErrorState | null;
+  sessionTimeout: number;
+  retryAttempts: number;
+  serviceStatus: 'online' | 'offline' | 'checking';
+}
+
+interface AuthContextType extends AuthState {
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+  resetSessionTimer: () => void;
+  hasPermission: (permission: string) => boolean;
+  getAuthStats: () => {
+    totalAttempts: number;
+    successRate: number;
+    lastLoginTime?: string;
+  };
 }
 
 // ===== CONSTANTS =====
 
 const SESSION_TIMEOUT_MINUTES = 30;
 const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 2000;
 
 // ===== ROLE PERMISSIONS =====
 
@@ -97,191 +119,298 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ===== UTILITY FUNCTIONS =====
 
-/**
- * Convert API user format to application user format
- * 
- * @param apiUser - User data from API response
- * @returns User object in application format
- */
-const convertApiUserToAppUser = (apiUser: ApiUser): User => {
+const convertApiUserToAppUser = (apiUser: any): User => {
   return {
     id: apiUser.id,
     email: apiUser.email,
-    name: apiUser.name,
+    name: apiUser.firstName && apiUser.lastName ? `${apiUser.firstName} ${apiUser.lastName}` : apiUser.name || apiUser.email,
     role: apiUser.role === 'admin' ? UserRole.ADMIN : 
           apiUser.role === 'employee' ? UserRole.EDITOR : UserRole.VIEWER,
-    department: apiUser.department,
+    department: apiUser.department || 'General',
     position: apiUser.role === 'admin' ? 'System Administrator' : 
               apiUser.role === 'employee' ? 'Employee' : 'Viewer',
-    phone: '+1234567890' // Default phone for now
+    phone: apiUser.phone || '+1234567890'
   };
 };
 
-/**
- * AuthProvider Component
- * 
- * Context provider that wraps the application and provides authentication
- * functionality to all child components.
- * 
- * @param children - React components that will have access to auth context
- * @returns JSX element with authentication context
- */
+const createAuthError = (error: AuthError): AuthErrorState => {
+  return {
+    type: error.type,
+    message: error.message,
+    retryable: error.retryable,
+    code: error.code,
+    timestamp: Date.now()
+  };
+};
+
+const logAuthEvent = (event: string, data?: any) => {
+  console.log(`🔐 [AUTH CONTEXT] ${event}`, data || '');
+  
+  // Track authentication events
+  const events = JSON.parse(localStorage.getItem('authEvents') || '[]');
+  events.push({
+    event,
+    data,
+    timestamp: Date.now()
+  });
+  
+  // Keep only last 100 events
+  if (events.length > 100) {
+    events.splice(0, events.length - 100);
+  }
+  
+  localStorage.setItem('authEvents', JSON.stringify(events));
+};
+
+// ===== MAIN COMPONENT =====
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionTimeout] = useState<number>(SESSION_TIMEOUT_MINUTES);
+  // ===== STATE MANAGEMENT =====
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    isAuthenticated: false,
+    isLoading: true,
+    error: null,
+    sessionTimeout: SESSION_TIMEOUT_MINUTES,
+    retryAttempts: 0,
+    serviceStatus: 'checking'
+  });
+  
   const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
-  /**
-   * Logout function - clears user state and navigates to login
-   */
-  const logout = useCallback(() => {
-    console.log('Logging out user...');
-    setUser(null);
-    setError(null);
-    if (sessionTimer) {
-      clearTimeout(sessionTimer);
-      setSessionTimer(null);
-    }
-    authAPI.logout();
-    
-    // ✅ FIXED: Use React Router navigation instead of window.location.href
-    navigate('/login', { replace: true });
-  }, [sessionTimer, navigate]);
+  // ===== EFFECTS =====
 
-  /**
-   * Start session timeout timer
-   */
+  // Initialize authentication state
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        logAuthEvent('Initializing authentication');
+        
+        // Check if user is already authenticated
+        const token = localStorage.getItem('authToken');
+        const userData = localStorage.getItem('userData');
+        
+        if (token && userData) {
+          try {
+            const user = JSON.parse(userData);
+            const appUser = convertApiUserToAppUser(user);
+            
+            setState(prev => ({
+              ...prev,
+              user: appUser,
+              isAuthenticated: true,
+              isLoading: false
+            }));
+            
+            startSessionTimer();
+            logAuthEvent('User authenticated from storage', { userId: appUser.id });
+          } catch (error) {
+            console.error('Failed to parse stored user data:', error);
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
+          }
+        } else {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch (error) {
+        console.error('Authentication initialization failed:', error);
+        setState(prev => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  // Check service status periodically
+  useEffect(() => {
+    const checkServiceStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:3010/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000)
+        });
+        
+        setState(prev => ({
+          ...prev,
+          serviceStatus: response.ok ? 'online' : 'offline'
+        }));
+      } catch (error) {
+        setState(prev => ({ ...prev, serviceStatus: 'offline' }));
+      }
+    };
+
+    const interval = setInterval(checkServiceStatus, 30000); // Check every 30 seconds
+    checkServiceStatus(); // Initial check
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ===== SESSION MANAGEMENT =====
+
   const startSessionTimer = useCallback(() => {
     if (sessionTimer) {
       clearTimeout(sessionTimer);
     }
     
     const timer = setTimeout(() => {
-      // Session expired - auto logout
-      console.log('Session expired due to inactivity. Auto-logout initiated.');
+      logAuthEvent('Session expired - auto logout');
       logout();
     }, SESSION_TIMEOUT_MS);
     
     setSessionTimer(timer);
-  }, [sessionTimer, logout]);
+  }, [sessionTimer]);
 
-  /**
-   * Reset session timer on user activity
-   */
   const resetSessionTimer = useCallback(() => {
-    if (user) {
+    if (state.isAuthenticated) {
       startSessionTimer();
     }
-  }, [user, startSessionTimer]);
+  }, [state.isAuthenticated, startSessionTimer]);
 
-  /**
-   * Handle user activity events
-   */
-  useEffect(() => {
-    if (!user) return;
+  // ===== AUTHENTICATION OPERATIONS =====
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    logAuthEvent('Login attempt', { email });
     
-    const handleActivity = () => {
-      resetSessionTimer();
-    };
+    setState(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+      retryAttempts: 0
+    }));
 
-    activityEvents.forEach(event => {
-      document.addEventListener(event, handleActivity, true);
-    });
-
-    return () => {
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, handleActivity, true);
-      });
-    };
-  }, [user, resetSessionTimer]);
-
-  /**
-   * Initialize authentication state on component mount
-   * Checks for existing user session and validates with backend
-   */
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // Check if user is already authenticated
-        if (authAPI.isAuthenticated()) {
-          const profile = await authAPI.getProfile();
-          const appUser = convertApiUserToAppUser(profile.user);
-          setUser(appUser);
-          startSessionTimer(); // Start session timer for existing session
-        }
-        // Removed auto-login - users must now login manually
-      } catch (error) {
-        console.error('Authentication initialization failed:', error);
-        // Clear invalid session
-        authAPI.logout();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeAuth();
-  }, [startSessionTimer]);
-
-  /**
-   * Authenticate user with email and password
-   * 
-   * @param email - User's email address
-   * @param password - User's password
-   * @returns Promise<boolean> - True if authentication successful, false otherwise
-   */
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      const loginResult = await authAPI.login(email, password);
-      const appUser = convertApiUserToAppUser(loginResult.user);
-      setUser(appUser);
-      startSessionTimer(); // Start session timer after successful login
-      setIsLoading(false);
+      const response = await authLogin({ email, password });
+      const appUser = convertApiUserToAppUser(response.user);
+      
+      setState(prev => ({
+        ...prev,
+        user: appUser,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+        retryAttempts: 0
+      }));
+      
+      console.log('🔐 [AUTH CONTEXT] User state updated:', { 
+        user: appUser, 
+        isAuthenticated: true,
+        userId: appUser.id,
+        role: appUser.role 
+      });
+      
+      startSessionTimer();
+      
+      // Track successful login
+      const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '[]');
+      attempts.push({
+        email,
+        timestamp: Date.now(),
+        success: true
+      });
+      localStorage.setItem('loginAttempts', JSON.stringify(attempts.slice(-10)));
+      
+      logAuthEvent('Login successful', { userId: appUser.id, email });
       return true;
+      
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      setError(errorMessage);
-      setIsLoading(false);
+      const authError = error as AuthError;
+      const errorState = createAuthError(authError);
+      
+      // Track failed login
+      const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '[]');
+      attempts.push({
+        email,
+        timestamp: Date.now(),
+        success: false
+      });
+      localStorage.setItem('loginAttempts', JSON.stringify(attempts.slice(-10)));
+      
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: errorState,
+        retryAttempts: prev.retryAttempts + 1
+      }));
+      
+      logAuthEvent('Login failed', { 
+        email, 
+        error: authError.type, 
+        message: authError.message 
+      });
+      
       return false;
     }
-  };
+  }, [startSessionTimer]);
 
-  /**
-   * Check if current user has a specific permission
-   * 
-   * @param permission - Permission string to check (e.g., 'dashboard:view')
-   * @returns boolean - True if user has permission, false otherwise
-   */
-  const hasPermission = (permission: string): boolean => {
-    if (!user) return false;
-    return rolePermissions[user.role].includes(permission);
-  };
+  const logout = useCallback(async () => {
+    logAuthEvent('Logout initiated');
+    
+    try {
+      await authLogout();
+    } catch (error) {
+      console.warn('Logout error:', error);
+    } finally {
+      if (sessionTimer) {
+        clearTimeout(sessionTimer);
+        setSessionTimer(null);
+      }
+      
+      setState(prev => ({
+        ...prev,
+        user: null,
+        isAuthenticated: false,
+        error: null,
+        retryAttempts: 0
+      }));
+      
+      navigate('/login', { replace: true });
+      logAuthEvent('Logout completed');
+    }
+  }, [sessionTimer, navigate]);
 
-  /**
-   * Clear error message
-   */
-  const clearError = () => {
-    setError(null);
-  };
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+  }, []);
 
-  // Context value object
+  // ===== PERMISSION CHECKING =====
+
+  const hasPermission = useCallback((permission: string): boolean => {
+    if (!state.user) return false;
+    
+    const userPermissions = rolePermissions[state.user.role] || [];
+    return userPermissions.includes(permission);
+  }, [state.user]);
+
+  // ===== STATISTICS =====
+
+  const getAuthStats = useCallback(() => {
+    const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '[]');
+    const totalAttempts = attempts.length;
+    const successfulAttempts = attempts.filter((a: any) => a.success).length;
+    const successRate = totalAttempts > 0 ? successfulAttempts / totalAttempts : 0;
+    
+    const lastLogin = attempts
+      .filter((a: any) => a.success)
+      .sort((a: any, b: any) => b.timestamp - a.timestamp)[0];
+    
+    return {
+      totalAttempts,
+      successRate,
+      lastLoginTime: lastLogin ? new Date(lastLogin.timestamp).toISOString() : undefined
+    };
+  }, []);
+
+  // ===== CONTEXT VALUE =====
+
   const value: AuthContextType = {
-    user,
+    ...state,
     login,
     logout,
-    isLoading,
-    hasPermission,
-    error,
     clearError,
-    sessionTimeout,
-    resetSessionTimer
+    resetSessionTimer,
+    hasPermission,
+    getAuthStats
   };
 
   return (
@@ -291,15 +420,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-/**
- * useAuth Hook
- * 
- * Custom hook to access authentication context. Must be used within
- * an AuthProvider component.
- * 
- * @returns AuthContextType - Authentication context with user data and methods
- * @throws Error if used outside of AuthProvider
- */
+// ===== HOOK =====
+
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -189,15 +189,15 @@ class ApiService {
 
   // Chat API methods
   async getChatChannels(): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>('/chat/channels');
+    return this.request<any[]>('/api/chat/channels');
   }
 
   async getChatMessages(channelId: string): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>(`/chat/channels/${channelId}/messages`);
+    return this.request<any[]>(`/api/chat/channels/${channelId}/messages`);
   }
 
   async sendChatMessage(channelId: string, data: { content: string; messageType?: string }): Promise<ApiResponse<any>> {
-    return this.request<any>(`/chat/channels/${channelId}/messages`, {
+    return this.request<any>(`/api/chat/channels/${channelId}/messages`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

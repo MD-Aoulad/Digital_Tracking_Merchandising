@@ -29,10 +29,12 @@ import {
   User, 
   Settings, 
   LogOut, 
-  ChevronDown
+  ChevronDown,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import LanguageSelector from '../LanguageSelector';
+import TutorialOverlay from '../Tutorial/TutorialOverlay';
 
 /**
  * Navbar component props interface
@@ -61,6 +63,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen, onLogoutC
   // State management for dropdown menus
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   /**
    * Handle user logout
@@ -108,6 +111,26 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen, onLogoutC
 
         {/* Right side - Notifications, logout, and profile */}
         <div className="flex items-center space-x-4">
+          {/* Info/Tutorial Button */}
+          <div className="relative">
+            <motion.button
+              onClick={() => setTutorialOpen(true)}
+              className="p-2 rounded-lg hover:bg-blue-50 transition-colors relative group"
+              aria-label="App tutorial and help"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Info size={20} className="text-blue-600 group-hover:text-blue-700" />
+              </motion.div>
+              {/* Subtle glow effect */}
+              <div className="absolute inset-0 bg-blue-200 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+            </motion.button>
+          </div>
+
           {/* Language Selector */}
           <LanguageSelector />
           
@@ -223,6 +246,11 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, sidebarOpen, onLogoutC
           </div>
         </div>
       </div>
+
+      {/* Tutorial Overlay */}
+      {tutorialOpen && (
+        <TutorialOverlay onClose={() => setTutorialOpen(false)} />
+      )}
     </nav>
   );
 };

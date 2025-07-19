@@ -269,7 +269,7 @@ describe('Authentication', () => {
 
   it('should login with valid credentials', () => {
     cy.get('[data-testid="email-input"]').type('admin@example.com');
-    cy.get('[data-testid="password-input"]').type('admin123');
+    cy.get('[data-testid="password-input"]').type('password');
     cy.get('[data-testid="login-button"]').click();
 
     cy.url().should('include', '/dashboard');
@@ -291,7 +291,7 @@ describe('Auth API', () => {
       .post('/api/auth/login')
       .send({
         email: 'admin@example.com',
-        password: 'admin123'
+        password: 'password'
       });
 
     expect(response.status).toBe(200);

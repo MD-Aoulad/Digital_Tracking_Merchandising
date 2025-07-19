@@ -52,6 +52,12 @@ const connections = new Map();
 // Check if chat tables exist
 async function checkChatTables() {
   try {
+    // If no DATABASE_URL is provided, use in-memory storage
+    if (!process.env.DATABASE_URL) {
+      console.log('📝 Using in-memory chat storage (no database configured)');
+      return true; // Allow WebSocket to work with in-memory storage
+    }
+    
     const dbPool = getPool();
     const result = await dbPool.query(`
       SELECT EXISTS (
@@ -63,7 +69,8 @@ async function checkChatTables() {
     return result.rows[0].exists;
   } catch (error) {
     console.log('Chat tables check failed:', error.message);
-    return false;
+    console.log('📝 Falling back to in-memory chat storage');
+    return true; // Allow WebSocket to work even if database check fails
   }
 }
 
@@ -152,6 +159,16 @@ async function broadcastToChannel(channelId, data) {
     const tablesExist = await checkChatTables();
     if (!tablesExist) {
       console.log('Chat tables not available for broadcasting');
+      return;
+    }
+
+    // If no database, broadcast to all connected users (simple in-memory approach)
+    if (!process.env.DATABASE_URL) {
+      connections.forEach((ws, userId) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(data));
+        }
+      });
       return;
     }
 

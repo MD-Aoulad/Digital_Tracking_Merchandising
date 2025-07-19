@@ -19,6 +19,7 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Import all page components
 import DashboardPage from './components/Dashboard/DashboardPage';
@@ -227,11 +228,13 @@ const AppContent: React.FC = () => {
  */
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

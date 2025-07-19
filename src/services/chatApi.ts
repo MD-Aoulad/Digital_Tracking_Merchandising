@@ -6,7 +6,6 @@ import {
   ChatMessage, 
   ChatUser, 
   ChatApiResponse, 
-  ChatChannelsResponse, 
   ChatMessagesResponse,
   CreateChannelForm,
   SendMessageForm,
@@ -18,8 +17,9 @@ import {
   ContentModeration
 } from '../types/chat';
 import { useState, useEffect, useCallback } from 'react';
+import { io } from 'socket.io-client';
 
-const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api') + '/chat';
+const API_BASE = (process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8080/api/chat');
 
 // ===== UTILITY FUNCTIONS =====
 
@@ -73,16 +73,17 @@ const isAuthenticated = (): boolean => {
   
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    const currentTime = Date.now() / 1000;
-    return payload.exp && payload.exp > currentTime;
+    return payload.exp && payload.exp > Date.now() / 1000;
   } catch {
     return false;
   }
 };
 
-// WebSocket connection management with enhanced error handling
-class WebSocketManager {
-  private ws: WebSocket | null = null;
+// ===== SOCKET.IO MANAGER =====
+
+// Socket.IO connection management with enhanced error handling
+class SocketIOManager {
+  private socket: any = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
@@ -92,16 +93,16 @@ class WebSocketManager {
   private heartbeatInterval: NodeJS.Timeout | null = null;
 
   async connect(userId: string) {
-    if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
+    if (this.socket?.connected || this.isConnecting) {
       return;
     }
 
     // Check if chat system is available first
     try {
-      const healthCheck = await fetch(`${API_BASE}/health`);
+      const healthCheck = await fetch(`http://localhost:8080/health/chat`);
       const health = await healthCheck.json();
       
-      if (health.status !== 'healthy') {
+      if (health.status !== 'OK') {
         console.log('Chat system not available:', health.message);
         return;
       }
@@ -113,47 +114,65 @@ class WebSocketManager {
     this.userId = userId;
     this.isConnecting = true;
 
-    // Use the same port as the main API server
-    const wsUrl = `ws://localhost:5000/ws?userId=${userId}`;
-    this.ws = new WebSocket(wsUrl);
+    // Use the API Gateway for Socket.IO connections
+    const socketUrl = `http://localhost:8080`;
+    this.socket = io(socketUrl, {
+      path: '/ws',
+      query: { userId },
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+      forceNew: true
+    });
 
-    this.ws.onopen = () => {
-      console.log('WebSocket connected successfully');
+    this.socket.on('connect', () => {
+      console.log('Socket.IO connected successfully');
       this.reconnectAttempts = 0;
       this.isConnecting = false;
       this.startHeartbeat();
-    };
+    });
 
-    this.ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        this.handleMessage(data);
-      } catch (error) {
-        console.error('WebSocket message parsing error:', error);
-      }
-    };
-
-    this.ws.onclose = (event) => {
-      console.log('WebSocket disconnected:', event.code, event.reason);
+    this.socket.on('disconnect', (reason: string) => {
+      console.log('Socket.IO disconnected:', reason);
       this.isConnecting = false;
       this.stopHeartbeat();
       
-      // Only attempt reconnect if it wasn't a clean close
-      if (event.code !== 1000) {
+      // Only attempt reconnect if it wasn't a clean disconnect
+      if (reason !== 'io client disconnect') {
         this.attemptReconnect();
       }
-    };
+    });
 
-    this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+    this.socket.on('connect_error', (error: Error) => {
+      console.error('Socket.IO connection error:', error);
       this.isConnecting = false;
-    };
+    });
+
+    // Handle incoming messages
+    this.socket.on('new-message', (data: any) => {
+      this.handleMessage({ type: 'new-message', data });
+    });
+
+    this.socket.on('user-joined', (data: any) => {
+      this.handleMessage({ type: 'user-joined', data });
+    });
+
+    this.socket.on('user-left', (data: any) => {
+      this.handleMessage({ type: 'user-left', data });
+    });
+
+    this.socket.on('user-typing', (data: any) => {
+      this.handleMessage({ type: 'user-typing', data });
+    });
+
+    this.socket.on('pong', () => {
+      // Handle heartbeat response
+    });
   }
 
   private startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.send({ type: 'ping' });
+      if (this.socket?.connected) {
+        this.socket.emit('ping');
       }
     }, 30000); // Send ping every 30 seconds
   }
@@ -181,17 +200,12 @@ class WebSocketManager {
   }
 
   private handleMessage(data: any) {
-    // Handle heartbeat response
-    if (data.type === 'pong') {
-      return;
-    }
-
     const listeners = this.listeners.get(data.type) || [];
     listeners.forEach(listener => {
       try {
         listener(data);
       } catch (error) {
-        console.error('Error in WebSocket listener:', error);
+        console.error('Error in Socket.IO listener:', error);
       }
     });
   }
@@ -213,21 +227,21 @@ class WebSocketManager {
     }
   }
 
-  send(data: any) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+  emit(event: string, data: any) {
+    if (this.socket?.connected) {
       try {
-        this.ws.send(JSON.stringify(data));
+        this.socket.emit(event, data);
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        console.error('Error emitting Socket.IO event:', error);
       }
     }
   }
 
   disconnect() {
     this.stopHeartbeat();
-    if (this.ws) {
-      this.ws.close(1000, 'User initiated disconnect');
-      this.ws = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
     this.userId = null;
     this.isConnecting = false;
@@ -235,14 +249,14 @@ class WebSocketManager {
   }
 
   getConnectionStatus(): 'connected' | 'connecting' | 'disconnected' {
-    if (this.ws?.readyState === WebSocket.OPEN) return 'connected';
+    if (this.socket?.connected) return 'connected';
     if (this.isConnecting) return 'connecting';
     return 'disconnected';
   }
 }
 
-// Global WebSocket manager instance
-export const wsManager = new WebSocketManager();
+// Global Socket.IO manager instance
+export const socketManager = new SocketIOManager();
 
 // Enhanced API request helper with authentication and retry logic
 async function apiRequest<T>(
@@ -740,44 +754,37 @@ export const searchApi = {
 export const wsApi = {
   // Connect to WebSocket
   async connect(userId: string) {
-    return wsManager.connect(userId);
+    return socketManager.connect(userId);
   },
 
   // Disconnect from WebSocket
   disconnect() {
-    wsManager.disconnect();
+    socketManager.disconnect();
   },
 
   // Send typing indicator
   sendTyping(channelId: string, isTyping: boolean) {
-    wsManager.send({
-      type: isTyping ? 'typing_start' : 'typing_stop',
-      channelId
-    });
+    socketManager.emit('typing_start', { channelId, isTyping });
   },
 
   // Mark message as read
   markMessageRead(messageId: string, channelId: string) {
-    wsManager.send({
-      type: 'message_read',
-      messageId,
-      channelId
-    });
+    socketManager.emit('message_read', { messageId, channelId });
   },
 
   // Add event listener
   on(eventType: string, callback: Function) {
-    wsManager.addEventListener(eventType, callback);
+    socketManager.addEventListener(eventType, callback);
   },
 
   // Remove event listener
   off(eventType: string, callback: Function) {
-    wsManager.removeEventListener(eventType, callback);
+    socketManager.removeEventListener(eventType, callback);
   },
 
   // Get connection status
   getConnectionStatus() {
-    return wsManager.getConnectionStatus();
+    return socketManager.getConnectionStatus();
   },
 
   // Get typing users (placeholder - would be implemented with real-time tracking)

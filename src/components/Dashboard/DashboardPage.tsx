@@ -9,6 +9,7 @@
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Clock, 
@@ -36,6 +37,7 @@ const DashboardPage: React.FC = () => {
   // Use language change hook to trigger re-renders when language changes
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const currentLocale = useLanguageChange();
+  const navigate = useNavigate();
   
   // Mock data - in real app this would come from API
   const stats = [
@@ -177,7 +179,9 @@ const DashboardPage: React.FC = () => {
             {quickActions.map((action) => (
               <button
                 key={action.name}
-                className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                onClick={() => navigate(action.href)}
+                className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label={`Navigate to ${action.name}`}
               >
                 <div className={`p-2 rounded-lg ${action.color}`}>
                   <action.icon className="h-5 w-5 text-white" />

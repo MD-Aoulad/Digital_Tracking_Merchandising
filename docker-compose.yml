@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      target: production
       args:
         - REACT_APP_API_URL=http://localhost:5000/api
     ports:
@@ -12,11 +13,23 @@ services:
     environment:
       - NODE_ENV=production
       - REACT_APP_API_URL=http://localhost:5000/api
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:5000/api/auth
+      - REACT_APP_ENABLE_ERROR_MONITORING=true
+      - REACT_APP_ENABLE_RETRY_MECHANISM=true
+      - REACT_APP_LOGIN_TIMEOUT=30000
+      - REACT_APP_MAX_RETRY_ATTEMPTS=3
+      - REACT_APP_HEALTH_CHECK_INTERVAL=30000
     depends_on:
       - backend
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   mobile-app:
     build:
@@ -27,11 +40,23 @@ services:
     environment:
       - NODE_ENV=production
       - REACT_APP_API_URL=http://localhost:5000/api
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:5000/api/auth
+      - REACT_APP_ENABLE_ERROR_MONITORING=true
+      - REACT_APP_ENABLE_RETRY_MECHANISM=true
+      - REACT_APP_LOGIN_TIMEOUT=30000
+      - REACT_APP_MAX_RETRY_ATTEMPTS=3
+      - REACT_APP_HEALTH_CHECK_INTERVAL=30000
     depends_on:
       - backend
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   backend:
     build:

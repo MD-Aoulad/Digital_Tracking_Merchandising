@@ -1,0 +1,75 @@
+version: '3.8'
+
+# Development-specific overrides for microservices
+# Use with: docker-compose -f docker-compose.microservices.yml -f docker-compose.dev.yml up
+
+services:
+  # Frontend with development optimizations
+  frontend-app:
+    environment:
+      - CHOKIDAR_USEPOLLING=true  # Better file watching on macOS
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - /app/node_modules
+      - /app/.cache
+    stdin_open: true
+    tty: true
+    command: npm start
+
+  # API Gateway with development optimizations
+  api-gateway:
+    volumes:
+      - ./api-gateway:/app
+      - /app/node_modules
+    command: npm run dev
+    depends_on:
+      - redis
+      - auth-service
+      - chat-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 60s  # Longer intervals for development
+      timeout: 15s
+      retries: 2
+      start_period: 30s
+
+  # Auth Service with development optimizations
+  auth-service:
+    volumes:
+      - ./microservices/auth-service:/app
+      - /app/node_modules
+    command: node server.js
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 60s
+      timeout: 15s
+      retries: 2
+      start_period: 30s
+
+  # Chat Service with development optimizations
+  chat-service:
+    volumes:
+      - ./microservices/chat-service:/app
+      - /app/node_modules
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 60s
+      timeout: 15s
+      retries: 2
+      start_period: 30s
+
+  # Disable some services for faster development startup
+  mobile-app:
+    profiles: ["production"]  # Only run in production
+
+  prometheus:
+    profiles: ["production"]  # Only run in production
+
+  grafana:
+    profiles: ["production"]  # Only run in production
+
+  nginx:
+    profiles: ["production"]  # Only run in production 

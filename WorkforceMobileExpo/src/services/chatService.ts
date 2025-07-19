@@ -117,8 +117,8 @@ export interface ChatSettings {
 
 // ===== CONFIGURATION =====
 
-const API_BASE = 'http://localhost:5000/api/chat';
-const WS_BASE = 'ws://localhost:5000/ws';
+const API_BASE = 'http://localhost:3012';
+const WS_BASE = 'ws://localhost:3012/ws';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 

@@ -65,7 +65,7 @@ describe('Authentication', () => {
   describe('Logout Flow', () => {
     beforeEach(() => {
       // Login first
-      cy.login('admin@example.com', 'admin123');
+      cy.login('admin@example.com', 'password');
     });
 
     it('should logout successfully', () => {
@@ -92,7 +92,7 @@ describe('Authentication', () => {
 
   describe('Session Management', () => {
     beforeEach(() => {
-      cy.login('admin@example.com', 'admin123');
+      cy.login('admin@example.com', 'password');
     });
 
     it('should maintain session on page refresh', () => {

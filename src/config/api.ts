@@ -15,13 +15,18 @@ const isTest = process.env.NODE_ENV === 'test';
 export const API_CONFIG = {
   // Base URLs - update these to match your setup
   BASE_URL: isDevelopment 
-    ? 'http://localhost:5000/api'  // Development - localhost
+    ? 'http://localhost:8080'  // Development - API Gateway
     : 'https://your-production-api.com/api', // Production - update this
   
   // Alternative localhost for development
-  LOCAL_URL: 'http://localhost:5000', 
+  LOCAL_URL: 'http://localhost:8080', 
   // Network URL for mobile devices
-  NETWORK_URL: 'http://localhost:5000/api',
+  NETWORK_URL: 'http://localhost:8080',
+  
+  // Auth Service URL - Direct connection to avoid API Gateway timeout
+  AUTH_URL: isDevelopment 
+    ? 'http://localhost:3010'  // Direct to auth service
+    : 'https://your-production-api.com/api', // Production - update this
   
   // Timeouts
   TIMEOUT: 30000, // 30 seconds
@@ -35,14 +40,14 @@ export const API_CONFIG = {
   
   // Endpoints
   ENDPOINTS: {
-    // Authentication
+    // Authentication - Direct to auth service
     AUTH: {
-      LOGIN: '/auth/login',
-      LOGOUT: '/auth/logout',
-      REGISTER: '/auth/register',
-      PROFILE: '/auth/profile',
-      REFRESH: '/auth/refresh',
-      RESET_PASSWORD: '/auth/reset-password',
+      LOGIN: '/login',  // Direct to auth service
+      LOGOUT: '/logout', // Direct to auth service
+      REGISTER: '/register', // Direct to auth service
+      PROFILE: '/profile', // Direct to auth service
+      REFRESH: '/refresh', // Direct to auth service
+      RESET_PASSWORD: '/reset-password', // Direct to auth service
     },
     
     // Todos
@@ -124,10 +129,26 @@ export const getApiBaseUrl = (): string => {
 };
 
 /**
+ * Get the auth service URL (direct connection)
+ */
+export const getAuthBaseUrl = (): string => {
+  return API_CONFIG.AUTH_URL;
+};
+
+/**
  * Build a full API URL from an endpoint
  */
 export const buildApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${baseUrl}${cleanEndpoint}`;
+};
+
+/**
+ * Build a full auth URL from an endpoint (direct to auth service)
+ */
+export const buildAuthUrl = (endpoint: string): string => {
+  const baseUrl = getAuthBaseUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return `${baseUrl}${cleanEndpoint}`;
 };
@@ -227,6 +248,43 @@ export const apiRequest = async <T>(
   }
 };
 
+/**
+ * Make an auth request directly to auth service
+ */
+export const authRequest = async <T>(
+  endpoint: string, 
+  options: RequestInit = {}
+): Promise<T> => {
+  const url = buildAuthUrl(endpoint);
+  
+  const config: RequestInit = {
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+  };
+
+  try {
+    const response = await fetch(url, config);
+    return await handleApiResponse<T>(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Rate limit exceeded')) {
+      // Store rate limit timestamp to prevent immediate retries
+      const lastRateLimit = localStorage.getItem('lastRateLimit');
+      const now = Date.now();
+      
+      if (!lastRateLimit || (now - parseInt(lastRateLimit)) > API_CONFIG.RETRY_DELAY) {
+        localStorage.setItem('lastRateLimit', now.toString());
+      }
+      
+      throw new Error('Rate limit exceeded. Please wait 1 minute before trying again.');
+    }
+    
+    throw error;
+  }
+};
+
 // ===== CONVENIENCE FUNCTIONS =====
 
 export const apiGet = <T>(endpoint: string): Promise<T> => {
@@ -251,6 +309,14 @@ export const apiDelete = <T>(endpoint: string): Promise<T> => {
   return apiRequest<T>(endpoint, { method: 'DELETE' });
 };
 
-// ===== EXPORT CONFIGURATION =====
+// Auth-specific convenience functions
+export const authPost = <T>(endpoint: string, data?: any): Promise<T> => {
+  return authRequest<T>(endpoint, {
+    method: 'POST',
+    body: data ? JSON.stringify(data) : undefined,
+  });
+};
 
-export default API_CONFIG; 
+export const authGet = <T>(endpoint: string): Promise<T> => {
+  return authRequest<T>(endpoint, { method: 'GET' });
+}; 

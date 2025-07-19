@@ -29,7 +29,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:3010';
 
 // ===== TYPE DEFINITIONS =====
 
@@ -187,7 +187,7 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   const contentType = response.headers.get('content-type');
   if (!contentType || !contentType.includes('application/json')) {
     // Handle non-JSON responses (like rate limiting HTML pages)
-    const text = await response.text();
+    await response.text(); // Consume the response body
     if (response.status === 429) {
       throw new Error('Rate limit exceeded. Please wait a moment and try again.');
     }
@@ -255,7 +255,7 @@ export const useApiQuery = <T>(
 
   useEffect(() => {
     fetchData();
-  }, [url, ...dependencies]); // Only re-fetch when URL or dependencies change
+  }, [fetchData]); // Only re-fetch when fetchData function changes
 
   return {
     data,
@@ -1041,14 +1041,14 @@ export const deleteApprovalWorkflow = async (id: string): Promise<any> => {
  * Get chat settings
  */
 export const getChatSettings = async () => {
-  return apiRequest<any>('/chat/settings');
+  return apiRequest<any>('/api/chat/settings');
 };
 
 /**
  * Update chat settings
  */
 export const updateChatSettings = async (settings: any) => {
-  return apiRequest<any>('/chat/settings', {
+  return apiRequest<any>('/api/chat/settings', {
     method: 'PUT',
     body: settings
   });
@@ -1058,14 +1058,14 @@ export const updateChatSettings = async (settings: any) => {
  * Get chat channels
  */
 export const getChatChannels = async () => {
-  return apiRequest<any[]>('/chat/channels');
+  return apiRequest<any[]>('/api/chat/channels');
 };
 
 /**
  * Create new chat channel
  */
 export const createChatChannel = async (channel: any) => {
-  return apiRequest<any>('/chat/channels', {
+  return apiRequest<any>('/api/chat/channels', {
     method: 'POST',
     body: channel
   });
@@ -1075,14 +1075,14 @@ export const createChatChannel = async (channel: any) => {
  * Get messages for a channel
  */
 export const getChannelMessages = async (channelId: string) => {
-  return apiRequest<any[]>(`/chat/channels/${channelId}/messages`);
+  return apiRequest<any[]>(`/api/chat/channels/${channelId}/messages`);
 };
 
 /**
  * Send message to channel
  */
 export const sendChannelMessage = async (channelId: string, message: any) => {
-  return apiRequest<any>(`/chat/channels/${channelId}/messages`, {
+  return apiRequest<any>(`/api/chat/channels/${channelId}/messages`, {
     method: 'POST',
     body: message
   });
@@ -1092,21 +1092,21 @@ export const sendChannelMessage = async (channelId: string, message: any) => {
  * Get help desk channels
  */
 export const getHelpDeskChannels = async () => {
-  return apiRequest<any[]>('/chat/help-desk/channels');
+  return apiRequest<any[]>('/api/chat/help-desk/channels');
 };
 
 /**
  * Get help desk requests
  */
 export const getHelpDeskRequests = async () => {
-  return apiRequest<any[]>('/chat/help-desk/requests');
+  return apiRequest<any[]>('/api/chat/help-desk/requests');
 };
 
 /**
  * Create help desk request
  */
 export const createHelpDeskRequest = async (request: any) => {
-  return apiRequest<any>('/chat/help-desk/requests', {
+  return apiRequest<any>('/api/chat/help-desk/requests', {
     method: 'POST',
     body: request
   });
@@ -1116,7 +1116,7 @@ export const createHelpDeskRequest = async (request: any) => {
  * Send message to help desk request
  */
 export const sendHelpDeskMessage = async (requestId: string, message: any) => {
-  return apiRequest<any>(`/chat/help-desk/requests/${requestId}/messages`, {
+  return apiRequest<any>(`/api/chat/help-desk/requests/${requestId}/messages`, {
     method: 'POST',
     body: message
   });

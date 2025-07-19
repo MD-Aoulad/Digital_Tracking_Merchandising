@@ -1,0 +1,404 @@
+version: '3.8'
+
+services:
+  # Frontend - React App
+  frontend-local:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - REACT_APP_API_URL=http://localhost:8080/api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8080/api
+    depends_on:
+      - api-gateway-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Mobile App - Expo
+  mobile-app-local:
+    build:
+      context: ./WorkforceMobileExpo
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8080/api
+    depends_on:
+      - api-gateway-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Gateway - Single entry point
+  api-gateway-local:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:3000"
+    environment:
+      - NODE_ENV=development
+      - AUTH_SERVICE_URL=http://auth-service-local:3001
+      - USER_SERVICE_URL=http://user-service-local:3002
+      - CHAT_SERVICE_URL=http://chat-service-local:3003
+      - TODO_SERVICE_URL=http://todo-service-local:3005
+      - NOTIFICATION_SERVICE_URL=http://notification-service-local:3009
+    depends_on:
+      - auth-service-local
+      - user-service-local
+      - chat-service-local
+      - todo-service-local
+      - notification-service-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Auth Service
+  auth-service-local:
+    build:
+      context: ./microservices/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=local-jwt-secret-key-change-in-production
+      - DATABASE_URL=postgresql://workforce_user:workforce_password@postgres-local:5432/workforce_db
+      - REDIS_URL=redis://redis-local:6379
+    depends_on:
+      - postgres-local
+      - redis-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # User Service
+  user-service-local:
+    build:
+      context: ./microservices/user-service
+      dockerfile: Dockerfile
+    ports:
+      - "3011:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DATABASE_URL=postgresql://workforce_user:workforce_password@postgres-local:5432/workforce_db
+      - REDIS_URL=redis://redis-local:6379
+    depends_on:
+      - postgres-local
+      - redis-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Chat Service
+  chat-service-local:
+    build:
+      context: ./microservices/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "3012:3003"
+      - "3013:3004"  # WebSocket port
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - WEBSOCKET_PORT=3004
+      - DATABASE_URL=postgresql://workforce_user:workforce_password@postgres-local:5432/workforce_db
+      - REDIS_URL=redis://redis-local:6379
+    depends_on:
+      - postgres-local
+      - redis-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Todo Service
+  todo-service-local:
+    build:
+      context: ./microservices/todo-service
+      dockerfile: Dockerfile
+    ports:
+      - "3014:3005"
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - DATABASE_URL=postgresql://workforce_user:workforce_password@postgres-local:5432/workforce_db
+      - REDIS_URL=redis://redis-local:6379
+    depends_on:
+      - postgres-local
+      - redis-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Notification Service
+  notification-service-local:
+    build:
+      context: ./microservices/notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "3015:3009"
+    environment:
+      - NODE_ENV=development
+      - PORT=3009
+      - DATABASE_URL=postgresql://workforce_user:workforce_password@postgres-local:5432/workforce_db
+      - REDIS_URL=redis://redis-local:6379
+    depends_on:
+      - postgres-local
+      - redis-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3009/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres-local:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=workforce_db
+      - POSTGRES_USER=workforce_user
+      - POSTGRES_PASSWORD=workforce_password
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+      - ./backend/todos.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./backend/chat_system.sql:/docker-entrypoint-initdb.d/02-init.sql:ro
+      - ./backend/members.sql:/docker-entrypoint-initdb.d/00-members.sql:ro
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workforce_user -d workforce_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis Cache
+  redis-local:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-local-data:/data
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx-local:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-local.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend-local
+      - api-gateway-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus - Metrics Collection
+  prometheus-local:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./devops/monitoring/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-local-data:/prometheus
+    networks:
+      - local-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # Grafana - Monitoring Dashboards
+  grafana-local:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-local-data:/var/lib/grafana
+      - ./devops/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./devops/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus-local
+    networks:
+      - local-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Loki - Log Aggregation
+  loki-local:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-local-data:/loki
+    networks:
+      - local-network
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+
+  # Promtail - Log Collection
+  promtail-local:
+    image: grafana/promtail:latest
+    volumes:
+      - ./devops/monitoring/local/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log
+    networks:
+      - local-network
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+
+  # AlertManager - Alerting
+  alertmanager-local:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./devops/monitoring/local/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-local-data:/alertmanager
+    networks:
+      - local-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+  # Database Backup Service
+  db-backup-local:
+    image: postgres:15-alpine
+    volumes:
+      - ./backups:/backups
+      - postgres-local-data:/var/lib/postgresql/data:ro
+    environment:
+      - POSTGRES_DB=workforce_db
+      - POSTGRES_USER=workforce_user
+      - POSTGRES_PASSWORD=workforce_password
+    entrypoint: ["sh", "-c", "while true; do pg_dump -h postgres-local -U $${POSTGRES_USER} $${POSTGRES_DB} > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql; find /backups -name 'backup_*.sql' -mtime +7 -delete; sleep 86400; done"]
+    networks:
+      - local-network
+    restart: unless-stopped
+    depends_on:
+      - postgres-local
+
+  # Local Development Tools
+  adminer-local:
+    image: adminer:latest
+    ports:
+      - "8081:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres-local
+    networks:
+      - local-network
+    restart: unless-stopped
+
+  # Redis Commander - Redis GUI
+  redis-commander-local:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis-local:6379
+    networks:
+      - local-network
+    restart: unless-stopped
+    depends_on:
+      - redis-local
+
+volumes:
+  postgres-local-data:
+    driver: local
+  redis-local-data:
+    driver: local
+  prometheus-local-data:
+    driver: local
+  grafana-local-data:
+    driver: local
+  loki-local-data:
+    driver: local
+  alertmanager-local-data:
+    driver: local
+
+networks:
+  local-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

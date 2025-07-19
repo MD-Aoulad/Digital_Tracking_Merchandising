@@ -48,7 +48,20 @@ console.log('DATABASE_URL:', process.env.DATABASE_URL); // Debug log
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// Initialize database pool only if DATABASE_URL is provided
+let pool = null;
+if (process.env.DATABASE_URL) {
+  try {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    console.log('✅ Database connection pool initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize database pool:', error.message);
+    console.log('⚠️ Running with in-memory storage only');
+  }
+} else {
+  console.log('⚠️ No DATABASE_URL provided - running with in-memory storage only');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -114,6 +127,31 @@ app.use((err, req, res, next) => {
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ===== IN-MEMORY DATA STORAGE (Replace with database in production) =====
+
+// In-memory user storage for development
+let users = [
+  {
+    id: '1',
+    email: 'admin@company.com',
+    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
+    name: 'Admin User',
+    role: 'admin',
+    department: 'IT',
+    status: 'active',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: '2',
+    email: 'richard@company.com',
+    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // 'password'
+    name: 'Richard Johnson',
+    role: 'employee',
+    department: 'Sales',
+    status: 'active',
+    created_at: new Date().toISOString()
+  }
+];
+
 let todos = [
   {
     id: '1',
@@ -485,11 +523,19 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Query user from DB
+    // Query user from DB or in-memory storage
+    let user = null;
+    if (pool) {
+      // Use database if available
     const result = await pool.query('SELECT * FROM members WHERE LOWER(email) = $1', [email.toLowerCase()]);
-    const user = result.rows[0];
+      user = result.rows[0];
+    } else {
+      // Use in-memory storage
+      user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    }
+    
     if (DEBUG_MODE) {
-      console.log('User from DB:', user ? { id: user.id, email: user.email, role: user.role } : null); // Debug log
+      console.log('User found:', user ? { id: user.id, email: user.email, role: user.role } : null); // Debug log
     }
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -534,11 +580,20 @@ app.post('/api/auth/login', async (req, res) => {
  */
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
+    let user = null;
+    if (pool) {
+      // Use database if available
     const result = await pool.query('SELECT id, email, name, role, department, status, created_at FROM members WHERE id = $1', [req.user.id]);
-    if (result.rows.length === 0) {
+      user = result.rows[0];
+    } else {
+      // Use in-memory storage
+      user = users.find(u => u.id === req.user.id);
+    }
+    
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json({ user: result.rows[0] });
+    res.json({ user });
   } catch (error) {
     console.error('Profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
