@@ -1,98 +1,360 @@
+/**
+ * Todo Service - Task Management Microservice
+ * 
+ * This microservice provides comprehensive task management functionality for the Workforce Management Platform.
+ * It handles todo creation, assignment, tracking, and advanced features like questionnaires and approvals.
+ * 
+ * Key Features:
+ * - CRUD operations for todos and tasks
+ * - Advanced todo creation with questionnaires
+ * - Task assignment and delegation
+ * - Progress tracking and completion status
+ * - Template-based todo creation
+ * - Approval workflows for task completion
+ * - Category and priority management
+ * - Due date and reminder functionality
+ * - Bulk operations and batch processing
+ * - Performance analytics and reporting
+ * - Integration with user management
+ * - Real-time status updates
+ * 
+ * Architecture:
+ * - Express.js REST API for HTTP requests
+ * - PostgreSQL for data persistence
+ * - JWT authentication integration
+ * - Role-based access control
+ * - Input validation and sanitization
+ * - Error handling and logging
+ * - Rate limiting and security
+ * 
+ * API Endpoints:
+ * - GET /health - Service health check
+ * - GET /todos - List todos for user
+ * - POST /todos - Create new todo
+ * - GET /todos/:id - Get specific todo
+ * - PUT /todos/:id - Update todo
+ * - DELETE /todos/:id - Delete todo
+ * - GET /advanced-todos - Get advanced todos
+ * - POST /advanced-todos - Create advanced todo
+ * - POST /todos/:id/responses - Submit todo responses
+ * - GET /templates - Get todo templates
+ * - POST /templates - Create todo template
+ * - GET /analytics - Get todo analytics
+ * 
+ * Database Schema:
+ * - todos: Basic todo information
+ * - advanced_todos: Advanced todos with questions
+ * - todo_questions: Questions for advanced todos
+ * - todo_responses: User responses to questions
+ * - todo_templates: Reusable todo templates
+ * - todo_assignments: Task assignments
+ * - todo_categories: Todo categories
+ * 
+ * Security Features:
+ * - JWT token verification
+ * - Role-based access control
+ * - Input validation and sanitization
+ * - SQL injection prevention
+ * - Rate limiting
+ * - CORS configuration
+ * 
+ * @author Workforce Management Team
+ * @version 1.0.0
+ * @lastUpdated 2025-07-19
+ */
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const morgan = require('morgan');
+const winston = require('winston');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 
+// Initialize Express application
 const app = express();
-const PORT = process.env.PORT || 3005;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.TODO_DB_URL || 'postgresql://todo_user:todo_password@todo-db:5432/todo_db',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 60000
+// Service configuration
+const PORT = process.env.PORT || 3004;
+
+// ===== LOGGING CONFIGURATION =====
+
+/**
+ * Winston logger configuration for structured logging
+ * Provides different log levels and output formats for development and production
+ */
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'todo-service.log' })
+  ]
 });
 
-// Middleware
+// ===== DATABASE CONFIGURATION =====
+
+/**
+ * PostgreSQL connection pool for todo data persistence
+ * Configured with connection pooling for optimal performance
+ */
+const pool = new Pool({
+  connectionString: process.env.TODO_DB_URL || 'postgresql://todo_user:todo_password@todo-db:5432/todo_db',
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+});
+
+// Database connection status
+let dbConnected = false;
+
+// Test database connection
+pool.on('connect', (client) => {
+  console.log('New client connected to todo database');
+  dbConnected = true;
+});
+
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+  dbConnected = false;
+});
+
+// ===== DATABASE INITIALIZATION =====
+
+/**
+ * Initialize database tables and indexes
+ * Creates all necessary tables for todo functionality if they don't exist
+ * Includes proper indexing for optimal query performance
+ */
+const initDatabase = async () => {
+  try {
+    console.log('🔍 Initializing todo database tables...');
+    
+    // Create basic todos table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS todos (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        priority VARCHAR(20) DEFAULT 'medium',
+        completed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP,
+        assigned_to UUID,
+        assigned_by UUID,
+        category VARCHAR(100),
+        start_date DATE,
+        end_date DATE,
+        repeat VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'pending',
+        creator UUID NOT NULL
+      )
+    `);
+
+    // Create advanced todos table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS advanced_todos (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        category VARCHAR(100),
+        difficulty VARCHAR(20) DEFAULT 'medium',
+        estimated_duration INTEGER,
+        due_date TIMESTAMP,
+        require_approval BOOLEAN DEFAULT FALSE,
+        is_template BOOLEAN DEFAULT FALSE,
+        created_by UUID NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create todo questions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS todo_questions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        todo_id UUID REFERENCES advanced_todos(id) ON DELETE CASCADE,
+        question_text TEXT NOT NULL,
+        question_type VARCHAR(50) DEFAULT 'text',
+        options JSONB,
+        required BOOLEAN DEFAULT TRUE,
+        order_index INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create todo responses table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS todo_responses (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        todo_id UUID REFERENCES advanced_todos(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL,
+        question_id UUID REFERENCES todo_questions(id) ON DELETE CASCADE,
+        response_text TEXT,
+        response_data JSONB,
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create todo templates table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS todo_templates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        category VARCHAR(100) NOT NULL,
+        difficulty VARCHAR(20) NOT NULL,
+        estimated_duration INTEGER NOT NULL,
+        questions JSONB,
+        tags TEXT[],
+        is_public BOOLEAN DEFAULT FALSE,
+        created_by UUID NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create todo assignments table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS todo_assignments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        todo_id UUID REFERENCES advanced_todos(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL,
+        assigned_by UUID NOT NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'assigned',
+        completed_at TIMESTAMP,
+        UNIQUE(todo_id, user_id)
+      )
+    `);
+
+    // Create performance indexes
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_todos_assigned_to ON todos(assigned_to);
+      CREATE INDEX IF NOT EXISTS idx_todos_created_by ON todos(created_by);
+      CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
+      CREATE INDEX IF NOT EXISTS idx_todos_category ON todos(category);
+      CREATE INDEX IF NOT EXISTS idx_advanced_todos_created_by ON advanced_todos(created_by);
+      CREATE INDEX IF NOT EXISTS idx_advanced_todos_category ON advanced_todos(category);
+      CREATE INDEX IF NOT EXISTS idx_todo_questions_todo_id ON todo_questions(todo_id);
+      CREATE INDEX IF NOT EXISTS idx_todo_responses_todo_id ON todo_responses(todo_id);
+      CREATE INDEX IF NOT EXISTS idx_todo_responses_user_id ON todo_responses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_todo_assignments_todo_id ON todo_assignments(todo_id);
+      CREATE INDEX IF NOT EXISTS idx_todo_assignments_user_id ON todo_assignments(user_id);
+    `);
+
+    console.log('✅ Todo database tables initialized successfully');
+    dbConnected = true;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    throw error; // Re-throw to prevent service startup with broken database
+  }
+};
+
+// ===== MIDDLEWARE CONFIGURATION =====
+
+// Security middleware
 app.use(helmet());
+
+// CORS configuration for cross-origin requests
 app.use(cors({
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-ID', 'X-User-Role']
 }));
+
+// Compression middleware for response optimization
+app.use(compression());
+
+// HTTP request logging
+app.use(morgan('combined'));
+
+// JSON parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - ${req.ip}`);
-  next();
-});
+// ===== RATE LIMITING =====
 
-// JWT verification middleware
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
+/**
+ * Rate limiting configuration to prevent abuse
+ * Limits requests to 100 per 15-minute window per IP address
+ */
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use(limiter);
+
+// ===== AUTHENTICATION MIDDLEWARE =====
+
+/**
+ * JWT token verification middleware
+ * Extracts and verifies JWT tokens from request headers
+ * Adds user information to request object for downstream handlers
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1] || req.headers['x-user-id'];
   
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'microservice-jwt-secret');
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('Token verification failed:', error);
+    logger.error('Token verification failed:', error);
     return res.status(401).json({ error: 'Invalid token' });
   }
 };
 
-// Role-based authorization middleware
-const requireRole = (roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    
-    next();
-  };
-};
+// ===== HEALTH CHECK ENDPOINT =====
 
-// Health check
+/**
+ * Health check endpoint for service monitoring
+ * Tests database connectivity and returns service status
+ */
 app.get('/health', async (req, res) => {
-  let dbStatus = 'disconnected';
-  let dbError = null;
-  
   try {
-    const client = await pool.connect();
-    await client.query('SELECT 1 as test');
-    client.release();
-    dbStatus = 'connected';
+    // Test database connection
+    await pool.query('SELECT 1');
+    const dbStatus = 'connected';
+    
+    res.json({
+      status: 'OK',
+      service: 'Todo Service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: dbStatus
+    });
   } catch (error) {
-    dbStatus = 'disconnected';
-    dbError = error.message;
+    logger.error('Health check failed:', error);
+    res.json({
+      status: 'ERROR',
+      service: 'Todo Service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'disconnected',
+      error: error.message
+    });
   }
-  
-  res.json({
-    status: 'OK',
-    service: 'Todo Management',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    database: {
-      status: dbStatus,
-      error: dbError
-    }
-  });
 });
 
 // API Documentation

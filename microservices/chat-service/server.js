@@ -1,3 +1,65 @@
+/**
+ * Chat Service - Real-time Communication Microservice
+ * 
+ * This microservice provides real-time chat functionality for the Workforce Management Platform.
+ * It handles WebSocket connections, message persistence, file sharing, and real-time notifications.
+ * 
+ * Key Features:
+ * - Real-time messaging via WebSocket connections
+ * - Chat rooms and direct messaging
+ * - File upload and sharing capabilities
+ * - Message reactions and emoji support
+ * - Message persistence in PostgreSQL
+ * - Redis caching for performance
+ * - JWT authentication integration
+ * - Rate limiting and security measures
+ * - Message encryption and privacy
+ * - User presence tracking
+ * - Message search and filtering
+ * - Admin moderation tools
+ * 
+ * Architecture:
+ * - Express.js REST API for HTTP requests
+ * - Socket.IO for real-time WebSocket connections
+ * - PostgreSQL for message persistence
+ * - Redis for caching and session management
+ * - Winston for structured logging
+ * - Helmet for security headers
+ * - Rate limiting for API protection
+ * 
+ * API Endpoints:
+ * - GET /health - Service health check
+ * - GET /rooms - List chat rooms
+ * - POST /rooms - Create new chat room
+ * - GET /rooms/:id/messages - Get room messages
+ * - POST /rooms/:id/messages - Send message to room
+ * - GET /direct-messages - Get direct messages
+ * - POST /direct-messages - Send direct message
+ * - POST /upload - Upload file attachment
+ * 
+ * WebSocket Events:
+ * - connection - Client connects
+ * - join-room - Join chat room
+ * - leave-room - Leave chat room
+ * - send-message - Send message to room
+ * - send-direct-message - Send direct message
+ * - typing - User typing indicator
+ * - reaction - Add message reaction
+ * - disconnect - Client disconnects
+ * 
+ * Security Features:
+ * - JWT token verification
+ * - Rate limiting on all endpoints
+ * - Input validation and sanitization
+ * - File upload restrictions
+ * - CORS configuration
+ * - Helmet security headers
+ * 
+ * @author Workforce Management Team
+ * @version 1.0.0
+ * @lastUpdated 2025-07-19
+ */
+
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -12,18 +74,27 @@ const winston = require('winston');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
+// Initialize Express application and HTTP server
 const app = express();
 const server = createServer(app);
+
+// Initialize Socket.IO server with CORS configuration
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Configure for production with specific origins
     methods: ["GET", "POST"]
   }
 });
 
+// Service configuration
 const PORT = process.env.PORT || 3003;
 
-// Configure logging
+// ===== LOGGING CONFIGURATION =====
+
+/**
+ * Winston logger configuration for structured logging
+ * Provides different log levels and output formats for development and production
+ */
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
@@ -36,28 +107,47 @@ const logger = winston.createLogger({
   ]
 });
 
-// Database connection
+// ===== DATABASE CONFIGURATION =====
+
+/**
+ * PostgreSQL connection pool for chat data persistence
+ * Configured with connection pooling for optimal performance
+ */
 const pool = new Pool({
   connectionString: process.env.CHAT_DB_URL || 'postgresql://chat_user:chat_password@chat-db:5432/chat_db',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
 });
 
-// Redis client
+// ===== REDIS CONFIGURATION =====
+
+/**
+ * Redis client for caching and session management
+ * Used for storing user sessions, message caching, and real-time data
+ */
 const redisClient = Redis.createClient({
   url: process.env.REDIS_URL || 'redis://redis:6379'
 });
 
+// Redis error handling
 redisClient.on('error', (err) => {
   logger.error('Redis Client Error:', err);
 });
 
+// Connect to Redis
 redisClient.connect().catch(console.error);
 
-// Initialize database tables
+// ===== DATABASE INITIALIZATION =====
+
+/**
+ * Initialize database tables and indexes
+ * Creates all necessary tables for chat functionality if they don't exist
+ * Includes proper indexing for optimal query performance
+ */
 const initDatabase = async () => {
   try {
+    // Create chat rooms table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chat_rooms (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -69,6 +159,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create chat messages table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chat_messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -82,6 +173,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create chat participants table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chat_participants (
         room_id UUID REFERENCES chat_rooms(id) ON DELETE CASCADE,
@@ -91,6 +183,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create direct messages table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS direct_messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -104,6 +197,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create message reactions table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS message_reactions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -116,6 +210,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create chat files table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chat_files (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -129,7 +224,7 @@ const initDatabase = async () => {
       )
     `);
 
-    // Create indexes for better performance
+    // Create performance indexes
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_chat_messages_room_id ON chat_messages(room_id);
       CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
@@ -141,28 +236,59 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_chat_participants_room_id ON chat_participants(room_id);
     `);
 
-    logger.info('✅ Chat database tables initialized');
+    logger.info('✅ Chat database tables initialized successfully');
   } catch (error) {
     logger.error('❌ Database initialization failed:', error);
+    throw error; // Re-throw to prevent service startup with broken database
   }
 };
 
-// Middleware
+// ===== MIDDLEWARE CONFIGURATION =====
+
+// Security middleware
 app.use(helmet());
+
+// CORS configuration for cross-origin requests
 app.use(cors());
+
+// Compression middleware for response optimization
 app.use(compression());
+
+// HTTP request logging
 app.use(morgan('combined'));
+
+// JSON parsing with increased limit for file uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting
+// ===== RATE LIMITING =====
+
+/**
+ * Rate limiting configuration to prevent abuse
+ * Limits requests to 100 per 15-minute window per IP address
+ */
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 app.use(limiter);
 
-// JWT verification middleware
+// ===== AUTHENTICATION MIDDLEWARE =====
+
+/**
+ * JWT token verification middleware
+ * Extracts and verifies JWT tokens from request headers
+ * Adds user information to request object for downstream handlers
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1] || req.headers['x-user-id'];
   
@@ -180,7 +306,13 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Health check
+// ===== HEALTH CHECK ENDPOINT =====
+
+/**
+ * Health check endpoint for service monitoring
+ * Tests database and Redis connectivity
+ * Returns service status and uptime information
+ */
 app.get('/health', async (req, res) => {
   try {
     // Test database connection

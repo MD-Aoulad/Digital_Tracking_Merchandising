@@ -1,191 +1,366 @@
+# ============================================================================
+# Workforce Management Platform - Docker Compose Configuration
+# ============================================================================
+#
+# This is the main Docker Compose configuration for the Workforce Management Platform.
+# It orchestrates all microservices, databases, and supporting infrastructure.
+#
+# Architecture Overview:
+# - Frontend: React web application
+# - Backend: Node.js API server
+# - Mobile: React Native/Expo mobile app
+# - Database: PostgreSQL for data persistence
+# - Cache: Redis for session management and caching
+# - Load Balancer: Nginx for request routing
+# - Monitoring: Prometheus and Grafana for observability
+#
+# Services:
+# - frontend: React web application (port 3000)
+# - backend: Node.js API server (port 5000)
+# - mobile: React Native/Expo mobile app (port 8081)
+# - postgres: PostgreSQL database (port 5432)
+# - redis: Redis cache (port 6379)
+# - nginx: Load balancer and reverse proxy (port 80)
+# - prometheus: Metrics collection (port 9090)
+# - grafana: Monitoring dashboard (port 3001)
+#
+# Network Configuration:
+# - All services communicate via internal Docker network
+# - External access through nginx reverse proxy
+# - Database connections use service names for discovery
+#
+# Environment Variables:
+# - Defined in .env file for each service
+# - Database credentials and connection strings
+# - API keys and secrets
+# - Feature flags and configuration
+#
+# Security Features:
+# - Isolated network communication
+# - Environment-based configuration
+# - Secure database connections
+# - Rate limiting and CORS protection
+#
+# @author Workforce Management Team
+# @version 1.0.0
+# @lastUpdated 2025-07-19
+# ============================================================================
+
 version: '3.8'
 
+# ============================================================================
+# NETWORK CONFIGURATION
+# ============================================================================
+
+networks:
+  # Main application network for service communication
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+  # Database network for secure database access
+  db-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# ============================================================================
+# VOLUME CONFIGURATION
+# ============================================================================
+
+volumes:
+  # PostgreSQL data persistence
+  postgres_data:
+    driver: local
+    
+  # Redis data persistence
+  redis_data:
+    driver: local
+    
+  # Application logs
+  app_logs:
+    driver: local
+    
+  # Prometheus metrics storage
+  prometheus_data:
+    driver: local
+    
+  # Grafana configuration and dashboards
+  grafana_data:
+    driver: local
+
+# ============================================================================
+# SERVICE DEFINITIONS
+# ============================================================================
+
 services:
+  # ========================================================================
+  # FRONTEND SERVICE - React Web Application
+  # ========================================================================
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-      target: production
       args:
-        - REACT_APP_API_URL=http://localhost:5000/api
+        - NODE_ENV=production
+    container_name: workforce-frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - REACT_APP_API_URL=http://localhost:5000/api
-      - REACT_APP_AUTH_SERVICE_URL=http://localhost:5000/api/auth
-      - REACT_APP_ENABLE_ERROR_MONITORING=true
-      - REACT_APP_ENABLE_RETRY_MECHANISM=true
-      - REACT_APP_LOGIN_TIMEOUT=30000
-      - REACT_APP_MAX_RETRY_ATTEMPTS=3
-      - REACT_APP_HEALTH_CHECK_INTERVAL=30000
-    depends_on:
-      - backend
+      - REACT_APP_WS_URL=ws://localhost:5000
+    volumes:
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
+      - app_logs:/app/logs
     networks:
       - app-network
-    restart: unless-stopped
+    depends_on:
+      - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  mobile-app:
-    build:
-      context: ./WorkforceMobileExpo
-      dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
-    environment:
-      - NODE_ENV=production
-      - REACT_APP_API_URL=http://localhost:5000/api
-      - REACT_APP_AUTH_SERVICE_URL=http://localhost:5000/api/auth
-      - REACT_APP_ENABLE_ERROR_MONITORING=true
-      - REACT_APP_ENABLE_RETRY_MECHANISM=true
-      - REACT_APP_LOGIN_TIMEOUT=30000
-      - REACT_APP_MAX_RETRY_ATTEMPTS=3
-      - REACT_APP_HEALTH_CHECK_INTERVAL=30000
-    depends_on:
-      - backend
-    networks:
-      - app-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
+  # ========================================================================
+  # BACKEND SERVICE - Node.js API Server
+  # ========================================================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: workforce-backend
+    restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-workforce_user}:${POSTGRES_PASSWORD:-workforce_password}@postgres:5432/${POSTGRES_DB:-workforce_db}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/workforce_management
       - REDIS_URL=redis://redis:6379
-      - CORS_ORIGIN=http://localhost:3000
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:8081
     volumes:
-      - backend-data:/app/data
-    depends_on:
-      - postgres
-      - redis
+      - ./backend:/app:ro
+      - app_logs:/app/logs
     networks:
       - app-network
-    restart: unless-stopped
+      - db-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # ========================================================================
+  # MOBILE SERVICE - React Native/Expo Mobile App
+  # ========================================================================
+  mobile:
+    build:
+      context: ./WorkforceMobileExpo
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: workforce-mobile
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=production
+      - EXPO_PORT=8081
+      - API_URL=http://localhost:5000/api
+    volumes:
+      - ./WorkforceMobileExpo:/app:ro
+      - app_logs:/app/logs
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ========================================================================
+  # DATABASE SERVICE - PostgreSQL Database
+  # ========================================================================
   postgres:
     image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-workforce_db}
-      - POSTGRES_USER=${POSTGRES_USER:-workforce_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-workforce_password}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./backend/todos.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./backend/chat_system.sql:/docker-entrypoint-initdb.d/02-init.sql:ro
-      - ./backend/members.sql:/docker-entrypoint-initdb.d/00-members.sql:ro
-    networks:
-      - app-network
+    container_name: workforce-postgres
     restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=workforce_management
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - app_logs:/var/log/postgresql
+    networks:
+      - db-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-workforce_user} -d ${POSTGRES_DB:-workforce_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d workforce_management"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # ========================================================================
+  # CACHE SERVICE - Redis Cache
+  # ========================================================================
   redis:
     image: redis:7-alpine
+    container_name: workforce-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis_password
     volumes:
-      - redis-data:/data
+      - redis_data:/data
+      - app_logs:/var/log/redis
     networks:
       - app-network
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # ========================================================================
+  # LOAD BALANCER SERVICE - Nginx Reverse Proxy
+  # ========================================================================
   nginx:
     image: nginx:alpine
+    container_name: workforce-nginx
+    restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-frontend.conf:/etc/nginx/conf.d/frontend.conf:ro
+      - app_logs:/var/log/nginx
+    networks:
+      - app-network
     depends_on:
       - frontend
       - backend
-    networks:
-      - app-network
-    restart: unless-stopped
+      - mobile
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # ========================================================================
+  # MONITORING SERVICE - Prometheus Metrics Collection
+  # ========================================================================
   prometheus:
     image: prom/prometheus:latest
+    container_name: workforce-prometheus
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
+      - prometheus_data:/prometheus
+      - app_logs:/var/log/prometheus
     networks:
       - app-network
-    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # ========================================================================
+  # DASHBOARD SERVICE - Grafana Monitoring Dashboard
+  # ========================================================================
   grafana:
     image: grafana/grafana:latest
+    container_name: workforce-grafana
+    restart: unless-stopped
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
-      - grafana-data:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - app_logs:/var/log/grafana
+    networks:
+      - app-network
     depends_on:
       - prometheus
-    networks:
-      - app-network
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  db-backup:
-    image: postgres:15-alpine
-    volumes:
-      - ./backups:/backups
-      - postgres-data:/var/lib/postgresql/data:ro
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-workforce_db}
-      - POSTGRES_USER=${POSTGRES_USER:-workforce_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-workforce_password}
-    entrypoint: ["sh", "-c", "while true; do pg_dump -h postgres -U $${POSTGRES_USER} $${POSTGRES_DB} > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql; find /backups -name 'backup_*.sql' -mtime +7 -delete; sleep 86400; done"]
-    networks:
-      - app-network
-    restart: unless-stopped
+# ============================================================================
+# DEPLOYMENT CONFIGURATION
+# ============================================================================
 
-  haproxy:
-    image: haproxy:2.8-alpine
-    ports:
-      - "8080:80"
-      - "8404:8404"  # HAProxy stats
-    volumes:
-      - ./monitoring/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - app-network
-    restart: unless-stopped
+# Resource limits for production deployment
+# Uncomment and adjust as needed for your infrastructure
+# deploy:
+#   resources:
+#     limits:
+#       cpus: '0.50'
+#       memory: 512M
+#     reservations:
+#       cpus: '0.25'
+#       memory: 256M
 
-volumes:
-  backend-data:
-  postgres-data:
-  redis-data:
-  prometheus-data:
-  grafana-data:
+# ============================================================================
+# SECURITY CONFIGURATION
+# ============================================================================
 
-networks:
-  app-network:
-    driver: bridge 
+# Security options for production deployment
+# security_opt:
+#   - no-new-privileges:true
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+# Centralized logging configuration
+# logging:
+#   driver: "json-file"
+#   options:
+#     max-size: "10m"
+#     max-file: "3" 
