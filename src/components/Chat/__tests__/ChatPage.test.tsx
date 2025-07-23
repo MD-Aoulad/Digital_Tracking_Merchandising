@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '../../../contexts/AuthContext';
 import ChatPage from '../ChatPage';
+import * as chatApiModule from '../../../services/chatApi';
 
 // Mock the API service
 jest.mock('../../../services/api', () => ({
@@ -411,6 +412,29 @@ describe('ChatPage', () => {
 
       // Should show typing indicator
       expect(screen.getByText('Typing...')).toBeInTheDocument();
+    });
+  });
+
+  it('displays user activity when API returns data', async () => {
+    jest.spyOn(chatApiModule.analyticsApi, 'getUserActivity').mockResolvedValueOnce([
+      {
+        messages_sent: 5,
+        messages_read: 10,
+        reactions_given: 2,
+        files_shared: 1,
+        time_spent_minutes: 15
+      }
+    ]);
+    renderWithProviders(<BrowserRouter><ChatPage /></BrowserRouter>);
+    // Simulate selecting a channel
+    // (You may need to trigger channel selection depending on implementation)
+    await waitFor(() => {
+      expect(screen.getByText(/User Activity/)).toBeInTheDocument();
+      expect(screen.getByText(/Messages Sent: 5/)).toBeInTheDocument();
+      expect(screen.getByText(/Messages Read: 10/)).toBeInTheDocument();
+      expect(screen.getByText(/Reactions: 2/)).toBeInTheDocument();
+      expect(screen.getByText(/Files Shared: 1/)).toBeInTheDocument();
+      expect(screen.getByText(/Time Spent: 15 min/)).toBeInTheDocument();
     });
   });
 }); 

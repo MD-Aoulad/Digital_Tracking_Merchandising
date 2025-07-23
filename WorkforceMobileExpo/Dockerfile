@@ -57,4 +57,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3002/ || exit 1
 
 # Start Expo development server
-CMD ["npx", "expo", "start", "--web", "--port", "3002", "--host", "0.0.0.0"] 
+CMD ["npx", "expo", "start", "--web", "--port", "3002", "--host", "localhost"] 

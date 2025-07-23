@@ -11295,4 +11295,4 @@ const requestsResponse = await fetch('/api/approval/requests/created', {
 });
 
 // 4. Get pending approvals
-const pendingResponse = await fetch('/api/approval/requests/pending', {
+const pendingResponse = await fetch('/api/approval/requests/pending', {x

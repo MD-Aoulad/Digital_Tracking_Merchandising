@@ -29,7 +29,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE_URL = 'http://localhost:3010';
+const API_BASE_URL = 'http://localhost:3007';
 
 // ===== TYPE DEFINITIONS =====
 
@@ -82,12 +82,50 @@ export interface Report {
  * Contains time tracking and location data
  */
 export interface Attendance {
-  punchIn: string;               // Punch in timestamp
-  punchOut: string | null;       // Punch out timestamp (if punched out)
-  location: string;              // Punch in location (GPS coordinates)
-  endLocation: string | null;    // Punch out location (if punched out)
-  photo: string | null;          // Photo verification (base64)
-  hoursWorked: number | null;    // Calculated hours worked
+  id: string;                    // Unique attendance record ID
+  punchInTime: string;           // Punch in timestamp
+  punchOutTime: string | null;   // Punch out timestamp (if punched out)
+  workplace: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    isWithinRadius: boolean;
+  };
+  photoUrl: string | null;       // Photo verification URL
+  status: 'active' | 'on_break' | 'completed';
+  totalWorkHours?: number;       // Calculated hours worked
+  currentBreak?: {
+    id: string;
+    type: string;
+    startTime: string;
+    durationMinutes: number;
+  } | null;
+  verificationStatus?: 'pending' | 'approved' | 'rejected';
+}
+
+/**
+ * Current attendance status response
+ */
+export interface CurrentAttendanceStatus {
+  isPunchedIn: boolean;
+  currentAttendance: Attendance | null;
+}
+
+/**
+ * Team status interface
+ */
+export interface TeamStatus {
+  userId: string;
+  employeeName: string;
+  status: string;
+  punchInTime: string | null;
+  workplace: string;
+  totalWorkHours: number;
 }
 
 /**
@@ -598,7 +636,7 @@ export const reportsAPI = {
 
 /**
  * Attendance API methods
- * Handles time tracking with punch in/out functionality
+ * Handles comprehensive attendance management with real-time tracking
  * All operations require authentication
  */
 export const attendanceAPI = {
@@ -613,6 +651,154 @@ export const attendanceAPI = {
     });
     
     return handleResponse<{ attendance: Record<string, Attendance> }>(response);
+  },
+
+  /**
+   * Get current attendance status for the authenticated user
+   * 
+   * @returns Promise with current attendance status
+   */
+  getCurrentStatus: async (): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/current-status`, {
+      headers: getAuthHeaders()
+    });
+    
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Get today's attendance summary for the authenticated user
+   * 
+   * @returns Promise with today's summary
+   */
+  getTodaySummary: async (): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/today-summary`, {
+      headers: getAuthHeaders()
+    });
+    
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Get team attendance status (for managers)
+   * 
+   * @returns Promise with team status array
+   */
+  getTeamStatus: async (): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/team-status`, {
+      headers: getAuthHeaders()
+    });
+    
+    return handleResponse<any[]>(response);
+  },
+
+  /**
+   * Start a break for the authenticated user
+   * 
+   * @param type - Break type (lunch, coffee, rest, other)
+   * @returns Promise with break confirmation
+   */
+  startBreak: async (type: string): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/break/start`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ type })
+    });
+    
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * End current break for the authenticated user
+   * 
+   * @returns Promise with break end confirmation
+   */
+  endBreak: async (): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/break/end`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Request approval for attendance-related actions
+   * 
+   * @param request - Approval request data
+   * @returns Promise with request confirmation
+   */
+  requestApproval: async (request: any): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/approval/request`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(request)
+    });
+    
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Get pending approval requests (for managers)
+   * 
+   * @returns Promise with pending approvals array
+   */
+  getPendingApprovals: async (): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/approval/pending`, {
+      headers: getAuthHeaders()
+    });
+    
+    return handleResponse<any[]>(response);
+  },
+
+  /**
+   * Approve or reject an attendance request
+   * 
+   * @param requestId - Request ID to approve/reject
+   * @param approved - Whether to approve (true) or reject (false)
+   * @returns Promise with approval confirmation
+   */
+  approveRequest: async (requestId: string, approved: boolean): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/approval/${requestId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ approved })
+    });
+    
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Get attendance reports with filters
+   * 
+   * @param filters - Report filters
+   * @returns Promise with attendance reports
+   */
+  getAttendanceReports: async (filters: any): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/reports`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(filters)
+    });
+    
+    return handleResponse<any[]>(response);
+  },
+
+  /**
+   * Export attendance report
+   * 
+   * @param filters - Report filters
+   * @param format - Export format (pdf or excel)
+   * @returns Promise with report blob
+   */
+  exportReport: async (filters: any, format: 'pdf' | 'excel'): Promise<Blob> => {
+    const response = await fetch(`${API_BASE_URL}/attendance/reports/export`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ filters, format })
+    });
+    
+    return response.blob();
   },
 
   /**
@@ -793,24 +979,55 @@ export const useCreateReport = () => {
 };
 
 /**
- * Hook for fetching attendance
+ * Hook for current attendance status
  */
 export const useAttendance = () => {
-  return useApiQuery<{ attendance: Record<string, Attendance> }>('/attendance');
+  return useApiQuery<CurrentAttendanceStatus>('/api/attendance/current');
 };
 
 /**
  * Hook for punch in operation
  */
 export const usePunchIn = () => {
-  return useApiMutation<{ message: string; punchInTime: string; attendance: Attendance }>('/attendance/punch-in', 'POST');
+  return useApiMutation<{ success: boolean; message: string; data: Attendance }>('/api/attendance/punch-in', 'POST');
 };
 
 /**
  * Hook for punch out operation
  */
 export const usePunchOut = () => {
-  return useApiMutation<{ message: string; punchOutTime: string; hoursWorked: number; attendance: Attendance }>('/attendance/punch-out', 'POST');
+  return useApiMutation<{ success: boolean; message: string; data: Attendance }>('/api/attendance/punch-out', 'POST');
+};
+
+/**
+ * Hook for attendance history
+ */
+export const useAttendanceHistory = () => {
+  return useApiQuery<{ success: boolean; data: Attendance[] }>('/api/attendance/history');
+};
+
+/**
+ * Hook for team status
+ */
+export const useTeamStatus = () => {
+  return useApiQuery<{ success: boolean; data: TeamStatus[] }>('/api/attendance/team/status');
+};
+
+/**
+ * Hook for break management
+ */
+export const useBreakManagement = () => {
+  return {
+    startBreak: useApiMutation<{ message: string }>('/api/attendance/break/start', 'POST'),
+    endBreak: useApiMutation<{ message: string }>('/api/attendance/break/end', 'POST')
+  };
+};
+
+/**
+ * Hook for approval requests
+ */
+export const useApprovalRequests = () => {
+  return useApiMutation<{ message: string }>('/api/attendance/approval/request', 'POST');
 };
 
 // ===== APPROVAL API FUNCTIONS =====

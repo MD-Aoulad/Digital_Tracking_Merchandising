@@ -29,7 +29,7 @@ import LeavePage from './components/Leave/LeavePage';
 import GrantLeavePage from './components/Leave/GrantLeavePage';
 import JourneyPlanPage from './components/Journey/JourneyPlanPage';
 import JourneyPlanSettings from './components/Journey/JourneyPlanSettings';
-import TodoPage from './components/Todo/TodoPage';
+import TodoDashboard from './components/TodoV2/TodoDashboard';
 import MembersPage from './components/Members/MembersPage';
 import SettingsPage from './components/Settings/SettingsPage';
 import AdminTab from './components/Admin/AdminTab';
@@ -48,6 +48,9 @@ import { UserRole, MemberRole } from './types';
 
 // Import AuthProvider and useAuth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+// Import AttendanceProvider
+import { AttendanceProvider } from './contexts/AttendanceContext';
 
 // Import Layout component
 import Layout from './components/Layout/Layout';
@@ -88,12 +91,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: UserR
 };
 
 /**
- * TodoPage Wrapper Component
- * Gets the user role from auth context and passes it to TodoPage
+ * TodoDashboard Wrapper Component
+ * Gets the user role from auth context and passes it to TodoDashboard
  */
 const TodoPageWrapper: React.FC = () => {
   const { user } = useAuth();
-  return <TodoPage userRole={user?.role || UserRole.VIEWER} />;
+  return <TodoDashboard userRole={user?.role || UserRole.VIEWER} />;
 };
 
 /**
@@ -231,7 +234,9 @@ function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <AppContent />
+          <AttendanceProvider>
+            <AppContent />
+          </AttendanceProvider>
         </AuthProvider>
       </Router>
     </ErrorBoundary>

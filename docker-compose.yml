@@ -1,366 +1,592 @@
-# ============================================================================
-# Workforce Management Platform - Docker Compose Configuration
-# ============================================================================
-#
-# This is the main Docker Compose configuration for the Workforce Management Platform.
-# It orchestrates all microservices, databases, and supporting infrastructure.
-#
-# Architecture Overview:
-# - Frontend: React web application
-# - Backend: Node.js API server
-# - Mobile: React Native/Expo mobile app
-# - Database: PostgreSQL for data persistence
-# - Cache: Redis for session management and caching
-# - Load Balancer: Nginx for request routing
-# - Monitoring: Prometheus and Grafana for observability
-#
-# Services:
-# - frontend: React web application (port 3000)
-# - backend: Node.js API server (port 5000)
-# - mobile: React Native/Expo mobile app (port 8081)
-# - postgres: PostgreSQL database (port 5432)
-# - redis: Redis cache (port 6379)
-# - nginx: Load balancer and reverse proxy (port 80)
-# - prometheus: Metrics collection (port 9090)
-# - grafana: Monitoring dashboard (port 3001)
-#
-# Network Configuration:
-# - All services communicate via internal Docker network
-# - External access through nginx reverse proxy
-# - Database connections use service names for discovery
-#
-# Environment Variables:
-# - Defined in .env file for each service
-# - Database credentials and connection strings
-# - API keys and secrets
-# - Feature flags and configuration
-#
-# Security Features:
-# - Isolated network communication
-# - Environment-based configuration
-# - Secure database connections
-# - Rate limiting and CORS protection
-#
-# @author Workforce Management Team
-# @version 1.0.0
-# @lastUpdated 2025-07-19
-# ============================================================================
-
 version: '3.8'
 
-# ============================================================================
-# NETWORK CONFIGURATION
-# ============================================================================
-
-networks:
-  # Main application network for service communication
-  app-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-
-  # Database network for secure database access
-  db-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.21.0.0/16
-
-# ============================================================================
-# VOLUME CONFIGURATION
-# ============================================================================
-
-volumes:
-  # PostgreSQL data persistence
-  postgres_data:
-    driver: local
-    
-  # Redis data persistence
-  redis_data:
-    driver: local
-    
-  # Application logs
-  app_logs:
-    driver: local
-    
-  # Prometheus metrics storage
-  prometheus_data:
-    driver: local
-    
-  # Grafana configuration and dashboards
-  grafana_data:
-    driver: local
-
-# ============================================================================
-# SERVICE DEFINITIONS
-# ============================================================================
-
 services:
-  # ========================================================================
-  # FRONTEND SERVICE - React Web Application
-  # ========================================================================
-  frontend:
+  # API Gateway - Single entry point for all microservices
+  api-gateway:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        - NODE_ENV=production
-    container_name: workforce-frontend
-    restart: unless-stopped
+      context: ./api-gateway
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "8080:3000"
     environment:
-      - NODE_ENV=production
-      - REACT_APP_API_URL=http://localhost:5000/api
-      - REACT_APP_WS_URL=ws://localhost:5000
-    volumes:
-      - ./src:/app/src:ro
-      - ./public:/app/public:ro
-      - app_logs:/app/logs
-    networks:
-      - app-network
+      - NODE_ENV=development
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-service:3002
+      - CHAT_SERVICE_URL=http://chat-service:3003
+      - ATTENDANCE_SERVICE_URL=http://attendance-service:3007
+      - TODO_SERVICE_URL=http://todo-service:3005
+      - REPORT_SERVICE_URL=http://report-service:3006
+      - APPROVAL_SERVICE_URL=http://approval-service:3011
+      - WORKPLACE_SERVICE_URL=http://workplace-service:3008
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
     depends_on:
-      - backend
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      attendance-service:
+        condition: service_healthy
+      todo-service:
+        condition: service_healthy
+      report-service:
+        condition: service_healthy
+      approval-service:
+        condition: service_healthy
+      workplace-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
-  # ========================================================================
-  # BACKEND SERVICE - Node.js API Server
-  # ========================================================================
-  backend:
+  # Authentication Microservice
+  auth-service:
     build:
-      context: ./backend
+      context: ./microservices/auth-service
       dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    container_name: workforce-backend
-    restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "3010:3001"  # External port 3010, internal port 3001
     environment:
-      - NODE_ENV=production
-      - PORT=5000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/workforce_management
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - AUTH_DB_URL=postgresql://auth_user:auth_password@auth-db:5432/auth_db
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      - CORS_ORIGIN=http://localhost:3000,http://localhost:8081
-    volumes:
-      - ./backend:/app:ro
-      - app_logs:/app/logs
-    networks:
-      - app-network
-      - db-network
     depends_on:
-      postgres:
+      auth-db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # ========================================================================
-  # MOBILE SERVICE - React Native/Expo Mobile App
-  # ========================================================================
-  mobile:
+  # User Management Microservice
+  user-service:
+    build:
+      context: ./microservices/user-service
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - USER_DB_URL=postgresql://user_user:user_password@user-db:5432/user_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      user-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Chat Microservice
+  chat-service:
+    build:
+      context: ./microservices/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "3012:3003"  # External port 3012, internal port 3003
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - CHAT_DB_URL=postgresql://chat_user:chat_password@chat-db:5432/chat_db
+      - REDIS_URL=redis://redis:6379
+      - WEBSOCKET_PORT=3003
+    depends_on:
+      - chat-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Attendance Tracking Microservice
+  attendance-service:
+    build:
+      context: ./microservices/attendance-service
+      dockerfile: Dockerfile
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - DATABASE_URL=postgresql://attendance_user:attendance_password@attendance-db:5432/attendance_db
+      - REDIS_URL=redis://redis:6379
+      - UPLOAD_PATH=/uploads/attendance
+      - MAX_FILE_SIZE=5242880
+      - DEFAULT_GEOFENCE_RADIUS=100
+    depends_on:
+      - attendance-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Todo Management Microservice
+  todo-service:
+    build:
+      context: ./microservices/todo-service
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - TODO_DB_URL=postgresql://todo_user:todo_password@todo-db:5432/todo_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - todo-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Report Generation Microservice
+  report-service:
+    build:
+      context: ./microservices/report-service
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - REPORT_DB_URL=postgresql://report_user:report_password@report-db:5432/report_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - report-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Approval System Microservice
+  approval-service:
+    build:
+      context: ./microservices/approval-service
+      dockerfile: Dockerfile
+    ports:
+      - "3011:3011"  # Changed from 3007 to 3011 to avoid conflict
+    environment:
+      - NODE_ENV=development
+      - PORT=3011
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - APPROVAL_DB_URL=postgresql://approval_user:approval_password@approval-db:5432/approval_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - approval-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Workplace Management Microservice
+  workplace-service:
+    build:
+      context: ./microservices/workplace-service
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=3008
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - WORKPLACE_DB_URL=postgresql://workplace_user:workplace_password@workplace-db:5432/workplace_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - workplace-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Notification Microservice
+  notification-service:
+    build:
+      context: ./microservices/notification-service
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=3009
+      - JWT_SECRET=${JWT_SECRET:-microservice-jwt-secret}
+      - NOTIFICATION_DB_URL=postgresql://notification_user:notification_password@notification-db:5432/notification_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - notification-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3009/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Application with Enhanced Error Handling
+  frontend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:3010
+      - REACT_APP_ENABLE_ERROR_MONITORING=true
+      - REACT_APP_ENABLE_RETRY_MECHANISM=true
+      - REACT_APP_LOGIN_TIMEOUT=30000
+      - REACT_APP_MAX_RETRY_ATTEMPTS=3
+      - REACT_APP_HEALTH_CHECK_INTERVAL=30000
+    depends_on:
+      - api-gateway
+      - auth-service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - /app/node_modules
+      - /app/.cache
+
+  # Mobile Application with Enhanced Error Handling
+  mobile-app:
     build:
       context: ./WorkforceMobileExpo
       dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    container_name: workforce-mobile
-    restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "3003:3002"  # Changed from 3002 to 3003 to avoid conflict
     environment:
-      - NODE_ENV=production
-      - EXPO_PORT=8081
-      - API_URL=http://localhost:5000/api
-    volumes:
-      - ./WorkforceMobileExpo:/app:ro
-      - app_logs:/app/logs
-    networks:
-      - app-network
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:3010
+      - REACT_APP_ENABLE_ERROR_MONITORING=true
+      - REACT_APP_ENABLE_RETRY_MECHANISM=true
+      - REACT_APP_LOGIN_TIMEOUT=30000
+      - REACT_APP_MAX_RETRY_ATTEMPTS=3
+      - REACT_APP_HEALTH_CHECK_INTERVAL=30000
     depends_on:
-      - backend
+      - auth-service
+    networks:
+      - microservices-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      test: ["CMD", "curl", "-f", "http://localhost:3002/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # ========================================================================
-  # DATABASE SERVICE - PostgreSQL Database
-  # ========================================================================
-  postgres:
+  # Database Services (One per microservice)
+  auth-db:
     image: postgres:15-alpine
-    container_name: workforce-postgres
-    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=auth_db
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_password
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_DB=workforce_management
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d:ro
-      - app_logs:/var/log/postgresql
+      - auth-db-data:/var/lib/postgresql/data
     networks:
-      - db-network
+      - microservices-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d workforce_management"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ========================================================================
-  # CACHE SERVICE - Redis Cache
-  # ========================================================================
+  user-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=user_db
+      - POSTGRES_USER=user_user
+      - POSTGRES_PASSWORD=user_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_user -d user_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chat-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=chat_db
+      - POSTGRES_USER=chat_user
+      - POSTGRES_PASSWORD=chat_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat_user -d chat_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  attendance-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=attendance_db
+      - POSTGRES_USER=attendance_user
+      - POSTGRES_PASSWORD=attendance_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - attendance-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance_user -d attendance_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  todo-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=todo_db
+      - POSTGRES_USER=todo_user
+      - POSTGRES_PASSWORD=todo_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - todo-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo_user -d todo_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  report-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=report_db
+      - POSTGRES_USER=report_user
+      - POSTGRES_PASSWORD=report_password
+    ports:
+      - "5437:5432"
+    volumes:
+      - report-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U report_user -d report_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  approval-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=approval_db
+      - POSTGRES_USER=approval_user
+      - POSTGRES_PASSWORD=approval_password
+    ports:
+      - "5438:5432"
+    volumes:
+      - approval-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U approval_user -d approval_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  workplace-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=workplace_db
+      - POSTGRES_USER=workplace_user
+      - POSTGRES_PASSWORD=workplace_password
+    ports:
+      - "5439:5432"
+    volumes:
+      - workplace-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workplace_user -d workplace_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=notification_db
+      - POSTGRES_USER=notification_user
+      - POSTGRES_PASSWORD=notification_password
+    ports:
+      - "5440:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Shared Services
   redis:
     image: redis:7-alpine
-    container_name: workforce-redis
-    restart: unless-stopped
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass redis_password
     volumes:
-      - redis_data:/data
-      - app_logs:/var/log/redis
+      - redis-data:/data
     networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # ========================================================================
-  # LOAD BALANCER SERVICE - Nginx Reverse Proxy
-  # ========================================================================
-  nginx:
-    image: nginx:alpine
-    container_name: workforce-nginx
+      - microservices-network
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx-frontend.conf:/etc/nginx/conf.d/frontend.conf:ro
-      - app_logs:/var/log/nginx
-    networks:
-      - app-network
-    depends_on:
-      - frontend
-      - backend
-      - mobile
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
       retries: 3
-      start_period: 40s
 
-  # ========================================================================
-  # MONITORING SERVICE - Prometheus Metrics Collection
-  # ========================================================================
+  # Monitoring Stack
   prometheus:
     image: prom/prometheus:latest
-    container_name: workforce-prometheus
-    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-      - app_logs:/var/log/prometheus
+      - prometheus-data:/prometheus
     networks:
-      - app-network
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - microservices-network
+    restart: unless-stopped
 
-  # ========================================================================
-  # DASHBOARD SERVICE - Grafana Monitoring Dashboard
-  # ========================================================================
   grafana:
     image: grafana/grafana:latest
-    container_name: workforce-grafana
-    restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "3002:3000"  # Changed from 3001 to 3002 to avoid conflict
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-      - app_logs:/var/log/grafana
-    networks:
-      - app-network
     depends_on:
       - prometheus
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    networks:
+      - microservices-network
+    restart: unless-stopped
 
-# ============================================================================
-# DEPLOYMENT CONFIGURATION
-# ============================================================================
+  # Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-microservices.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-gateway
+      - frontend-app
+      - mobile-app
+    networks:
+      - microservices-network
+    restart: unless-stopped
 
-# Resource limits for production deployment
-# Uncomment and adjust as needed for your infrastructure
-# deploy:
-#   resources:
-#     limits:
-#       cpus: '0.50'
-#       memory: 512M
-#     reservations:
-#       cpus: '0.25'
-#       memory: 256M
+volumes:
+  auth-db-data:
+  user-db-data:
+  chat-db-data:
+  attendance-db-data:
+  todo-db-data:
+  report-db-data:
+  approval-db-data:
+  workplace-db-data:
+  notification-db-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
 
-# ============================================================================
-# SECURITY CONFIGURATION
-# ============================================================================
-
-# Security options for production deployment
-# security_opt:
-#   - no-new-privileges:true
-
-# ============================================================================
-# LOGGING CONFIGURATION
-# ============================================================================
-
-# Centralized logging configuration
-# logging:
-#   driver: "json-file"
-#   options:
-#     max-size: "10m"
-#     max-file: "3" 
+networks:
+  microservices-network:
+    driver: bridge 

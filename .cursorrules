@@ -880,15 +880,18 @@ Before starting ANY work, ALL agents MUST:
 ```bash
 # Before starting work
 ./scripts/check-ports.sh
+./scripts/network-architecture-enforcer.sh validate
 ./scripts/docker-service-manager.sh start
 
 # Before committing
 ./scripts/ui-compliance-checker.sh
 ./scripts/check-ports.sh
+./scripts/network-architecture-enforcer.sh validate
 
 # For troubleshooting
 ./scripts/port-killer.sh <port_number>
 ./scripts/docker-service-manager.sh status
+./scripts/network-architecture-enforcer.sh fix
 ```
 
 ---

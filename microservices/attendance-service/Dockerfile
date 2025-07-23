@@ -16,12 +16,15 @@ RUN npm install --omit=dev
 # Copy source code
 COPY . .
 
+# Create upload directory and set permissions
+RUN mkdir -p /uploads/attendance
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
+# Change ownership of the app directory and upload directory
+RUN chown -R nodejs:nodejs /app /uploads
 USER nodejs
 
 # Expose port

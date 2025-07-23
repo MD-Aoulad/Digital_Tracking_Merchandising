@@ -895,6 +895,55 @@ router.get('/search', authenticateToken, requireChatTables, async (req, res) => 
   }
 });
 
+// Get user activity stats for the authenticated user
+router.get('/user-activity', authenticateToken, requireChatTables, async (req, res) => {
+  try {
+    const userId = validateRequiredInt(req.user?.id, 'user ID');
+    const channelId = req.query.channelId ? sanitizeInt(req.query.channelId) : null;
+    const dateFrom = req.query.dateFrom ? req.query.dateFrom : null;
+    const dateTo = req.query.dateTo ? req.query.dateTo : null;
+
+    let query = `
+      SELECT 
+        channel_id,
+        SUM(messages_sent) as messages_sent,
+        SUM(messages_read) as messages_read,
+        SUM(reactions_given) as reactions_given,
+        SUM(files_shared) as files_shared,
+        SUM(time_spent_minutes) as time_spent_minutes,
+        MAX(last_activity_at) as last_activity_at
+      FROM chat_user_activity
+      WHERE user_id = $1
+    `;
+    const params = [userId];
+    let paramIdx = 2;
+
+    if (channelId) {
+      query += ` AND channel_id = $${paramIdx}`;
+      params.push(channelId);
+      paramIdx++;
+    }
+    if (dateFrom) {
+      query += ` AND date >= $${paramIdx}`;
+      params.push(dateFrom);
+      paramIdx++;
+    }
+    if (dateTo) {
+      query += ` AND date <= $${paramIdx}`;
+      params.push(dateTo);
+      paramIdx++;
+    }
+    query += ` GROUP BY channel_id`;
+
+    const dbPool = getPool();
+    const result = await dbPool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching user activity:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Global error handler for validation errors
 router.use((error, req, res, next) => {
   if (error.message && error.message.includes('Invalid')) {

@@ -325,6 +325,27 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+/**
+ * Role-based authorization middleware
+ * Checks if the authenticated user has the required role(s)
+ * 
+ * @param {Array} roles - Array of allowed roles
+ * @returns {Function} Express middleware function
+ */
+const requireRole = (roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    if (!req.user.role || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    
+    next();
+  };
+};
+
 // ===== HEALTH CHECK ENDPOINT =====
 
 /**

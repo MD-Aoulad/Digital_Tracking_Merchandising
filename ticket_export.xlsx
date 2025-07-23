@@ -1,0 +1,20 @@
+File	Line	Type	Ticket Title	Description
+src/services/chatApi.ts	653	TODO	Implement user activity endpoint in backend	Implement the user activity endpoint in the backend for chat analytics.
+src/services/chatApi.ts	647	Placeholder	User activity endpoint not implemented	Placeholder for user activity endpoint; backend implementation missing.
+src/services/chatApi.ts	664	TODO	Implement chat stats endpoint in backend	Implement the chat statistics endpoint in the backend for chat analytics.
+src/services/chatApi.ts	658	Placeholder	Chat statistics endpoint not implemented	Placeholder for chat statistics endpoint; backend implementation missing.
+src/services/chatApi.ts	694	TODO	Implement GDPR deletion endpoint in backend	Implement the GDPR data deletion endpoint in the backend.
+src/services/chatApi.ts	688	Placeholder	GDPR deletion endpoint not implemented	Placeholder for GDPR deletion endpoint; backend implementation missing.
+src/services/chatApi.ts	705	TODO	Implement GDPR request status endpoint in backend	Implement the GDPR request status endpoint in the backend.
+src/services/chatApi.ts	699	Placeholder	GDPR request status endpoint not implemented	Placeholder for GDPR request status endpoint; backend implementation missing.
+src/services/chatApi.ts	742	TODO	Implement channel-specific search in backend	Implement channel-specific search endpoint in the backend for chat.
+src/services/chatApi.ts	736	Placeholder	Channel search using general endpoint	Placeholder for channel search; currently uses general search endpoint.
+src/services/chatApi.ts	791	TODO	Implement real-time typing user tracking	Implement real-time typing user tracking in the backend and frontend.
+src/services/chatApi.ts	789	Placeholder	Typing users not implemented	Placeholder for typing users; real-time tracking not implemented.
+src/services/auth.ts	441	TODO	Implement response time tracking	Implement response time tracking for authentication service.
+src/components/Approval/ApprovalRequestsTab.tsx	435	TODO	Implement Approval Request Details Modal	Implement the modal to view approval request details.
+src/services/api.ts	-	TODO/Feature	Advanced Todo Management	Review and ensure all advanced todo features (file upload, validation, assignment, admin/employee flows) are fully implemented and tested.
+src/lib/i18n.ts	108,209,310,411,512	Placeholder	Search Placeholder Strings	Review and ensure all placeholder texts for member search are meaningful and localizable.
+src/components/Approval/ApprovalSettingsTab.tsx, src/components/Approval/DelegationManagementTab.tsx, src/components/Settings/CompanyInfo.tsx, src/components/Leave/LeavePage.tsx, src/components/Leave/GrantLeavePage.tsx	various	Placeholder	Input Placeholder Texts	Review and ensure all placeholder texts in forms are meaningful and localizable.
+src/App.tsx	214	Placeholder Route	Replace Wildcard “Coming Soon” Page	Replace the wildcard route with a real feature or a more informative 404/high-priority feature page.
+src/components/ComingSoonPage.tsx	2	Component	ComingSoonPage	Audit all usages and plan for replacement with real features. 

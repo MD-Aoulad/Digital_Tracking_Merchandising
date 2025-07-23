@@ -1347,6 +1347,22 @@ const ChatPage: React.FC = () => {
   const [showFlaggedMessagesModal, setShowFlaggedMessagesModal] = useState(false);
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [createChannelLoading, setCreateChannelLoading] = useState(false);
+  const [userActivity, setUserActivity] = useState<any>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedChannelId && user?.id) {
+      setActivityLoading(true);
+      setActivityError(null);
+      analyticsApi.getUserActivity({ channelId: selectedChannelId })
+        .then((data: any) => setUserActivity(data?.[0] || null))
+        .catch((err: any) => setActivityError('Failed to load user activity'))
+        .finally(() => setActivityLoading(false));
+    } else {
+      setUserActivity(null);
+    }
+  }, [selectedChannelId, user?.id]);
 
   // Convert user to ChatUser format
   const currentUser: ChatUser = {
@@ -1617,6 +1633,26 @@ const ChatPage: React.FC = () => {
         onCreateChannel={handleCreateChannel}
         loading={createChannelLoading}
       />
+      {selectedChannelId && (
+        <div style={{ margin: '16px 0', padding: '12px', background: '#f6f8fa', borderRadius: 8 }}>
+          <strong>User Activity (This Channel):</strong>
+          {activityLoading ? (
+            <span> Loading...</span>
+          ) : activityError ? (
+            <span style={{ color: 'red' }}> {activityError}</span>
+          ) : userActivity ? (
+            <span>
+              {' '}Messages Sent: {userActivity.messages_sent || 0},
+              Messages Read: {userActivity.messages_read || 0},
+              Reactions: {userActivity.reactions_given || 0},
+              Files Shared: {userActivity.files_shared || 0},
+              Time Spent: {userActivity.time_spent_minutes || 0} min
+            </span>
+          ) : (
+            <span> No activity data.</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

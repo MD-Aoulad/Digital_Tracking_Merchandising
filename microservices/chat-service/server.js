@@ -73,6 +73,7 @@ const morgan = require('morgan');
 const winston = require('winston');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const { router: chatApiRouter } = require('../../backend/chat-api');
 
 // Initialize Express application and HTTP server
 const app = express();
@@ -260,6 +261,9 @@ app.use(morgan('combined'));
 // JSON parsing with increased limit for file uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Mount the chat-api.js router at the root of the chat-service so /channels and related routes are available.
+app.use('/', chatApiRouter);
 
 // ===== RATE LIMITING =====
 

@@ -1,0 +1,47 @@
+Network Architecture Compliance Report
+Generated: Wed Jul 23 02:42:37 CEST 2025
+======================================
+
+PORT ASSIGNMENTS:
+=================
+Frontend: Expected 3000, Actual 3000
+API Gateway: Expected 8080, Actual 8080
+Auth Service: Expected 3010, Actual 3010
+Attendance Service: Expected 3007, Actual 3007
+
+SERVICE HEALTH:
+===============
+NAMES                                                   STATUS                         PORTS
+digital_tracking_merchandising-mobile-app-1             Up 9 minutes (unhealthy)       0.0.0.0:3003->3002/tcp, [::]:3003->3002/tcp
+digital_tracking_merchandising-chat-service-1           Restarting (1) 1 second ago    
+digital_tracking_merchandising-frontend-app-1           Up 2 hours (healthy)           0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+digital_tracking_merchandising-api-gateway-1            Up 10 minutes (healthy)        0.0.0.0:8080->3000/tcp, [::]:8080->3000/tcp
+digital_tracking_merchandising-approval-service-1       Up 2 hours (healthy)           0.0.0.0:3011->3011/tcp, [::]:3011->3011/tcp
+digital_tracking_merchandising-auth-service-1           Up 2 hours (healthy)           0.0.0.0:3010->3001/tcp, [::]:3010->3001/tcp
+digital_tracking_merchandising-workplace-service-1      Up 2 hours (healthy)           3008/tcp
+digital_tracking_merchandising-todo-service-1           Up 2 hours (healthy)           3005/tcp
+digital_tracking_merchandising-report-service-1         Up 2 hours (healthy)           0.0.0.0:3006->3006/tcp, [::]:3006->3006/tcp
+digital_tracking_merchandising-attendance-service-1     Up 23 minutes (healthy)        0.0.0.0:3007->3007/tcp, [::]:3007->3007/tcp
+digital_tracking_merchandising-notification-service-1   Up 2 hours (healthy)           3009/tcp
+digital_tracking_merchandising-user-service-1           Up 2 hours (healthy)           3002/tcp
+digital_tracking_merchandising-grafana-1                Up 12 minutes                  0.0.0.0:3002->3000/tcp, [::]:3002->3000/tcp
+digital_tracking_merchandising-attendance-db-1          Up 2 hours (healthy)           0.0.0.0:5435->5432/tcp, [::]:5435->5432/tcp
+digital_tracking_merchandising-auth-db-1                Up 2 hours (healthy)           0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+digital_tracking_merchandising-notification-db-1        Up 2 hours (healthy)           0.0.0.0:5440->5432/tcp, [::]:5440->5432/tcp
+digital_tracking_merchandising-user-db-1                Up 2 hours (healthy)           0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+digital_tracking_merchandising-redis-1                  Up 2 hours (healthy)           0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+digital_tracking_merchandising-chat-db-1                Up 2 hours (healthy)           0.0.0.0:5434->5432/tcp, [::]:5434->5432/tcp
+digital_tracking_merchandising-workplace-db-1           Up 2 hours (healthy)           0.0.0.0:5439->5432/tcp, [::]:5439->5432/tcp
+digital_tracking_merchandising-report-db-1              Up 2 hours (healthy)           0.0.0.0:5437->5432/tcp, [::]:5437->5432/tcp
+digital_tracking_merchandising-todo-db-1                Up 2 hours (healthy)           0.0.0.0:5436->5432/tcp, [::]:5436->5432/tcp
+digital_tracking_merchandising-approval-db-1            Up 2 hours (healthy)           0.0.0.0:5438->5432/tcp, [::]:5438->5432/tcp
+digital_tracking_merchandising-prometheus-1             Restarting (2) 3 seconds ago   
+
+NETWORK CONNECTIVITY:
+====================
+NETWORK ID     NAME                                                   DRIVER    SCOPE
+d924af0909d0   bridge                                                 bridge    local
+8061a967959e   digital_tracking_merchandising_microservices-network   bridge    local
+111ed88c4c37   host                                                   host      local
+229ef3ade0c9   none                                                   null      local
+

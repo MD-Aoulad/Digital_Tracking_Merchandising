@@ -645,15 +645,17 @@ export const analyticsApi = {
     return response.data!;
   },
 
-  // Get user activity (placeholder - endpoint not implemented in backend)
-  async getUserActivity(userId: string, date: string): Promise<any> {
+  // Get user activity (now implemented in backend)
+  async getUserActivity({ channelId, dateFrom, dateTo }: { channelId?: string, dateFrom?: string, dateTo?: string } = {}): Promise<any> {
     if (!isAuthenticated()) {
       throw new Error('User not authenticated');
     }
-    
-    // TODO: Implement user activity endpoint in backend
-    console.warn('User activity endpoint not implemented in backend');
-    return { activity: [] };
+    const params = new URLSearchParams();
+    if (channelId) params.append('channelId', channelId);
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+    const response = await apiRequest<any>(`/user-activity?${params.toString()}`);
+    return response.data;
   },
 
   // Get chat statistics (placeholder - endpoint not implemented in backend)
@@ -959,3 +961,5 @@ export function useRealtimeUpdates(channelId: string | null) {
     connectionStatus: wsApi.getConnectionStatus()
   };
 } 
+
+// No export for chatApi; getUserActivity is part of analyticsApi 

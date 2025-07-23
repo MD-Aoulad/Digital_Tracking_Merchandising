@@ -150,6 +150,20 @@ export interface AttendanceApproval {
 }
 
 /**
+ * Team status for real-time attendance tracking
+ */
+export interface TeamStatus {
+  userId: string;                // Employee ID
+  name: string;                  // Employee name
+  status: 'present' | 'absent' | 'late' | 'break' | 'overtime';  // Current status
+  clockInTime?: string;          // Clock in time (HH:MM)
+  currentLocation?: string;      // Current location description
+  isOnBreak: boolean;            // Whether employee is on break
+  breakType?: 'lunch' | 'coffee' | 'rest' | 'other';  // Break type if on break
+  lastSeen: string;              // Last activity timestamp
+}
+
+/**
  * Attendance statistics for reporting
  */
 export interface AttendanceStats {

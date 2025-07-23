@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-COMPOSE_FILE="docker-compose.microservices.yml"
+COMPOSE_FILE="docker-compose.yml"
 PROJECT_NAME="digital_tracking_merchandising"
 API_GATEWAY_PORT=8080
 AUTH_SERVICE_PORT=3010

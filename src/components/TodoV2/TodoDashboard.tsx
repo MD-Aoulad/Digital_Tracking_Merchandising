@@ -3,8 +3,9 @@ import TodoStatusTab from './TodoStatusTab';
 import TodoManagementTab from './TodoManagementTab';
 import TodoSettingsTab from './TodoSettingsTab';
 
-// Mock user role for demo (replace with real auth context if needed)
-const mockUserRole = 'admin';
+interface TodoDashboardProps {
+  userRole?: string;
+}
 
 const TABS = [
   { key: 'status', label: 'To-do status' },
@@ -12,7 +13,7 @@ const TABS = [
   { key: 'settings', label: 'Settings' },
 ];
 
-export default function TodoDashboard() {
+export default function TodoDashboard({ userRole = 'admin' }: TodoDashboardProps) {
   const [activeTab, setActiveTab] = useState('status');
 
   return (
@@ -33,9 +34,9 @@ export default function TodoDashboard() {
 
       {/* Tab Content */}
       <div>
-        {activeTab === 'status' && <TodoStatusTab userRole={mockUserRole} />}
-        {activeTab === 'management' && <TodoManagementTab userRole={mockUserRole} />}
-        {activeTab === 'settings' && <TodoSettingsTab userRole={mockUserRole} />}
+        {activeTab === 'status' && <TodoStatusTab userRole={userRole} />}
+        {activeTab === 'management' && <TodoManagementTab userRole={userRole} />}
+        {activeTab === 'settings' && <TodoSettingsTab userRole={userRole} />}
       </div>
     </div>
   );

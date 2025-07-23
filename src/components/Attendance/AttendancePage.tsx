@@ -74,7 +74,17 @@ import TemporaryWorkplaceSettingsComponent from './TemporaryWorkplaceSettings';
 import TemporaryWorkplacePunch from './TemporaryWorkplacePunch';
 import TemporaryWorkplaceRecords from './TemporaryWorkplaceRecords';
 import ScheduledWorkdaysSettingsComponent from './ScheduledWorkdaysSettings';
+import AttendanceTest from './AttendanceTest';
 import toast from 'react-hot-toast';
+import { useAttendance } from '../../contexts/AttendanceContext';
+import { 
+  useCurrentAttendance, 
+  usePunchIn, 
+  usePunchOut, 
+  useBreakManagement, 
+  useTeamStatus,
+  getAttendanceHistory 
+} from '../../services/attendanceApi';
 
 /**
  * Enhanced AttendancePage Component
@@ -87,9 +97,18 @@ import toast from 'react-hot-toast';
  */
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();
+  const { state: attendanceState, refreshData } = useAttendance();
+  
   // Use language change hook to trigger re-renders when language changes
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const currentLocale = useLanguageChange();
+  
+  // Real API hooks
+  const { data: currentAttendance, loading: currentAttendanceLoading, error: currentAttendanceError, refetch: refetchCurrentAttendance } = useCurrentAttendance();
+  const { punchIn, loading: punchInLoading, error: punchInError } = usePunchIn();
+  const { punchOut, loading: punchOutLoading, error: punchOutError } = usePunchOut();
+  const { startBreak, endBreak, loading: breakLoading, error: breakError } = useBreakManagement();
+  const { data: teamStatus, loading: teamLoading, error: teamError } = useTeamStatus();
   
   // State management
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -185,120 +204,85 @@ const AttendancePage: React.FC = () => {
     updatedAt: new Date().toISOString()
   });
   const [showScheduledWorkdaysSettings, setShowScheduledWorkdaysSettings] = useState(false);
+  const [showApiTest, setShowApiTest] = useState(false);
 
   /**
-   * Initialize mock data for enhanced features
+   * Load real attendance data from API
    */
   useEffect(() => {
-    // Mock attendance records with enhanced data
-    const mockRecords: AttendanceRecord[] = [
-      {
-        id: '1',
-        userId: '1',
-        date: '2024-01-15',
-        clockIn: '09:00',
-        clockOut: '17:30',
-        location: {
-          lat: 40.7128,
-          lng: -74.0060,
-          address: 'New York, NY'
-        },
-        method: 'geolocation',
-        status: 'present',
-        shiftId: 'shift-1',
-        breaks: [
-          {
-            id: 'break-1',
-            type: 'lunch',
-            startTime: '12:00',
-            endTime: '13:00',
-            duration: 60,
-            notes: 'Lunch break'
+    const loadAttendanceData = async () => {
+      try {
+        // Load attendance history for the current month
+        const startDate = new Date();
+        startDate.setDate(1); // First day of current month
+        
+        const history = await getAttendanceHistory({
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+          limit: 50
+        });
+        
+        // Convert API data to AttendanceRecord format
+        const records: AttendanceRecord[] = history.map(attendance => ({
+          id: attendance.id,
+          userId: attendance.id, // Using attendance ID as user ID for now
+          date: new Date(attendance.punchInTime).toISOString().split('T')[0],
+          clockIn: new Date(attendance.punchInTime).toLocaleTimeString('en-US', { 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          clockOut: attendance.punchOutTime ? new Date(attendance.punchOutTime).toLocaleTimeString('en-US', { 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : undefined,
+          location: {
+            lat: attendance.location.latitude,
+            lng: attendance.location.longitude,
+            address: attendance.workplace.address
           },
-          {
-            id: 'break-2',
-            type: 'coffee',
-            startTime: '15:30',
-            endTime: '15:45',
-            duration: 15,
-            notes: 'Coffee break'
+          method: 'geolocation',
+          status: attendance.status === 'active' ? 'present' : 
+                  attendance.status === 'on_break' ? 'present' : 'absent',
+          shiftId: 'default-shift',
+          breaks: attendance.currentBreak ? [{
+            id: attendance.currentBreak.id,
+            type: attendance.currentBreak.type as Break['type'],
+            startTime: new Date(attendance.currentBreak.startTime).toLocaleTimeString('en-US', { 
+              hour12: false, 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            endTime: undefined,
+            duration: attendance.currentBreak.durationMinutes,
+            notes: ''
+          }] : [],
+          photos: attendance.photoUrl ? {
+            clockIn: attendance.photoUrl
+          } : undefined,
+          requiresApproval: attendance.verificationStatus === 'pending',
+          geofence: {
+            zoneId: 'default-zone',
+            zoneName: attendance.workplace.name,
+            withinZone: attendance.location.isWithinRadius
           }
-        ],
-        overtime: {
-          hours: 0.5,
-          reason: 'Project deadline'
-        },
-        photos: {
-          clockIn: '/api/photos/clockin-1.jpg',
-          clockOut: '/api/photos/clockout-1.jpg'
-        },
-        notes: 'Productive day, completed all tasks',
-        approvedBy: 'manager-1',
-        approvedAt: '2024-01-15T17:30:00Z',
-        requiresApproval: false,
-        geofence: {
-          zoneId: 'zone-1',
-          zoneName: 'Main Office',
-          withinZone: true
-        }
-      },
-      {
-        id: '2',
-        userId: '2',
-        date: '2024-01-15',
-        clockIn: '08:45',
-        clockOut: '17:15',
-        location: {
-          lat: 40.7128,
-          lng: -74.0060,
-          address: 'New York, NY'
-        },
-        method: 'qr',
-        status: 'present',
-        shiftId: 'shift-1',
-        breaks: [
-          {
-            id: 'break-3',
-            type: 'lunch',
-            startTime: '12:30',
-            endTime: '13:30',
-            duration: 60
-          }
-        ],
-        photos: {
-          clockIn: '/api/photos/clockin-2.jpg'
-        },
-        requiresApproval: false,
-        geofence: {
-          zoneId: 'zone-1',
-          zoneName: 'Main Office',
-          withinZone: true
-        }
-      },
-      {
-        id: '3',
-        userId: '3',
-        date: '2024-01-15',
-        clockIn: '09:30',
-        location: {
-          lat: 40.7128,
-          lng: -74.0060,
-          address: 'New York, NY'
-        },
-        method: 'facial',
-        status: 'late',
-        shiftId: 'shift-1',
-        breaks: [],
-        requiresApproval: true,
-        geofence: {
-          zoneId: 'zone-1',
-          zoneName: 'Main Office',
-          withinZone: true
-        }
+        }));
+        
+        setAttendanceRecords(records);
+      } catch (error) {
+        console.error('Error loading attendance data:', error);
+        toast.error('Failed to load attendance data');
       }
-    ];
-    setAttendanceRecords(mockRecords);
+    };
+    
+    loadAttendanceData();
+  }, []);
 
+  /**
+   * Initialize mock data for features not yet integrated with API
+   */
+  useEffect(() => {
     // Mock shifts
     const mockShifts: WorkShift[] = [
       {
@@ -309,16 +293,6 @@ const AttendancePage: React.FC = () => {
         breakDuration: 60,
         overtimeThreshold: 8,
         color: '#3B82F6',
-        isActive: true
-      },
-      {
-        id: 'shift-2',
-        name: 'Night Shift',
-        startTime: '22:00',
-        endTime: '06:00',
-        breakDuration: 45,
-        overtimeThreshold: 8,
-        color: '#1F2937',
         isActive: true
       }
     ];
@@ -339,32 +313,22 @@ const AttendancePage: React.FC = () => {
     setGeofenceZones(mockGeofences);
 
     // Mock pending approvals
-    const mockApprovals: AttendanceApproval[] = [
-      {
-        id: 'approval-1',
-        attendanceId: '3',
-        userId: '3',
-        managerId: 'manager-1',
-        type: 'late',
-        reason: 'Traffic delay',
-        status: 'pending',
-        requestedAt: '2024-01-15T09:30:00Z'
-      }
-    ];
+    const mockApprovals: AttendanceApproval[] = [];
     setPendingApprovals(mockApprovals);
 
-    // Calculate statistics
+    // Calculate statistics from real data
     const stats: AttendanceStats = {
-      totalDays: 22,
-      presentDays: 20,
-      absentDays: 1,
-      lateDays: 1,
-      overtimeHours: 8.5,
-      averageWorkHours: 7.8,
-      attendanceRate: 90.9
+      totalDays: attendanceRecords.length,
+      presentDays: attendanceRecords.filter(r => r.status === 'present').length,
+      absentDays: attendanceRecords.filter(r => r.status === 'absent').length,
+      lateDays: attendanceRecords.filter(r => r.status === 'late').length,
+      overtimeHours: 0, // TODO: Calculate from real data
+      averageWorkHours: 0, // TODO: Calculate from real data
+      attendanceRate: attendanceRecords.length > 0 ? 
+        (attendanceRecords.filter(r => r.status === 'present').length / attendanceRecords.length) * 100 : 0
     };
     setAttendanceStats(stats);
-  }, []);
+  }, [attendanceRecords]);
 
   /**
    * Update current time every second
@@ -426,8 +390,8 @@ const AttendancePage: React.FC = () => {
    * Enhanced clock in with photo capture and geofencing
    */
   const handleClockIn = async () => {
-    if (!withinGeofence) {
-      toast.error('You must be within the designated work zone to clock in.');
+    if (!currentLocation) {
+      toast.error('Unable to get your location. Please enable location services.');
       return;
     }
 
@@ -445,42 +409,27 @@ const AttendancePage: React.FC = () => {
         setCapturedPhoto('/api/photos/clockin-' + Date.now() + '.jpg');
       }
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call real API
+      const result = await punchIn({
+        workplaceId: 'default-workplace', // TODO: Get from user settings
+        latitude: currentLocation.lat,
+        longitude: currentLocation.lng,
+        accuracy: 5,
+        notes: 'Clock in from web application',
+        photo: capturedPhoto ? new File([capturedPhoto], 'clockin.jpg') : undefined
+      });
       
-      const newRecord: AttendanceRecord = {
-        id: Date.now().toString(),
-        userId: user?.id || '',
-        date: new Date().toISOString().split('T')[0],
-        clockIn: new Date().toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        location: currentLocation ? {
-          lat: currentLocation.lat,
-          lng: currentLocation.lng,
-          address: 'Current Location'
-        } : undefined,
-        method: capturedPhoto ? 'photo' : 'geolocation',
-        status: 'present',
-        shiftId: currentShift?.id,
-        breaks: [],
-        photos: capturedPhoto ? { clockIn: capturedPhoto } : undefined,
-        requiresApproval: false,
-        geofence: {
-          zoneId: geofenceZones[0]?.id || '',
-          zoneName: geofenceZones[0]?.name || '',
-          withinZone: withinGeofence
-        }
-      };
-      
-      setAttendanceRecords(prev => [newRecord, ...prev]);
       toast.success('Successfully clocked in!');
       setCapturedPhoto(null);
       setShowPhotoCapture(false);
+      
+      // Refresh attendance data
+      await refreshData();
+      await refetchCurrentAttendance();
+      
     } catch (error) {
       toast.error('Failed to clock in. Please try again.');
+      console.error('Clock in error:', error);
     } finally {
       setIsClockingIn(false);
     }
@@ -490,6 +439,11 @@ const AttendancePage: React.FC = () => {
    * Enhanced clock out with break calculation
    */
   const handleClockOut = async () => {
+    if (!currentLocation) {
+      toast.error('Unable to get your location. Please enable location services.');
+      return;
+    }
+
     // Check if face verification is required
     if (faceVerificationSettings.isEnabled && faceVerificationSettings.requireFaceVerification) {
       setShowFaceVerification(true);
@@ -504,56 +458,25 @@ const AttendancePage: React.FC = () => {
         setCapturedPhoto('/api/photos/clockout-' + Date.now() + '.jpg');
       }
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call real API
+      const result = await punchOut({
+        latitude: currentLocation.lat,
+        longitude: currentLocation.lng,
+        accuracy: 5,
+        notes: 'Clock out from web application'
+      });
       
-      const todayRecord = attendanceRecords.find(record => 
-        record.userId === user?.id && 
-        record.date === new Date().toISOString().split('T')[0]
-      );
+      toast.success('Successfully clocked out!');
+      setCapturedPhoto(null);
+      setShowPhotoCapture(false);
       
-      if (todayRecord) {
-        // Calculate total break time
-        const totalBreakTime = todayRecord.breaks.reduce((total, break_) => 
-          total + (break_.duration || 0), 0
-        );
-
-        // Calculate overtime
-        const clockInTime = new Date(`2024-01-15T${todayRecord.clockIn}:00`);
-        const clockOutTime = new Date();
-        const workHours = (clockOutTime.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
-        const netWorkHours = workHours - (totalBreakTime / 60);
-        
-        const overtime = currentShift && netWorkHours > currentShift.overtimeThreshold ? {
-          hours: netWorkHours - currentShift.overtimeThreshold,
-          reason: 'Regular work hours exceeded'
-        } : undefined;
-
-        const updatedRecord = {
-          ...todayRecord,
-          clockOut: new Date().toLocaleTimeString('en-US', { 
-            hour12: false, 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }),
-          overtime,
-          photos: {
-            ...todayRecord.photos,
-            clockOut: capturedPhoto
-          }
-        };
-        
-        setAttendanceRecords(prev => 
-          prev.map(record => 
-            record.id === todayRecord.id ? updatedRecord : record
-          )
-        );
-        toast.success('Successfully clocked out!');
-        setCapturedPhoto(null);
-        setShowPhotoCapture(false);
-      }
+      // Refresh attendance data
+      await refreshData();
+      await refetchCurrentAttendance();
+      
     } catch (error) {
       toast.error('Failed to clock out. Please try again.');
+      console.error('Clock out error:', error);
     } finally {
       setIsClockingIn(false);
     }
@@ -562,106 +485,61 @@ const AttendancePage: React.FC = () => {
   /**
    * Start a break
    */
-  const handleStartBreak = (breakType: Break['type']) => {
-    const newBreak: Break = {
-      id: Date.now().toString(),
-      type: breakType,
-      startTime: new Date().toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })
-    };
-    
-    setCurrentBreak(newBreak);
-    setIsOnBreak(true);
-    
-    // Update current attendance record
-    const todayRecord = attendanceRecords.find(record => 
-      record.userId === user?.id && 
-      record.date === new Date().toISOString().split('T')[0]
-    );
-    
-    if (todayRecord) {
-      const updatedRecord = {
-        ...todayRecord,
-        breaks: [...todayRecord.breaks, newBreak]
-      };
+  const handleStartBreak = async (breakType: Break['type']) => {
+    try {
+      const result = await startBreak({
+        type: breakType as 'lunch' | 'coffee' | 'personal' | 'other',
+        notes: `${breakType} break started`
+      });
       
-      setAttendanceRecords(prev => 
-        prev.map(record => 
-          record.id === todayRecord.id ? updatedRecord : record
-        )
-      );
+      toast.success(`${breakType.charAt(0).toUpperCase() + breakType.slice(1)} break started`);
+      
+      // Refresh attendance data
+      await refreshData();
+      await refetchCurrentAttendance();
+      
+    } catch (error) {
+      toast.error('Failed to start break. Please try again.');
+      console.error('Start break error:', error);
     }
-    
-    toast.success(`${breakType.charAt(0).toUpperCase() + breakType.slice(1)} break started`);
   };
 
   /**
    * End current break
    */
-  const handleEndBreak = () => {
-    if (!currentBreak) return;
-    
-    const endTime = new Date().toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    const startTime = new Date(`2024-01-15T${currentBreak.startTime}:00`);
-    const endTimeDate = new Date(`2024-01-15T${endTime}:00`);
-    const duration = Math.round((endTimeDate.getTime() - startTime.getTime()) / (1000 * 60));
-    
-    const updatedBreak = {
-      ...currentBreak,
-      endTime,
-      duration
-    };
-    
-    // Update attendance record
-    const todayRecord = attendanceRecords.find(record => 
-      record.userId === user?.id && 
-      record.date === new Date().toISOString().split('T')[0]
-    );
-    
-    if (todayRecord) {
-      const updatedRecord = {
-        ...todayRecord,
-        breaks: todayRecord.breaks.map(break_ => 
-          break_.id === currentBreak.id ? updatedBreak : break_
-        )
-      };
+  const handleEndBreak = async () => {
+    try {
+      const result = await endBreak();
       
-      setAttendanceRecords(prev => 
-        prev.map(record => 
-          record.id === todayRecord.id ? updatedRecord : record
-        )
-      );
+      toast.success('Break ended');
+      
+      // Refresh attendance data
+      await refreshData();
+      await refetchCurrentAttendance();
+      
+    } catch (error) {
+      toast.error('Failed to end break. Please try again.');
+      console.error('End break error:', error);
     }
-    
-    setCurrentBreak(null);
-    setIsOnBreak(false);
-    toast.success('Break ended');
   };
 
   /**
    * Get current attendance status for the logged-in user
    */
   const getCurrentStatus = () => {
-    const todayRecord = attendanceRecords.find(record => 
-      record.userId === user?.id && 
-      record.date === new Date().toISOString().split('T')[0]
-    );
+    if (currentAttendanceLoading) return 'loading';
+    if (currentAttendanceError) return 'error';
     
-    if (!todayRecord) return 'not-clocked-in';
-    if (todayRecord.clockIn && !todayRecord.clockOut) {
-      if (isOnBreak) return 'on-break';
+    if (!currentAttendance) return 'not-clocked-in';
+    
+    if (currentAttendance.isPunchedIn) {
+      if (currentAttendance.currentAttendance?.status === 'on_break') {
+        return 'on-break';
+      }
       return 'clocked-in';
     }
-    if (todayRecord.clockIn && todayRecord.clockOut) return 'clocked-out';
-    return 'not-clocked-in';
+    
+    return 'clocked-out';
   };
 
   const currentStatus = getCurrentStatus();
@@ -891,6 +769,25 @@ const AttendancePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Loading and Error States */}
+      {currentAttendanceLoading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+            <span className="text-blue-800">Loading attendance data...</span>
+          </div>
+        </div>
+      )}
+
+      {currentAttendanceError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle size={20} className="text-red-600 mr-3" />
+            <span className="text-red-800">Error loading attendance data: {currentAttendanceError}</span>
+          </div>
+        </div>
+      )}
+
       {/* Page header with view toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1153,24 +1050,45 @@ const AttendancePage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 onClick={() => handleStartBreak('lunch')}
-                className="flex items-center justify-center space-x-2 p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+                disabled={breakLoading}
+                className="flex items-center justify-center space-x-2 p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50"
               >
-                <Utensils size={20} className="text-orange-600" />
-                <span className="text-sm font-medium text-orange-800">Lunch Break</span>
+                {breakLoading ? (
+                  <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Utensils size={20} className="text-orange-600" />
+                )}
+                <span className="text-sm font-medium text-orange-800">
+                  {breakLoading ? 'Starting...' : 'Lunch Break'}
+                </span>
               </button>
               <button
                 onClick={() => handleStartBreak('coffee')}
-                className="flex items-center justify-center space-x-2 p-3 bg-brown-50 hover:bg-brown-100 rounded-lg transition-colors"
+                disabled={breakLoading}
+                className="flex items-center justify-center space-x-2 p-3 bg-brown-50 hover:bg-brown-100 rounded-lg transition-colors disabled:opacity-50"
               >
-                <Coffee size={20} className="text-brown-600" />
-                <span className="text-sm font-medium text-brown-800">Coffee Break</span>
+                {breakLoading ? (
+                  <div className="w-4 h-4 border-2 border-brown-600 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Coffee size={20} className="text-brown-600" />
+                )}
+                <span className="text-sm font-medium text-brown-800">
+                  {breakLoading ? 'Starting...' : 'Coffee Break'}
+                </span>
               </button>
               <button
                 onClick={() => handleStartBreak('rest')}
-                className="flex items-center justify-center space-x-2 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                disabled={breakLoading}
+                className="flex items-center justify-center space-x-2 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50"
               >
-                <Bed size={20} className="text-purple-600" />
-                <span className="text-sm font-medium text-purple-800">Rest Break</span>
+                {breakLoading ? (
+                  <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Bed size={20} className="text-purple-600" />
+                )}
+                <span className="text-sm font-medium text-purple-800">
+                  {breakLoading ? 'Starting...' : 'Rest Break'}
+                </span>
               </button>
             </div>
           </div>
@@ -1611,7 +1529,34 @@ const AttendancePage: React.FC = () => {
             />
           </div>
         )}
+
+        {/* API Test Modal */}
+        {showApiTest && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="w-full max-w-4xl">
+              <AttendanceTest />
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setShowApiTest(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </AnimatePresence>
+
+      {/* API Test Button */}
+      <div className="fixed bottom-4 right-4">
+        <button
+          onClick={() => setShowApiTest(true)}
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-600 transition-colors"
+        >
+          API Test
+        </button>
+      </div>
     </div>
   );
 };
