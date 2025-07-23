@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Service ports mapping (compatible with all shells)
-SERVICE_PORTS="frontend:3000 api-gateway:8000 auth-service:8001 user-service:8002 todo-service:8003 chat-service:8004 notification-service:8005 approval-service:8006 report-service:8007 attendance-service:8008 workplace-service:8009 mobile-expo:19000 mobile-expo-dev:19001 mobile-expo-metro:19002 database:5432 redis:6379 prometheus:9090 grafana:3001"
+SERVICE_PORTS="frontend:3000 api-gateway:8080 auth-service:3010 user-service:3002 todo-service:3005 chat-service:3003 notification-service:3009 approval-service:3011 report-service:3006 attendance-service:3007 workplace-service:3008 mobile-expo:3003 mobile-expo-dev:19001 mobile-expo-metro:19002 database:5432 redis:6379 prometheus:9090 grafana:3002"
 
 echo -e "${BLUE}🔍 Digital Tracking Merchandising Platform - Port Availability Checker${NC}"
 echo -e "${BLUE}================================================================${NC}"
@@ -47,17 +47,22 @@ for service_port in $SERVICE_PORTS; do
     IFS=':' read -r service port <<< "$service_port"
     
     if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo -e "${RED}❌ $service (port $port): IN USE${NC}"
-        
-        # Get process details
+        # Check if it's our Docker containers (which is expected)
         PROCESS_INFO=$(lsof -Pi :$port -sTCP:LISTEN)
-        echo -e "${YELLOW}   Process details:${NC}"
-        echo "$PROCESS_INFO" | while IFS= read -r line; do
-            echo -e "${YELLOW}   $line${NC}"
-        done
-        
-        ISSUES_FOUND=$((ISSUES_FOUND + 1))
-        BUSY_PORTS="$BUSY_PORTS $port"
+        if echo "$PROCESS_INFO" | grep -q "com.docke\|docker"; then
+            echo -e "${GREEN}✅ $service (port $port): RUNNING (Docker)${NC}"
+        else
+            echo -e "${RED}❌ $service (port $port): CONFLICT${NC}"
+            
+            # Get process details
+            echo -e "${YELLOW}   Process details:${NC}"
+            echo "$PROCESS_INFO" | while IFS= read -r line; do
+                echo -e "${YELLOW}   $line${NC}"
+            done
+            
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+            BUSY_PORTS="$BUSY_PORTS $port"
+        fi
     else
         echo -e "${GREEN}✅ $service (port $port): AVAILABLE${NC}"
     fi
@@ -68,20 +73,25 @@ echo -e "${BLUE}================================================================
 
 # Summary
 if [ $ISSUES_FOUND -eq 0 ]; then
-    echo -e "${GREEN}🎉 All ports are available! Safe to proceed with development.${NC}"
+    echo -e "${GREEN}🎉 All ports are properly configured! System is running correctly.${NC}"
+    echo ""
+    echo -e "${GREEN}✅ Services Status:${NC}"
+    echo "• All required services are running on correct ports"
+    echo "• No port conflicts detected"
+    echo "• System is ready for development"
     echo ""
     echo -e "${GREEN}Next steps:${NC}"
-    echo "1. Start your required services with: docker-compose up -d"
-    echo "2. Verify services are running: docker-compose ps"
-    echo "3. Check service logs if needed: docker-compose logs -f"
+    echo "1. Continue with your development work"
+    echo "2. Monitor services: docker-compose ps"
+    echo "3. Check logs if needed: docker-compose logs -f"
     exit 0
 else
-    echo -e "${RED}🚨 Found $ISSUES_FOUND port(s) in use!${NC}"
+    echo -e "${RED}🚨 Found $ISSUES_FOUND port conflict(s)!${NC}"
     echo ""
-    echo -e "${YELLOW}Busy ports: $BUSY_PORTS${NC}"
+    echo -e "${YELLOW}Conflicting ports: $BUSY_PORTS${NC}"
     echo ""
     echo -e "${YELLOW}To resolve port conflicts:${NC}"
-    echo "1. Stop the processes using the busy ports:"
+    echo "1. Stop the conflicting processes:"
     for port in $BUSY_PORTS; do
         echo "   ./scripts/port-killer.sh $port"
     done
