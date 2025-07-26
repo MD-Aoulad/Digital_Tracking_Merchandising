@@ -16,6 +16,9 @@ RUN npm install --omit=dev
 # Copy source code
 COPY . .
 
+# Copy backend directory for chat-api (commented out as it doesn't exist)
+# COPY ../../backend ./backend
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001

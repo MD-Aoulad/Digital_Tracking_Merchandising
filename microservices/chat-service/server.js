@@ -73,7 +73,7 @@ const morgan = require('morgan');
 const winston = require('winston');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { router: chatApiRouter } = require('../../backend/chat-api');
+// const { router: chatApiRouter } = require('../../backend/chat-api'); // TEMPORARILY DISABLED
 
 // Initialize Express application and HTTP server
 const app = express();
@@ -84,7 +84,9 @@ const io = new Server(server, {
   cors: {
     origin: "*", // Configure for production with specific origins
     methods: ["GET", "POST"]
-  }
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 // Service configuration
@@ -263,7 +265,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Mount the chat-api.js router at the root of the chat-service so /channels and related routes are available.
-app.use('/', chatApiRouter);
+// app.use('/', chatApiRouter); // TEMPORARILY DISABLED
 
 // ===== RATE LIMITING =====
 

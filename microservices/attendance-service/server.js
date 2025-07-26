@@ -1190,6 +1190,50 @@ app.post('/api/attendance/approval/:requestId/action',
   }
 );
 
+// Get available workplaces
+app.get('/api/attendance/workplaces', authenticateToken, async (req, res) => {
+  try {
+    if (!pool) {
+      // Mock response for testing when database is not available
+      return res.json({
+        success: true,
+        data: [
+          {
+            id: '550e8400-e29b-41d4-a716-446655440001',
+            name: 'Main Office',
+            address: '123 Main Street, New York, NY 10001',
+            latitude: 40.7128,
+            longitude: -74.0060,
+            radius: 100,
+            isActive: true
+          }
+        ]
+      });
+    }
+
+    const result = await pool.query(
+      'SELECT id, name, address, latitude, longitude, radius, is_active FROM workplaces WHERE is_active = true ORDER BY name'
+    );
+
+    res.json({
+      success: true,
+      data: result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        address: row.address,
+        latitude: parseFloat(row.latitude),
+        longitude: parseFloat(row.longitude),
+        radius: row.radius,
+        isActive: row.is_active
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error getting workplaces:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get Attendance History
 app.get('/api/attendance/history',
   authenticateToken,

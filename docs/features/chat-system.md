@@ -1,5 +1,50 @@
 # Chat System Feature Documentation
 
+## DevOps Recovery Plan for chat-service Crash Loop
+
+If the chat-service enters a restarting/crashing loop, follow this plan:
+
+1. **Log Analysis:**
+   - Run `docker logs chat-service --tail=100` to view recent errors and stack traces.
+2. **Environment Variable Check:**
+   - Ensure all required environment variables (e.g., `DATABASE_URL`, `JWT_SECRET`) are set in the Docker Compose file.
+3. **Database Health:**
+   - Confirm the chat database container is running and accessible.
+   - Test DB connectivity from within the chat-service container if needed.
+4. **Database Schema/Migrations:**
+   - Ensure all required tables exist (see `backend/chat_system.sql`).
+   - Run migrations if needed.
+5. **Dependency/Code Errors:**
+   - Check for missing dependencies or runtime errors in the logs.
+6. **Port Conflicts:**
+   - Ensure the service port is not in use by another process/container.
+7. **Restart Service:**
+   - After addressing issues, restart the chat-service container.
+
+Document all findings and fixes in this file for future reference.
+
+---
+
+### Service Port Mapping
+| Service              | External Port | Internal Port | Protocol | Purpose                  |
+|----------------------|--------------|--------------|----------|--------------------------|
+| Frontend             | 3000         | 3000         | HTTP     | React Web Application    |
+| API Gateway          | 8080         | 3000         | HTTP     | Microservices Router     |
+| Auth Service         | 3010         | 3001         | HTTP     | Authentication           |
+| User Service         | 3002         | 3002         | HTTP     | User Management          |
+| Chat Service         | 3003         | 3003         | HTTP/WS  | Real-time Chat           |
+| Attendance Service   | 3007         | 3007         | HTTP     | Attendance Tracking      |
+| Todo Service         | 3005         | 3005         | HTTP     | Task Management          |
+| Report Service       | 3006         | 3006         | HTTP     | Reporting                |
+| Approval Service     | 3011         | 3011         | HTTP     | Approval Workflows       |
+| Workplace Service    | 3008         | 3008         | HTTP     | Workplace Management     |
+| Notification Service | 3009         | 3009         | HTTP     | Notifications            |
+| Mobile App           | 3003         | 3002         | HTTP     | Mobile API Gateway       |
+| Grafana              | 3002         | 3000         | HTTP     | Monitoring Dashboard     |
+| Prometheus           | 9090         | 9090         | HTTP     | Metrics Collection       |
+| Redis                | 6379         | 6379         | TCP      | Caching & Sessions       |
+| Nginx (Load Balancer)| 80           | 80           | HTTP     | Reverse Proxy            |
+
 ## Overview
 
 The Chat System is a comprehensive communication platform integrated into the Digital Tracking Merchandising system that provides both business messenger functionality and internal help desk capabilities. This feature enables real-time communication between team members and provides a structured way for employees to contact managers for specific inquiries or requests.

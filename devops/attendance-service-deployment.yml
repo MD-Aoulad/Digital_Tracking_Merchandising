@@ -97,7 +97,7 @@ services:
     container_name: pgadmin
     environment:
       - PGADMIN_DEFAULT_EMAIL=admin@attendance.com
-              - PGADMIN_DEFAULT_PASSWORD=password
+      - PGADMIN_DEFAULT_PASSWORD=password
       - PGADMIN_CONFIG_SERVER_MODE=False
     volumes:
       - pgadmin-data:/var/lib/pgadmin
@@ -134,14 +134,14 @@ services:
     image: grafana/grafana:latest
     container_name: attendance-grafana
     environment:
-              - GF_SECURITY_ADMIN_PASSWORD=password
+      - GF_SECURITY_ADMIN_PASSWORD=password
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     ports:
-      - "3008:3000"
+      - "3002:3000"
     depends_on:
       - prometheus
     networks:

@@ -333,6 +333,7 @@ const createProxy = (target, options = {}) => {
     proxyTimeout: options.proxyTimeout || 60000,
     xfwd: true,
     secure: false,
+    pathRewrite: options.pathRewrite || {},
     // Improved connection pooling
     agent: new (require('http').Agent)({
       keepAlive: true,
@@ -1002,7 +1003,63 @@ app.use('/health/notifications', createProxy(services.notification, {
 
 // Protected routes (require authentication)
 app.use('/api/users', verifyToken, createProxy(services.user));
-app.use('/api/chat', verifyToken, createProxy(services.chat));
+// Chat service proxy with path rewriting
+const chatServiceProxy = createProxyMiddleware({
+  target: services.chat,
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api/chat': ''
+  },
+  logLevel: 'debug',
+  onProxyReq: (proxyReq, req, res) => {
+    // Add user info to request headers
+    if (req.user) {
+      try {
+        const userId = req.user.id || req.user.userId;
+        if (userId && userId !== 'undefined' && userId !== undefined && userId !== null) {
+          proxyReq.setHeader('X-User-ID', userId.toString());
+        }
+        if (req.user.role && req.user.role !== 'undefined' && req.user.role !== undefined && req.user.role !== null) {
+          proxyReq.setHeader('X-User-Role', req.user.role.toString());
+        }
+      } catch (error) {
+        logger.error('Error setting user headers:', error);
+      }
+    }
+    
+    // Add request ID for tracking
+    const requestId = Math.random().toString(36).substring(2, 15);
+    proxyReq.setHeader('X-Request-ID', requestId);
+    
+    // Log request with request ID
+    logger.info(`${req.method} ${req.path} -> ${services.chat}`, {
+      requestId: requestId,
+      user: req.user?.id || req.user?.userId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // Log response with status
+    logger.info(`Response from ${services.chat}: ${proxyRes.statusCode}`, {
+      path: req.path,
+      method: req.method,
+      statusCode: proxyRes.statusCode
+    });
+  },
+  onError: (err, req, res) => {
+    logger.error(`Chat proxy error:`, err);
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Chat service unavailable',
+        details: err.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+});
+
+app.use('/api/chat', verifyToken, chatServiceProxy);
 app.use('/api/attendance', verifyToken, createProxy(services.attendance));
 app.use('/api/todos', verifyToken, createProxy(services.todo));
 app.use('/api/reports', verifyToken, createProxy(services.report));
@@ -1011,7 +1068,8 @@ app.use('/api/workplace', verifyToken, createProxy(services.workplace));
 app.use('/api/notifications', verifyToken, createProxy(services.notification));
 
 // Socket.IO proxy for chat service
-const chatProxy = createProxy(services.chat, {
+const chatWebSocketProxy = createProxyMiddleware({
+  target: services.chat,
   ws: true,
   changeOrigin: true,
   pathRewrite: {
@@ -1037,11 +1095,11 @@ const chatProxy = createProxy(services.chat, {
 });
 
 // Apply Socket.IO proxy to both HTTP and WebSocket requests
-app.use('/ws', chatProxy);
+app.use('/ws', chatWebSocketProxy);
 server.on('upgrade', (request, socket, head) => {
   if (request.url.startsWith('/ws')) {
     logger.info('Socket.IO upgrade request for /ws');
-    chatProxy.upgrade(request, socket, head);
+    chatWebSocketProxy.upgrade(request, socket, head);
   }
 });
 

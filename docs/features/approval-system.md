@@ -1,3 +1,25 @@
+# Approval System Feature Documentation
+
+### Service Port Mapping
+| Service              | External Port | Internal Port | Protocol | Purpose                  |
+|----------------------|--------------|--------------|----------|--------------------------|
+| Frontend             | 3000         | 3000         | HTTP     | React Web Application    |
+| API Gateway          | 8080         | 3000         | HTTP     | Microservices Router     |
+| Auth Service         | 3010         | 3001         | HTTP     | Authentication           |
+| User Service         | 3002         | 3002         | HTTP     | User Management          |
+| Chat Service         | 3003         | 3003         | HTTP/WS  | Real-time Chat           |
+| Attendance Service   | 3007         | 3007         | HTTP     | Attendance Tracking      |
+| Todo Service         | 3005         | 3005         | HTTP     | Task Management          |
+| Report Service       | 3006         | 3006         | HTTP     | Reporting                |
+| Approval Service     | 3011         | 3011         | HTTP     | Approval Workflows       |
+| Workplace Service    | 3008         | 3008         | HTTP     | Workplace Management     |
+| Notification Service | 3009         | 3009         | HTTP     | Notifications            |
+| Mobile App           | 3003         | 3002         | HTTP     | Mobile API Gateway       |
+| Grafana              | 3002         | 3000         | HTTP     | Monitoring Dashboard     |
+| Prometheus           | 9090         | 9090         | HTTP     | Metrics Collection       |
+| Redis                | 6379         | 6379         | TCP      | Caching & Sessions       |
+| Nginx (Load Balancer)| 80           | 80           | HTTP     | Reverse Proxy            |
+
 # Approval System Feature
 
 ## Overview

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { shadowStyles } from '../utils/shadows';
+import { punchIn, punchOut, getCurrentAttendance, getWorkplaces, Attendance } from '../services/attendanceApi';
 
 interface PunchRecord {
   id: string;
@@ -36,6 +37,8 @@ const PunchInScreen: React.FC = () => {
     longitude: number;
     address: string;
   } | null>(null);
+  const [workplaces, setWorkplaces] = useState<any[]>([]);
+  const [selectedWorkplace, setSelectedWorkplace] = useState<any>(null);
 
   // Update current time every second
   useEffect(() => {
@@ -46,25 +49,50 @@ const PunchInScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Get current status based on today's records
+  // Load current attendance status from API
   useEffect(() => {
-    const today = new Date().toDateString();
-    const todayPunches = todayRecords.filter(record => 
-      new Date(record.timestamp).toDateString() === today
-    );
-    
-    if (todayPunches.length === 0) {
-      setCurrentStatus('out');
-    } else if (todayPunches.length % 2 === 1) {
-      setCurrentStatus('in');
-    } else {
-      setCurrentStatus('out');
-    }
-  }, [todayRecords]);
+    const loadCurrentAttendance = async () => {
+      try {
+        console.log('Loading current attendance from API...');
+        const currentAttendance = await getCurrentAttendance();
+        console.log('Current attendance response:', currentAttendance);
+        if (currentAttendance) {
+          setCurrentStatus('in');
+        } else {
+          setCurrentStatus('out');
+        }
+      } catch (error) {
+        console.error('Error loading current attendance:', error);
+        setCurrentStatus('out');
+      }
+    };
+
+    loadCurrentAttendance();
+  }, []);
+
+  // Load available workplaces
+  useEffect(() => {
+    const loadWorkplaces = async () => {
+      try {
+        console.log('Loading workplaces from API...');
+        const workplacesList = await getWorkplaces();
+        console.log('Workplaces response:', workplacesList);
+        setWorkplaces(workplacesList);
+        if (workplacesList.length > 0) {
+          setSelectedWorkplace(workplacesList[0]); // Select first workplace by default
+        }
+      } catch (error) {
+        console.error('Error loading workplaces:', error);
+      }
+    };
+
+    loadWorkplaces();
+  }, []);
 
   const getCurrentLocation = async () => {
     try {
-      // Mock location for demo - in production, use expo-location
+      // For now, use mock location until expo-location is properly configured
+      // In production, this should use expo-location for real GPS
       const mockLocation = {
         latitude: 37.7749,
         longitude: -122.4194,
@@ -81,7 +109,8 @@ const PunchInScreen: React.FC = () => {
 
   const takePhoto = async () => {
     try {
-      // Mock photo capture - in production, use expo-camera
+      // For now, use mock photo until expo-image-picker is properly configured
+      // In production, this should use expo-image-picker for real photo capture
       const mockPhoto = 'data:image/jpeg;base64,mock-photo-data';
       return mockPhoto;
     } catch (error) {
@@ -105,25 +134,51 @@ const PunchInScreen: React.FC = () => {
       // Take photo
       const photo = await takePhoto();
 
-      // Create punch record
-      const punchRecord: PunchRecord = {
-        id: Date.now().toString(),
-        type: currentStatus === 'out' ? 'clock-in' : 'clock-out',
-        timestamp: new Date().toISOString(),
-        location: currentLocation,
-        photo: photo || undefined,
-      };
+      // Call real API instead of storing locally
+      if (currentStatus === 'out') {
+        // Punch in
+        console.log('Attempting to punch in with real API...');
+        const result = await punchIn({
+          workplaceId: selectedWorkplace?.id || '550e8400-e29b-41d4-a716-446655440001', // Use selected workplace or fallback
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          accuracy: 5,
+          notes: 'Punch in from mobile app',
+          deviceInfo: 'Mobile App',
+          photo: photo ? new File([photo], 'punchin.jpg') : undefined
+        });
+        console.log('Punch in result:', result);
 
-      // Add to records
-      setTodayRecords(prev => [...prev, punchRecord]);
+        Alert.alert(
+          'Success!',
+          `Clock In recorded successfully at ${new Date().toLocaleTimeString()}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Punch out
+        const result = await punchOut({
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          accuracy: 5,
+          notes: 'Punch out from mobile app',
+          deviceInfo: 'Mobile App',
+          photo: photo ? new File([photo], 'punchout.jpg') : undefined
+        });
 
-      // Show success message
-      const action = currentStatus === 'out' ? 'Clock In' : 'Clock Out';
-      Alert.alert(
-        'Success!',
-        `${action} recorded successfully at ${new Date().toLocaleTimeString()}`,
-        [{ text: 'OK' }]
-      );
+        Alert.alert(
+          'Success!',
+          `Clock Out recorded successfully at ${new Date().toLocaleTimeString()}`,
+          [{ text: 'OK' }]
+        );
+      }
+
+      // Refresh current attendance status
+      const currentAttendance = await getCurrentAttendance();
+      if (currentAttendance) {
+        setCurrentStatus('in');
+      } else {
+        setCurrentStatus('out');
+      }
 
     } catch (error) {
       console.error('Punch error:', error);
@@ -198,6 +253,14 @@ const PunchInScreen: React.FC = () => {
           <Text style={styles.infoTitle}>Location</Text>
           <Text style={styles.infoText}>
             {location ? location.address : 'Getting location...'}
+          </Text>
+        </View>
+        
+        <View style={styles.infoCard}>
+          <Ionicons name="business" size={24} color="#007AFF" />
+          <Text style={styles.infoTitle}>Workplace</Text>
+          <Text style={styles.infoText}>
+            {selectedWorkplace ? selectedWorkplace.name : 'Loading workplaces...'}
           </Text>
         </View>
 

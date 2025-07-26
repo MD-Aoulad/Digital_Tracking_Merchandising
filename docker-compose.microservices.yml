@@ -1,0 +1,433 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:3000"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+      - user-service
+      - chat-service
+      - attendance-service
+      - todo-service
+      - report-service
+      - approval-service
+      - workplace-service
+      - notification-service
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REACT_APP_API_URL=http://localhost:8080/api
+    depends_on:
+      - api-gateway
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./microservices/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "3010:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://auth_user:auth_password@auth-db:5432/auth_db
+    depends_on:
+      - auth-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    environment:
+      - POSTGRES_DB=auth_db
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # User Service
+  user-service:
+    build:
+      context: ./microservices/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "3012:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - DATABASE_URL=postgresql://user_user:user_password@user-db:5432/user_db
+    depends_on:
+      - user-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  user-db:
+    image: postgres:15-alpine
+    container_name: user-db
+    environment:
+      - POSTGRES_DB=user_db
+      - POSTGRES_USER=user_user
+      - POSTGRES_PASSWORD=user_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Chat Service
+  chat-service:
+    build:
+      context: ./microservices/chat-service
+      dockerfile: Dockerfile
+    container_name: chat-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - DATABASE_URL=postgresql://chat_user:chat_password@chat-db:5432/chat_db
+    depends_on:
+      - chat-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  chat-db:
+    image: postgres:15-alpine
+    container_name: chat-db
+    environment:
+      - POSTGRES_DB=chat_db
+      - POSTGRES_USER=chat_user
+      - POSTGRES_PASSWORD=chat_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Attendance Service
+  attendance-service:
+    build:
+      context: ./microservices/attendance-service
+      dockerfile: Dockerfile
+    container_name: attendance-service
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - DATABASE_URL=postgresql://attendance_user:attendance_password@attendance-db:5432/attendance_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - attendance-db
+      - redis
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  attendance-db:
+    image: postgres:15-alpine
+    container_name: attendance-db
+    environment:
+      - POSTGRES_DB=attendance_db
+      - POSTGRES_USER=attendance_user
+      - POSTGRES_PASSWORD=attendance_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - attendance-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Todo Service
+  todo-service:
+    build:
+      context: ./microservices/todo-service
+      dockerfile: Dockerfile
+    container_name: todo-service
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - DATABASE_URL=postgresql://todo_user:todo_password@todo-db:5432/todo_db
+    depends_on:
+      - todo-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  todo-db:
+    image: postgres:15-alpine
+    container_name: todo-db
+    environment:
+      - POSTGRES_DB=todo_db
+      - POSTGRES_USER=todo_user
+      - POSTGRES_PASSWORD=todo_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - todo-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Report Service
+  report-service:
+    build:
+      context: ./microservices/report-service
+      dockerfile: Dockerfile
+    container_name: report-service
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - DATABASE_URL=postgresql://report_user:report_password@report-db:5432/report_db
+    depends_on:
+      - report-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  report-db:
+    image: postgres:15-alpine
+    container_name: report-db
+    environment:
+      - POSTGRES_DB=report_db
+      - POSTGRES_USER=report_user
+      - POSTGRES_PASSWORD=report_password
+    ports:
+      - "5437:5432"
+    volumes:
+      - report-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Approval Service
+  approval-service:
+    build:
+      context: ./microservices/approval-service
+      dockerfile: Dockerfile
+    container_name: approval-service
+    ports:
+      - "3011:3011"
+    environment:
+      - NODE_ENV=production
+      - PORT=3011
+      - DATABASE_URL=postgresql://approval_user:approval_password@approval-db:5432/approval_db
+    depends_on:
+      - approval-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  approval-db:
+    image: postgres:15-alpine
+    container_name: approval-db
+    environment:
+      - POSTGRES_DB=approval_db
+      - POSTGRES_USER=approval_user
+      - POSTGRES_PASSWORD=approval_password
+    ports:
+      - "5438:5432"
+    volumes:
+      - approval-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Workplace Service
+  workplace-service:
+    build:
+      context: ./microservices/workplace-service
+      dockerfile: Dockerfile
+    container_name: workplace-service
+    ports:
+      - "3008:3008"
+    environment:
+      - NODE_ENV=production
+      - PORT=3008
+      - DATABASE_URL=postgresql://workplace_user:workplace_password@workplace-db:5432/workplace_db
+    depends_on:
+      - workplace-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  workplace-db:
+    image: postgres:15-alpine
+    container_name: workplace-db
+    environment:
+      - POSTGRES_DB=workplace_db
+      - POSTGRES_USER=workplace_user
+      - POSTGRES_PASSWORD=workplace_password
+    ports:
+      - "5439:5432"
+    volumes:
+      - workplace-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./microservices/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "3009:3009"
+    environment:
+      - NODE_ENV=production
+      - PORT=3009
+      - DATABASE_URL=postgresql://notification_user:notification_password@notification-db:5432/notification_db
+    depends_on:
+      - notification-db
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  notification-db:
+    image: postgres:15-alpine
+    container_name: notification-db
+    environment:
+      - POSTGRES_DB=notification_db
+      - POSTGRES_USER=notification_user
+      - POSTGRES_PASSWORD=notification_password
+    ports:
+      - "5440:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    networks:
+      - microservices-network
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3002:3000"
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@attendance.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    ports:
+      - "8088:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Redis Commander
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    ports:
+      - "8087:8081"
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  auth-db-data:
+  user-db-data:
+  chat-db-data:
+  attendance-db-data:
+  todo-db-data:
+  report-db-data:
+  approval-db-data:
+  workplace-db-data:
+  notification-db-data:
+  pgadmin-data: 

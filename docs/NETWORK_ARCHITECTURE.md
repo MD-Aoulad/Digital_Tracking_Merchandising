@@ -4,6 +4,27 @@
 ### Overview
 The Digital Tracking Merchandising Platform uses a microservices architecture with Docker containers orchestrated through Docker Compose. The network infrastructure is designed for high availability, scalability, and maintainability.
 
+### Service Port Mapping
+| Service              | External Port | Internal Port | Protocol | Purpose                  |
+|----------------------|--------------|--------------|----------|--------------------------|
+| Frontend             | 3000         | 3000         | HTTP     | React Web Application    |
+| API Gateway          | 8080         | 3000         | HTTP     | Microservices Router     |
+| Auth Service         | 3010         | 3001         | HTTP     | Authentication           |
+| User Service         | 3002         | 3002         | HTTP     | User Management          |
+| Chat Service         | 3003         | 3003         | HTTP/WS  | Real-time Chat           |
+| Attendance Service   | 3007         | 3007         | HTTP     | Attendance Tracking      |
+| Todo Service         | 3005         | 3005         | HTTP     | Task Management          |
+| Report Service       | 3006         | 3006         | HTTP     | Reporting                |
+| Approval Service     | 3011         | 3011         | HTTP     | Approval Workflows       |
+| Workplace Service    | 3008         | 3008         | HTTP     | Workplace Management     |
+| Notification Service | 3009         | 3009         | HTTP     | Notifications            |
+| Mobile App           | 3003         | 3002         | HTTP     | Mobile API Gateway       |
+| Grafana              | 3002         | 3000         | HTTP     | Monitoring Dashboard     |
+| Prometheus           | 9090         | 9090         | HTTP     | Metrics Collection       |
+| Redis                | 6379         | 6379         | TCP      | Caching & Sessions       |
+| Nginx (Load Balancer)| 80           | 80           | HTTP     | Reverse Proxy            |
+| **pgAdmin**          | **8088**     | **80**       | HTTP     | PostgreSQL Admin Tool    |
+
 ---
 
 ## 🏗️ Network Architecture
@@ -277,3 +298,86 @@ The Digital Tracking Merchandising Platform uses a microservices architecture wi
 
 *Last Updated: July 19, 2025*
 *Network Engineer: Senior Network Engineer (8+ Years Experience)* 
+
+---
+
+## 🛠️ Admin Tools
+
+### pgAdmin
+- **Purpose:** PostgreSQL database administration via web UI
+- **Port Assignment:** 8088 (external) → 80 (internal)
+- **Docker Compose Example:**
+  ```yaml
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@attendance.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "8088:80"
+    depends_on:
+      - attendance-db
+      - user-db
+      # ... other DBs as needed
+    networks:
+      - microservices-network
+    restart: unless-stopped
+  ```
+- **Conflict Resolution:**
+  - If port 8088 is in use, identify and stop the conflicting process/container (never change the port assignment).
+  - Use `lsof -i :8088` and `docker rm -f <container>` as needed.
+- **Network Placement:**
+  - Must be on the same Docker network as all PostgreSQL databases for access.
+- **Access:**
+  - http://localhost:8088
+
+--- 
+
+## 🖥️ Grafana Monitoring Service
+
+- **Purpose:**
+  - Real-time monitoring and visualization of metrics, logs, and service health for all microservices.
+  - Used for alerting, troubleshooting, and compliance with operational transparency requirements.
+- **Port Assignment:**
+  - **External Port:** 3002
+  - **Internal Port:** 3000
+  - **Protocol:** HTTP
+- **Access URL:**
+  - [http://localhost:3002](http://localhost:3002)
+- **Default Credentials:**
+  - **Username:** admin
+  - **Password:** password
+- **Password Reset Procedure:**
+  - If you cannot log in with the default credentials, reset the admin password with:
+    ```bash
+    docker exec grafana grafana-cli admin reset-admin-password password
+    ```
+  - This will set the admin password to `password`.
+- **Docker Compose Example:**
+  ```yaml
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=password
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - microservices-network
+    restart: unless-stopped
+  ```
+- **Best Practices:**
+  - Change the default password after first login for security.
+  - Use persistent volumes to retain dashboards and settings.
+  - Set up alerts for critical metrics and service failures. 

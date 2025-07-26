@@ -16,7 +16,8 @@
  * @version 1.0.0
  */
 
-const WEBSOCKET_URL = 'ws://localhost:3010/ws';
+// Update WebSocket URL to connect directly to chat service
+const WEBSOCKET_URL = 'ws://localhost:3012';
 
 export interface AttendanceUpdate {
   type: 'attendance_update';
@@ -252,6 +253,25 @@ export class AttendanceWebSocket {
       }
     }, delay);
   }
+
+  /**
+   * Join a workplace room to receive real-time updates
+   */
+  joinWorkplaceRoom(workplaceId: string) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // For Socket.io, this would be socket.emit; for native WS, send a message
+      this.send({ type: 'join-workplace', payload: { workplaceId } });
+    }
+  }
+
+  /**
+   * Leave a workplace room
+   */
+  leaveWorkplaceRoom(workplaceId: string) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({ type: 'leave-workplace', payload: { workplaceId } });
+    }
+  }
 }
 
 // Create singleton instance
@@ -264,3 +284,7 @@ export const sendWebSocketMessage = (message: WebSocketMessage) => attendanceWeb
 export const onWebSocketEvent = (eventType: string, handler: WebSocketEventHandler) => attendanceWebSocket.on(eventType, handler);
 export const offWebSocketEvent = (eventType: string, handler: WebSocketEventHandler) => attendanceWebSocket.off(eventType, handler);
 export const getWebSocketStatus = () => attendanceWebSocket.getConnectionStatus(); 
+
+// Export join/leave room helpers
+export const joinWorkplaceRoom = (workplaceId: string) => attendanceWebSocket.joinWorkplaceRoom(workplaceId);
+export const leaveWorkplaceRoom = (workplaceId: string) => attendanceWebSocket.leaveWorkplaceRoom(workplaceId); 

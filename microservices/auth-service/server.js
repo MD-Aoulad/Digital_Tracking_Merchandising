@@ -19,7 +19,7 @@ app.use((req, res, next) => {
 // Database connection with optimized settings
 const pool = new Pool({
   connectionString: process.env.AUTH_DB_URL || 'postgresql://auth_user:auth_password@auth-db:5432/auth_db',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: false, // Disable SSL for local development
   connectionTimeoutMillis: 30000, // 30 seconds
   idleTimeoutMillis: 60000, // 60 seconds
   max: 20, // Maximum number of clients

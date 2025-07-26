@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  workplace-db:
+    image: postgres:15-alpine
+    container_name: workplace-db
+    environment:
+      - POSTGRES_DB=workplace_db
+      - POSTGRES_USER=workplace_user
+      - POSTGRES_PASSWORD=workplace_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - workplace-db-data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "5439:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workplace_user -d workplace_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  workplace-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: workplace-service
+    environment:
+      - NODE_ENV=production
+      - PORT=3008
+      - DATABASE_URL=postgresql://workplace_user:workplace_password@workplace-db:5432/workplace_db
+    depends_on:
+      - workplace-db
+    ports:
+      - "3008:3008"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  workplace-db-data:
+    driver: local 
