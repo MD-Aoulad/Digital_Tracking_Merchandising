@@ -1075,6 +1075,11 @@ const chatWebSocketProxy = createProxyMiddleware({
   pathRewrite: {
     '^/ws': '/socket.io'
   },
+  logLevel: 'debug',
+  timeout: 60000,
+  proxyTimeout: 60000,
+  xfwd: true,
+  secure: false,
   onProxyReq: (proxyReq, req, res) => {
     logger.info(`Socket.IO proxy request: ${req.method} ${req.path}`);
   },
@@ -1096,10 +1101,25 @@ const chatWebSocketProxy = createProxyMiddleware({
 
 // Apply Socket.IO proxy to both HTTP and WebSocket requests
 app.use('/ws', chatWebSocketProxy);
+
+// Handle WebSocket upgrade requests
 server.on('upgrade', (request, socket, head) => {
   if (request.url.startsWith('/ws')) {
     logger.info('Socket.IO upgrade request for /ws');
-    chatWebSocketProxy.upgrade(request, socket, head);
+    try {
+      // Set socket timeout
+      socket.setTimeout(60000);
+      
+      // Handle socket errors
+      socket.on('error', (error) => {
+        logger.error('Socket error:', error);
+      });
+      
+      chatWebSocketProxy.upgrade(request, socket, head);
+    } catch (error) {
+      logger.error('Error in WebSocket upgrade:', error);
+      socket.destroy();
+    }
   }
 });
 

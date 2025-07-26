@@ -29,7 +29,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE_URL = 'http://localhost:8080';
+// API Gateway connection
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 // ===== TYPE DEFINITIONS =====
 
@@ -1284,25 +1285,64 @@ export const getChatChannels = async () => {
 export const createChatChannel = async (channel: any) => {
   return apiRequest<any>('/api/chat/channels', {
     method: 'POST',
-    body: channel
+    body: JSON.stringify(channel)
   });
 };
+
+/**
+ * Transform API message to frontend message format
+ */
+const transformMessage = (apiMessage: any): any => ({
+  id: apiMessage.id,
+  channelId: apiMessage.channel_id,
+  senderId: apiMessage.sender_id,
+  content: apiMessage.content,
+  messageType: apiMessage.message_type,
+  replyToId: apiMessage.parent_message_id,
+  isEdited: apiMessage.is_edited,
+  isDeleted: apiMessage.is_deleted,
+  isPinned: false, // API doesn't return this yet
+  isFlagged: false, // API doesn't return this yet
+  createdAt: apiMessage.created_at,
+  updatedAt: apiMessage.updated_at || apiMessage.created_at,
+  editedAt: apiMessage.edited_at,
+  deletedAt: apiMessage.deleted_at,
+  metadata: apiMessage.metadata || {},
+  complianceData: {
+    gdprCompliant: true,
+    retentionPolicy: 'standard',
+    dataClassification: 'internal',
+    encryptionLevel: 'standard',
+    auditTrail: true,
+    legalHold: false,
+    exportable: true,
+    deletionAllowed: true
+  },
+  attachments: apiMessage.metadata?.attachments || [],
+  reactions: [],
+  readBy: [],
+  sender: null, // Will be populated separately if needed
+  replyTo: null,
+  threadMessages: []
+});
 
 /**
  * Get messages for a channel
  */
 export const getChannelMessages = async (channelId: string) => {
-  return apiRequest<any[]>(`/api/chat/channels/${channelId}/messages`);
+  const response = await apiRequest<any[]>(`/api/chat/channels/${channelId}/messages`);
+  return response.map(transformMessage);
 };
 
 /**
  * Send message to channel
  */
 export const sendChannelMessage = async (channelId: string, message: any) => {
-  return apiRequest<any>(`/api/chat/channels/${channelId}/messages`, {
+  const response = await apiRequest<any>(`/api/chat/channels/${channelId}/messages`, {
     method: 'POST',
-    body: message
+    body: JSON.stringify(message)
   });
+  return transformMessage(response);
 };
 
 /**

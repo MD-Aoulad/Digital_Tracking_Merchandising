@@ -62,6 +62,7 @@ const WhatsAppChatPage: React.FC<WhatsAppChatPageProps> = ({
     cleanup: cleanupSocket
   } = useChatSocket({
     userId: currentUser.id,
+    token: localStorage.getItem('authToken') || undefined,
     autoReconnect: true,
     maxReconnectAttempts: 10
   });

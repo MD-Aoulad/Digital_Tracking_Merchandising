@@ -19,7 +19,8 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const API_BASE = (process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8080/api/chat');
+// Direct connection to chat service (bypassing API Gateway)
+const API_BASE = (process.env.REACT_APP_CHAT_API_URL || 'http://localhost:3012');
 
 // ===== UTILITY FUNCTIONS =====
 
@@ -114,10 +115,10 @@ class SocketIOManager {
     this.userId = userId;
     this.isConnecting = true;
 
-    // Use the API Gateway for Socket.IO connections
-    const socketUrl = `http://localhost:8080`;
+    // Direct connection to chat service Socket.IO
+    const socketUrl = `http://localhost:3012`;
     this.socket = io(socketUrl, {
-      path: '/ws',
+      path: '/socket.io',
       query: { userId },
       transports: ['websocket', 'polling'],
       timeout: 20000,
@@ -259,11 +260,25 @@ class SocketIOManager {
 export const socketManager = new SocketIOManager();
 
 // Enhanced API request helper with authentication and retry logic
+// Rate limiting protection
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 2000; // 2 seconds between requests
+
 async function apiRequest<T>(
   endpoint: string, 
   options: RequestInit = {},
   retries: number = 3
 ): Promise<ChatApiResponse<T>> {
+  // Rate limiting: Ensure minimum 2 seconds between requests
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+    const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+    console.log(`Rate limiting: Waiting ${waitTime}ms before next request`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  lastRequestTime = Date.now();
+
   const url = `${API_BASE}${endpoint}`;
   const config: RequestInit = {
     headers: {
@@ -286,6 +301,7 @@ async function apiRequest<T>(
       }
 
       const data = await response.json();
+      // Removed debug logging to reduce console noise
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
@@ -328,7 +344,8 @@ export const channelApi = {
     }
     
     const response = await apiRequest<ChatChannel[]>('/channels');
-    return response.data || [];
+    // The API returns array directly, not wrapped in data property
+    return Array.isArray(response) ? response : (response.data || []);
   },
 
   // Create new channel
@@ -808,12 +825,15 @@ export function useChannels() {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔍 Fetching channels...');
       const data = await channelApi.getChannels();
-      setChannels(data);
+      console.log('📊 Channels received:', data);
+      console.log('📊 Channels length:', data?.length);
+      setChannels(data || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch channels';
       setError(errorMessage);
-      console.error('Error fetching channels:', err);
+      console.error('❌ Error fetching channels:', err);
     } finally {
       setLoading(false);
     }
@@ -821,6 +841,9 @@ export function useChannels() {
 
   useEffect(() => {
     fetchChannels();
+    
+    // REMOVED: Aggressive refresh interval causing rate limiting
+    // Only fetch once on mount to prevent API spam
   }, [fetchChannels]);
 
   const refreshChannels = useCallback(() => {

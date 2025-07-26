@@ -72,6 +72,7 @@ interface UseChatSocketReturn {
   cleanup: () => void;
 }
 
+// Direct connection to chat service (temporary workaround)
 const CHAT_SOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:3012';
 const TYPING_DEBOUNCE_MS = 1000; // 1 second debounce for typing events
 
@@ -101,12 +102,15 @@ export function useChatSocket({
       socketRef.current.disconnect();
     }
 
+    console.log('Creating Socket.IO connection with:', { userId, token: token ? 'present' : 'missing' });
+    
     const socket = io(CHAT_SOCKET_URL, {
       auth: { userId, token },
+      path: '/socket.io',
       transports: ['websocket'],
-             reconnection: autoReconnect,
-       reconnectionAttempts: maxReconnectAttempts,
-       reconnectionDelay: reconnectDelay,
+      reconnection: autoReconnect,
+      reconnectionAttempts: maxReconnectAttempts,
+      reconnectionDelay: reconnectDelay,
       timeout: 20000,
       forceNew: true
     });

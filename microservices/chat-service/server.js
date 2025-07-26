@@ -79,6 +79,18 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const server = createServer(app);
 
+// Set server timeouts
+server.timeout = 120000; // 2 minutes
+server.keepAliveTimeout = 65000; // 65 seconds
+server.headersTimeout = 66000; // 66 seconds
+
+// Request timeout middleware
+app.use((req, res, next) => {
+  req.setTimeout(120000); // 2 minutes
+  res.setTimeout(120000); // 2 minutes
+  next();
+});
+
 // Initialize Socket.IO server with CORS configuration
 const io = new Server(server, {
   cors: {
@@ -120,7 +132,9 @@ const pool = new Pool({
   connectionString: process.env.CHAT_DB_URL || 'postgresql://chat_user:chat_password@chat-db:5432/chat_db',
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  connectionTimeoutMillis: 30000, // Return an error after 30 seconds if connection could not be established
+  statement_timeout: 60000, // 60 seconds for query timeout
+  query_timeout: 60000, // 60 seconds for query timeout
 });
 
 // ===== REDIS CONFIGURATION =====
@@ -150,96 +164,9 @@ redisClient.connect().catch(console.error);
  */
 const initDatabase = async () => {
   try {
-    // Create chat rooms table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS chat_rooms (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        created_by UUID NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create chat messages table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        room_id UUID REFERENCES chat_rooms(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL,
-        message TEXT NOT NULL,
-        message_type VARCHAR(50) DEFAULT 'text',
-        attachments JSONB,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create chat participants table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS chat_participants (
-        room_id UUID REFERENCES chat_rooms(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL,
-        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (room_id, user_id)
-      )
-    `);
-
-    // Create direct messages table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS direct_messages (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        sender_id UUID NOT NULL,
-        recipient_id UUID NOT NULL,
-        message TEXT NOT NULL,
-        message_type VARCHAR(50) DEFAULT 'text',
-        attachments JSONB,
-        is_read BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create message reactions table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS message_reactions (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        message_id UUID NOT NULL,
-        user_id UUID NOT NULL,
-        reaction VARCHAR(50) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(message_id, user_id)
-      )
-    `);
-
-    // Create chat files table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS chat_files (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        filename VARCHAR(255) NOT NULL,
-        original_name VARCHAR(255) NOT NULL,
-        file_size INTEGER NOT NULL,
-        mime_type VARCHAR(100) NOT NULL,
-        uploaded_by UUID NOT NULL,
-        message_id UUID REFERENCES chat_messages(id) ON DELETE CASCADE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create performance indexes
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_chat_messages_room_id ON chat_messages(room_id);
-      CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
-      CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
-      CREATE INDEX IF NOT EXISTS idx_direct_messages_sender ON direct_messages(sender_id);
-      CREATE INDEX IF NOT EXISTS idx_direct_messages_recipient ON direct_messages(recipient_id);
-      CREATE INDEX IF NOT EXISTS idx_direct_messages_created_at ON direct_messages(created_at);
-      CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions(message_id);
-      CREATE INDEX IF NOT EXISTS idx_chat_participants_room_id ON chat_participants(room_id);
-    `);
-
-    logger.info('✅ Chat database tables initialized successfully');
+    // Use the proper schema from schema.sql instead of creating our own
+    // The schema.sql file already contains the correct table definitions
+    logger.info('✅ Using existing chat database schema from schema.sql');
   } catch (error) {
     logger.error('❌ Database initialization failed:', error);
     throw error; // Re-throw to prevent service startup with broken database
@@ -430,11 +357,11 @@ app.get('/rooms', verifyToken, async (req, res) => {
 app.get('/channels', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT cr.*, COUNT(cp.user_id) as participant_count
-      FROM chat_rooms cr
-      LEFT JOIN chat_participants cp ON cr.id = cp.room_id
-      GROUP BY cr.id
-      ORDER BY cr.updated_at DESC
+      SELECT cc.*, COUNT(cm.user_id) as participant_count
+      FROM chat_channels cc
+      LEFT JOIN chat_members cm ON cc.id = cm.channel_id
+      GROUP BY cc.id
+      ORDER BY cc.updated_at DESC
     `);
     
     res.json(result.rows);
@@ -475,27 +402,27 @@ app.post('/rooms', verifyToken, async (req, res) => {
 
 app.post('/channels', verifyToken, async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, channelType = 'general' } = req.body;
     const userId = req.user.id || req.user.userId || req.headers['x-user-id'];
 
     const result = await pool.query(`
-      INSERT INTO chat_rooms (name, description, created_by)
-      VALUES ($1, $2, $3)
+      INSERT INTO chat_channels (name, description, channel_type, created_by)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
-    `, [name, description, userId]);
+    `, [name, description, channelType, userId]);
 
-    const room = result.rows[0];
+    const channel = result.rows[0];
 
-    // Add creator as participant
+    // Add creator as member
     await pool.query(`
-      INSERT INTO chat_participants (room_id, user_id)
-      VALUES ($1, $2)
-    `, [room.id, userId]);
+      INSERT INTO chat_members (channel_id, user_id, role)
+      VALUES ($1, $2, 'owner')
+    `, [channel.id, userId]);
 
     // Notify all connected clients
-    io.emit('room-created', room);
+    io.emit('channel-created', channel);
 
-    res.status(201).json(room);
+    res.status(201).json(channel);
   } catch (error) {
     logger.error('Error creating chat channel:', error);
     res.status(500).json({ error: 'Failed to create chat channel' });
@@ -574,7 +501,7 @@ app.get('/channels/:id/messages', verifyToken, async (req, res) => {
     const result = await pool.query(`
       SELECT cm.*
       FROM chat_messages cm
-      WHERE cm.room_id = $1
+      WHERE cm.channel_id = $1
       ORDER BY cm.created_at DESC
       LIMIT $2 OFFSET $3
     `, [id, limit, offset]);
@@ -617,10 +544,10 @@ app.post('/channels/:id/messages', verifyToken, async (req, res) => {
     const userId = req.user.id || req.user.userId || req.headers['x-user-id'];
 
     const result = await pool.query(`
-      INSERT INTO chat_messages (room_id, user_id, message, message_type, attachments)
+      INSERT INTO chat_messages (channel_id, sender_id, content, message_type, metadata)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [id, userId, message, messageType, JSON.stringify(attachments)]);
+    `, [id, userId, message, messageType, JSON.stringify({ attachments })]);
 
     const newMessage = result.rows[0];
 
@@ -645,7 +572,7 @@ app.put('/channels/:id', verifyToken, async (req, res) => {
 
     // Check if user is admin or channel creator
     const channelResult = await pool.query(
-      'SELECT created_by FROM chat_rooms WHERE id = $1',
+      'SELECT created_by FROM chat_channels WHERE id = $1',
       [id]
     );
 
@@ -658,7 +585,7 @@ app.put('/channels/:id', verifyToken, async (req, res) => {
     }
 
     const result = await pool.query(`
-      UPDATE chat_rooms 
+      UPDATE chat_channels 
       SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP
       WHERE id = $3
       RETURNING *
@@ -679,7 +606,7 @@ app.delete('/channels/:id', verifyToken, async (req, res) => {
 
     // Check if user is admin or channel creator
     const channelResult = await pool.query(
-      'SELECT created_by FROM chat_rooms WHERE id = $1',
+      'SELECT created_by FROM chat_channels WHERE id = $1',
       [id]
     );
 
@@ -691,7 +618,7 @@ app.delete('/channels/:id', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
 
-    await pool.query('DELETE FROM chat_rooms WHERE id = $1', [id]);
+    await pool.query('DELETE FROM chat_channels WHERE id = $1', [id]);
 
     // Notify all clients
     io.emit('channel-deleted', { channelId: id });
@@ -711,7 +638,7 @@ app.post('/channels/:id/join', verifyToken, async (req, res) => {
 
     // Check if channel exists
     const channelResult = await pool.query(
-      'SELECT id FROM chat_rooms WHERE id = $1',
+      'SELECT id FROM chat_channels WHERE id = $1',
       [id]
     );
 
@@ -719,11 +646,11 @@ app.post('/channels/:id/join', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Channel not found' });
     }
 
-    // Add user to participants
+    // Add user to members
     await pool.query(`
-      INSERT INTO chat_participants (room_id, user_id)
-      VALUES ($1, $2)
-      ON CONFLICT (room_id, user_id) DO NOTHING
+      INSERT INTO chat_members (channel_id, user_id, role)
+      VALUES ($1, $2, 'member')
+      ON CONFLICT (channel_id, user_id) DO NOTHING
     `, [id, userId]);
 
     // Notify channel members
@@ -742,10 +669,10 @@ app.post('/channels/:id/leave', verifyToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id || req.user.userId || req.headers['x-user-id'];
 
-    // Remove user from participants
+    // Remove user from members
     await pool.query(`
-      DELETE FROM chat_participants 
-      WHERE room_id = $1 AND user_id = $2
+      DELETE FROM chat_members 
+      WHERE channel_id = $1 AND user_id = $2
     `, [id, userId]);
 
     // Notify channel members
@@ -1174,10 +1101,10 @@ io.on('connection', (socket) => {
       }
 
       const result = await pool.query(`
-        INSERT INTO chat_messages (room_id, user_id, message, message_type, attachments)
+        INSERT INTO chat_messages (channel_id, sender_id, content, message_type, metadata)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
-      `, [channelId, userId, message, messageType, JSON.stringify(attachments)]);
+      `, [channelId, userId, message, messageType, JSON.stringify({ attachments })]);
 
       const newMessage = result.rows[0];
       io.to(channelId).emit('new-message', newMessage);
@@ -1364,15 +1291,17 @@ io.on('connection', (socket) => {
 
       // Create message with file attachment
       const messageResult = await pool.query(`
-        INSERT INTO chat_messages (room_id, user_id, message, message_type, attachments)
+        INSERT INTO chat_messages (channel_id, sender_id, content, message_type, metadata)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
-      `, [channelId, userId, `File: ${fileName}`, 'file', JSON.stringify([{
-        filename: uniqueFilename,
-        originalName: fileName,
-        mimeType,
-        fileSize
-      }])]);
+      `, [channelId, userId, `File: ${fileName}`, 'file', JSON.stringify({
+        attachments: [{
+          filename: uniqueFilename,
+          originalName: fileName,
+          mimeType,
+          fileSize
+        }]
+      })]);
 
       const newMessage = messageResult.rows[0];
       io.to(channelId).emit('new-message', newMessage);
