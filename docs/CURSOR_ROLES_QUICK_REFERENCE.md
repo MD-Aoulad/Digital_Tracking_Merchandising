@@ -21,20 +21,23 @@ git pull origin main
 
 ## 🖥️ **Machine-Specific Role Selection**
 
-### **🍎 Mac Development**
+### **🍎 Mac Development (8GB RAM - Lightweight Mode)**
 **Primary Roles:**
 - **Frontend Developer** - React components, TypeScript, UI implementation
 - **UI/UX Expert** - Design systems, accessibility, user experience
 - **JavaScript/Animation Expert** - Performance, animations, micro-interactions
-- **Web App Tester** - Testing, QA, performance validation
-- **DevOps Engineer** - Deployment, infrastructure, monitoring
+
+**Memory Constraints:**
+- **Max Docker Memory**: 4GB
+- **Max Containers**: 5 essential services only
+- **Excluded**: Monitoring stack, mobile app, non-essential services
 
 **Workflow:**
 ```bash
-# Mac-specific setup
-./scripts/docker-service-manager.sh start --mac
+# Mac memory-optimized setup
+./scripts/mac-memory-optimizer.sh start
 docker-compose exec frontend-app bash
-# Work on components, UI/UX, testing
+# Work on components, UI/UX (lightweight mode)
 ```
 
 ### **💻 LG Gram Laptop**
@@ -183,6 +186,13 @@ git pull origin main
 ./scripts/port-killer.sh 3000     # Kill process on port
 ```
 
+### **Memory Management (Mac 8GB)**
+```bash
+./scripts/mac-memory-optimizer.sh start    # Start lightweight mode
+./scripts/mac-memory-optimizer.sh monitor  # Monitor memory usage
+./scripts/mac-memory-optimizer.sh cleanup  # Cleanup resources
+```
+
 ### **Docker Management**
 ```bash
 ./scripts/docker-service-manager.sh start    # Start all services
@@ -229,7 +239,7 @@ docker info
 ### **Cross-Platform Issues**
 ```bash
 # Platform-specific troubleshooting
-./scripts/mac-optimizer.sh
+./scripts/mac-memory-optimizer.sh
 ./scripts/windows-troubleshooter.sh
 
 # Cross-platform verification

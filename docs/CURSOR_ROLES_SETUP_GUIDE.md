@@ -84,64 +84,79 @@ This guide provides the optimal Cursor roles configuration for seamless developm
 
 ### **🍎 Mac Development Setup**
 
-#### **Primary Focus: Development & Testing**
+#### **Primary Focus: Development & Testing (8GB RAM Constraint)**
 ```json
 {
-  "machine": "Mac",
-  "primaryWorkflow": "Development, testing, and local deployment",
+  "machine": "Mac (8GB RAM)",
+  "primaryWorkflow": "Frontend development and UI/UX (Lightweight Mode)",
+  "memoryConstraint": "8GB total RAM - 4GB for Docker",
   "recommendedRoles": [
     "Frontend Developer",
     "UI/UX Expert", 
-    "JavaScript/Animation Expert",
-    "Web App Tester",
-    "DevOps Engineer"
+    "JavaScript/Animation Expert"
   ],
   "specializations": [
     "Component Development",
     "UI/UX Implementation",
     "Performance Optimization",
-    "Testing & Quality Assurance",
-    "Local Development & Debugging"
+    "Frontend Testing & QA"
+  ],
+  "dockerMode": "lightweight",
+  "maxContainers": 5,
+  "essentialServices": [
+    "frontend-app",
+    "api-gateway",
+    "auth-service", 
+    "chat-service",
+    "todo-service"
   ]
 }
 ```
 
-#### **Mac-Specific Commands & Scripts**
+#### **Mac-Specific Commands & Scripts (8GB RAM Optimized)**
 ```bash
-# Mac-specific port management
-./scripts/check-ports.sh
-./scripts/port-killer.sh 3000  # Kill AirPlay if needed
+# Mac memory optimization for 8GB RAM
+./scripts/mac-memory-optimizer.sh
 
-# Mac-optimized Docker setup
-./scripts/docker-service-manager.sh start --mac
+# Lightweight mode startup (only essential services)
+./scripts/docker-service-manager.sh start --lightweight --mac
 
-# Mac-specific troubleshooting
-./scripts/mac-optimizer.sh
+# Memory monitoring
+./scripts/mac-memory-optimizer.sh monitor
 
-# Mac-specific performance monitoring
-./scripts/mac-performance-monitor.sh
+# Cleanup Docker resources
+./scripts/mac-memory-optimizer.sh cleanup
+
+# Check lightweight status
+./scripts/mac-memory-optimizer.sh status
 ```
 
-#### **Mac Development Workflow**
+#### **Mac Development Workflow (Memory-Optimized)**
 ```bash
-# 1. Morning Setup
+# 1. Morning Setup (Memory-Optimized)
 git pull origin main
-./scripts/check-ports.sh
-./scripts/docker-service-manager.sh start --mac
+./scripts/mac-memory-optimizer.sh start
 
-# 2. Development Tasks
+# 2. Development Tasks (Frontend Focus)
 docker-compose exec frontend-app bash
 # Work on React components, TypeScript, UI/UX
 
-# 3. Testing
+# 3. Testing (Lightweight)
 docker-compose run --rm frontend-app npm test
 ./scripts/ui-compliance-checker.sh
 
 # 4. Evening Cleanup
-./scripts/docker-service-manager.sh stop
+./scripts/mac-memory-optimizer.sh cleanup
 git add . && git commit -m "[Frontend] Component updates"
 git push origin main
 ```
+
+#### **⚠️ Mac Memory Limitations**
+- **Total RAM**: 8GB (system + Docker)
+- **Docker Limit**: 4GB maximum
+- **Essential Services Only**: 5 containers maximum
+- **Excluded Services**: Monitoring stack, mobile app, non-essential microservices
+- **Development Focus**: Frontend, UI/UX, component development
 
 ### **💻 LG Gram Laptop Setup**
 
@@ -221,15 +236,16 @@ git push origin main
 - Performance metrics and KPI measurement
 ```
 
-#### **2. 🖥️ Development & Testing (Mac)**
+#### **2. 🖥️ Development & Testing (Mac - Lightweight Mode)**
 ```bash
 # Use Frontend/UI/UX roles for:
-- Component development and UI implementation
+- Component development and UI implementation (essential services only)
 - Design system maintenance and enhancement
 - Performance optimization and bundle analysis
-- Testing and quality assurance
-- Local development and debugging
+- Frontend testing and quality assurance
+- Local development and debugging (memory-optimized)
 - Accessibility implementation
+- Lightweight development (5 containers max)
 ```
 
 #### **3. 🚀 Deployment & Infrastructure (Both)**
@@ -455,9 +471,10 @@ git pull origin main
 | **Business Planning** | Product Owner | - | Product Owner leads, Mac provides feedback |
 | **Feature Development** | Backend Developer | Frontend Developer | API-first approach with parallel development |
 | **UI/UX Design** | - | UI/UX Expert | Design system consistency across platforms |
-| **Testing** | - | Web App Tester | Cross-platform testing with automated validation |
-| **Deployment** | DevOps Engineer | DevOps Engineer | Synchronized deployment with health monitoring |
-| **Infrastructure** | Network Engineer | DevOps Engineer | Network optimization with platform-specific tuning |
+| **Frontend Testing** | - | Frontend Developer | Lightweight testing on Mac, full testing on LG Gram |
+| **Backend Testing** | Backend Developer | - | Full testing on LG Gram only |
+| **Deployment** | DevOps Engineer | - | LG Gram handles full deployment |
+| **Infrastructure** | Network Engineer | - | LG Gram handles network infrastructure |
 | **Security** | Cybersecurity Expert | - | Security-first approach with compliance validation |
 
 ---
@@ -511,11 +528,20 @@ git pull origin main
 docker-compose -f docker-compose.yml up -d
 ```
 
-#### **4. Performance Differences**
+#### **4. Memory Issues (8GB Mac)**
+```bash
+# Problem: Mac runs out of memory with full stack
+# Solution: Use lightweight mode
+./scripts/mac-memory-optimizer.sh start
+./scripts/mac-memory-optimizer.sh monitor
+./scripts/mac-memory-optimizer.sh cleanup
+```
+
+#### **5. Performance Differences**
 ```bash
 # Problem: Different performance characteristics
 # Solution: Platform-specific optimization
-./scripts/mac-optimizer.sh
+./scripts/mac-memory-optimizer.sh
 ./scripts/windows-optimizer.sh
 ```
 
@@ -532,6 +558,7 @@ docker-compose -f docker-compose.yml up -d
 ### **🛠️ Useful Scripts**
 - `./scripts/check-ports.sh` - Port availability checker
 - `./scripts/docker-service-manager.sh` - Docker service management
+- `./scripts/mac-memory-optimizer.sh` - **NEW: Mac memory optimization for 8GB RAM**
 - `./scripts/ui-compliance-checker.sh` - UI compliance validation
 - `./scripts/cross-platform-verifier.sh` - Cross-platform compatibility check
 
