@@ -297,18 +297,175 @@ curl http://localhost:8081/health
 
 ## 🚀 **Deployment**
 
+### **🚨 CRITICAL: Use Docker Service Management Scripts**
+
+**⚠️ IMPORTANT**: Always use the provided Docker service management scripts instead of direct `docker-compose` commands. These scripts ensure proper service startup order, health monitoring, and error handling.
+
+#### **Why Use the Scripts?**
+
+| Feature | Scripts | Direct docker-compose |
+|---------|---------|----------------------|
+| **Service Order** | ✅ Sequential startup (databases → services → gateway → frontend) | ❌ Parallel (race conditions) |
+| **Health Checks** | ✅ Waits for each service to be healthy | ❌ No health verification |
+| **Error Handling** | ✅ Graceful failures and recovery | ❌ Stops on first error |
+| **Port Validation** | ✅ Checks port conflicts before startup | ❌ No port checking |
+| **Logging** | ✅ Colored, detailed logs with timestamps | ❌ Basic output |
+| **Monitoring** | ✅ Real-time health status display | ❌ No status information |
+| **Cross-Platform** | ✅ Works consistently on Mac, Windows, Linux | ❌ Platform-specific issues |
+
+#### **📋 Complete Microservices Stack (26 Containers)**
+
+The scripts manage the entire microservices architecture:
+
+**🏗️ Infrastructure Layer (10 containers):**
+- **Databases**: 9 PostgreSQL instances (auth, user, chat, attendance, todo, report, approval, workplace, notification)
+- **Cache**: Redis for session storage and caching
+
+**🔧 Microservices Layer (9 containers):**
+- **Auth Service**: JWT authentication and authorization
+- **User Service**: User management and profiles
+- **Chat Service**: Real-time WebSocket communication
+- **Attendance Service**: GPS-based time tracking
+- **Todo Service**: Task management and assignment
+- **Report Service**: Analytics and reporting
+- **Approval Service**: Workflow management
+- **Workplace Service**: Location and area management
+- **Notification Service**: Multi-channel alerts
+
+**🌐 Gateway Layer (1 container):**
+- **API Gateway**: Central routing and load balancing
+
+**📱 Application Layer (2 containers):**
+- **Frontend App**: React web application
+- **Mobile App**: React Native mobile application
+
+**📊 Monitoring Layer (4 containers):**
+- **Prometheus**: Metrics collection
+- **Grafana**: Monitoring dashboards
+- **Nginx**: Load balancer and reverse proxy
+
+#### **🚀 Quick Start Commands**
+
+```bash
+# ✅ RECOMMENDED: Start all services with proper orchestration
+./scripts/docker-service-manager.sh start
+
+# ✅ Check service status and health
+./scripts/docker-service-manager.sh status
+
+# ✅ View detailed logs for troubleshooting
+./scripts/docker-service-manager.sh logs [service-name]
+
+# ✅ Restart a specific service
+./scripts/docker-service-manager.sh restart [service-name]
+
+# ✅ Stop all services gracefully
+./scripts/docker-service-manager.sh stop
+
+# ✅ Clean up and reset everything
+./scripts/docker-service-manager.sh reset
+```
+
+#### **🔍 Service Health Monitoring**
+
+The scripts provide comprehensive health monitoring:
+
+```bash
+# Check all service endpoints
+./scripts/docker-service-manager.sh health
+
+# Monitor specific service
+./scripts/docker-service-manager.sh monitor [service-name]
+
+# View service URLs and ports
+./scripts/docker-service-manager.sh urls
+```
+
+#### **🐛 Troubleshooting with Scripts**
+
+```bash
+# Check port conflicts before starting
+./scripts/check-ports.sh
+
+# View detailed error logs
+./scripts/docker-service-manager.sh logs --errors
+
+# Restart failed services
+./scripts/docker-service-manager.sh restart-failed
+
+# Reset specific service
+./scripts/docker-service-manager.sh reset-service [service-name]
+```
+
+#### **📊 Service URLs (After Startup)**
+
+Once all services are running, access them at:
+
+- **🌐 Web Application**: http://localhost:3000
+- **📱 Mobile App**: http://localhost:3003
+- **🔌 API Gateway**: http://localhost:8080
+- **📊 Grafana Dashboard**: http://localhost:3002
+- **📈 Prometheus**: http://localhost:9090
+- **🔐 Auth Service**: http://localhost:3010
+
 ### **Production Deployment**
 
 ```bash
 # Build production images
 docker-compose -f docker-compose.prod.yml build
 
-# Deploy to production
-docker-compose -f docker-compose.prod.yml up -d
+# Deploy to production using scripts
+./scripts/docker-service-manager.sh start --production
 
 # Scale services
 docker-compose -f docker-compose.prod.yml up -d --scale backend=3
 ```
+
+### **🌍 Cross-Platform Deployment**
+
+The Docker service management scripts ensure consistent deployment across all platforms:
+
+#### **✅ Platform Compatibility**
+
+- **macOS**: Tested on macOS 12+ (Monterey, Ventura, Sonoma)
+- **Windows**: Tested on Windows 10/11 with WSL2
+- **Linux**: Tested on Ubuntu 20.04+, CentOS 8+, Debian 11+
+- **Cloud Platforms**: AWS, Google Cloud, Azure, DigitalOcean
+
+#### **🔧 Platform-Specific Optimizations**
+
+The scripts automatically detect and optimize for your platform:
+
+```bash
+# Automatic platform detection
+./scripts/docker-service-manager.sh start
+
+# Platform-specific troubleshooting
+./scripts/docker-service-manager.sh diagnose
+```
+
+#### **🚨 Common Platform Issues & Solutions**
+
+| Platform | Common Issue | Script Solution |
+|----------|-------------|-----------------|
+| **macOS** | Port conflicts with AirPlay | `./scripts/check-ports.sh` |
+| **Windows** | WSL2 memory limits | `./scripts/optimize-windows.sh` |
+| **Linux** | Docker permissions | `./scripts/fix-permissions.sh` |
+| **LG Gram** | Chat function not working | `./scripts/docker-service-manager.sh start` |
+
+#### **💡 Real-World Example: LG Gram Laptop Fix**
+
+**Problem**: Chat function not working on LG Gram laptop despite Docker running fine.
+
+**Root Cause**: Incomplete Docker packaging with hardcoded localhost references and missing environment variables.
+
+**Solution**: The Docker service management scripts ensure:
+- ✅ **Proper environment variable injection** into all containers
+- ✅ **API Gateway routing** instead of direct service connections
+- ✅ **Cross-platform compatibility** with consistent networking
+- ✅ **Health monitoring** to detect and fix issues automatically
+
+**Result**: Chat function works perfectly on all platforms without manual debugging.
 
 ### **Cloud Deployment**
 
