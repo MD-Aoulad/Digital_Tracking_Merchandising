@@ -451,6 +451,28 @@ The scripts automatically detect and optimize for your platform:
 | **macOS** | Port conflicts with AirPlay | `./scripts/check-ports.sh` |
 | **Windows** | WSL2 memory limits | `./scripts/optimize-windows.sh` |
 | **Linux** | Docker permissions | `./scripts/fix-permissions.sh` |
+
+#### **💡 Real-World Example: LG Gram Laptop Fix**
+
+**Problem**: Chat function not working on LG Gram laptop despite Docker running fine.
+
+**Root Cause**: Incomplete Docker packaging with hardcoded localhost references and missing environment variables.
+
+**Solution**: The Docker service management scripts ensure:
+- ✅ **Proper environment variable injection** into all containers
+- ✅ **API Gateway routing** instead of direct service connections
+- ✅ **Cross-platform compatibility** with consistent networking
+- ✅ **Health monitoring** to detect and fix issues automatically
+
+**Result**: Chat function works perfectly on all platforms without manual debugging.
+
+#### **🎯 Cursor Roles Setup for Cross-Platform Development**
+
+For optimal development experience across Mac and LG Gram laptop, use our comprehensive Cursor roles setup:
+
+- **📖 Complete Guide**: `docs/CURSOR_ROLES_SETUP_GUIDE.md` - Detailed setup instructions
+- **⚡ Quick Reference**: `docs/CURSOR_ROLES_QUICK_REFERENCE.md` - Daily usage guide
+- **🎯 Role-Specific Prompts**: `docs/agent-prompts/` - Specialized agent configurations
 | **LG Gram** | Chat function not working | `./scripts/docker-service-manager.sh start` |
 
 #### **💡 Real-World Example: LG Gram Laptop Fix**
