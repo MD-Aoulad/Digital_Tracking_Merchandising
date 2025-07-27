@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+// Chat Socket Hook for Real-time Communication
+// Provides WebSocket connection management for chat functionality
+
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ChatMessage, ChatChannel } from '../types/chat';
 
@@ -72,8 +75,8 @@ interface UseChatSocketReturn {
   cleanup: () => void;
 }
 
-// Direct connection to chat service (temporary workaround)
-const CHAT_SOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:3012';
+// Configuration
+const CHAT_SOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:8080';
 const TYPING_DEBOUNCE_MS = 1000; // 1 second debounce for typing events
 
 export function useChatSocket({

@@ -16,8 +16,13 @@
  * @version 1.0.0
  */
 
-// Update WebSocket URL to connect directly to chat service
-const WEBSOCKET_URL = 'ws://localhost:3012';
+// WebSocket Service for Real-time Communication
+// Handles WebSocket connections, message handling, and reconnection logic
+
+import { io, Socket } from 'socket.io-client';
+
+// Configuration
+const WEBSOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:8080';
 
 export interface AttendanceUpdate {
   type: 'attendance_update';

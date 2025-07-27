@@ -20,7 +20,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 // Direct connection to chat service (bypassing API Gateway)
-const API_BASE = (process.env.REACT_APP_CHAT_API_URL || 'http://localhost:3012');
+const API_BASE = (process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8080/api/chat');
 
 // ===== UTILITY FUNCTIONS =====
 
@@ -100,74 +100,77 @@ class SocketIOManager {
 
     // Check if chat system is available first
     try {
-      const healthCheck = await fetch(`http://localhost:8080/health/chat`);
-      const health = await healthCheck.json();
-      
-      if (health.status !== 'OK') {
-        console.log('Chat system not available:', health.message);
-        return;
+      const response = await fetch(`${API_BASE}/health`);
+      if (!response.ok) {
+        throw new Error('Chat service not available');
       }
     } catch (error) {
-      console.log('Chat system health check failed:', error);
-      return;
+      console.error('Chat service health check failed:', error);
+      throw new Error('Chat service unavailable');
     }
 
-    this.userId = userId;
     this.isConnecting = true;
+    this.userId = userId;
 
-    // Direct connection to chat service Socket.IO
-    const socketUrl = `http://localhost:3012`;
-    this.socket = io(socketUrl, {
-      path: '/socket.io',
-      query: { userId },
-      transports: ['websocket', 'polling'],
-      timeout: 20000,
-      forceNew: true
-    });
-
-    this.socket.on('connect', () => {
-      console.log('Socket.IO connected successfully');
-      this.reconnectAttempts = 0;
-      this.isConnecting = false;
-      this.startHeartbeat();
-    });
-
-    this.socket.on('disconnect', (reason: string) => {
-      console.log('Socket.IO disconnected:', reason);
-      this.isConnecting = false;
-      this.stopHeartbeat();
+    try {
+      const socketUrl = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:8080';
+      console.log('🔌 Connecting to Socket.IO at:', socketUrl);
       
-      // Only attempt reconnect if it wasn't a clean disconnect
-      if (reason !== 'io client disconnect') {
-        this.attemptReconnect();
-      }
-    });
+      this.socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        timeout: 20000,
+        forceNew: true,
+        query: { userId }
+      });
 
-    this.socket.on('connect_error', (error: Error) => {
-      console.error('Socket.IO connection error:', error);
+      this.socket.on('connect', () => {
+        console.log('Socket.IO connected successfully');
+        this.reconnectAttempts = 0;
+        this.isConnecting = false;
+        this.startHeartbeat();
+      });
+
+      this.socket.on('disconnect', (reason: string) => {
+        console.log('Socket.IO disconnected:', reason);
+        this.isConnecting = false;
+        this.stopHeartbeat();
+        
+        // Only attempt reconnect if it wasn't a clean disconnect
+        if (reason !== 'io client disconnect') {
+          this.attemptReconnect();
+        }
+      });
+
+      this.socket.on('connect_error', (error: Error) => {
+        console.error('Socket.IO connection error:', error);
+        this.isConnecting = false;
+      });
+
+      // Handle incoming messages
+      this.socket.on('new-message', (data: any) => {
+        this.handleMessage({ type: 'new-message', data });
+      });
+
+      this.socket.on('user-joined', (data: any) => {
+        this.handleMessage({ type: 'user-joined', data });
+      });
+
+      this.socket.on('user-left', (data: any) => {
+        this.handleMessage({ type: 'user-left', data });
+      });
+
+      this.socket.on('user-typing', (data: any) => {
+        this.handleMessage({ type: 'user-typing', data });
+      });
+
+      this.socket.on('pong', () => {
+        // Handle heartbeat response
+      });
+    } catch (error) {
+      console.error('Failed to establish Socket.IO connection:', error);
       this.isConnecting = false;
-    });
-
-    // Handle incoming messages
-    this.socket.on('new-message', (data: any) => {
-      this.handleMessage({ type: 'new-message', data });
-    });
-
-    this.socket.on('user-joined', (data: any) => {
-      this.handleMessage({ type: 'user-joined', data });
-    });
-
-    this.socket.on('user-left', (data: any) => {
-      this.handleMessage({ type: 'user-left', data });
-    });
-
-    this.socket.on('user-typing', (data: any) => {
-      this.handleMessage({ type: 'user-typing', data });
-    });
-
-    this.socket.on('pong', () => {
-      // Handle heartbeat response
-    });
+      this.attemptReconnect();
+    }
   }
 
   private startHeartbeat() {

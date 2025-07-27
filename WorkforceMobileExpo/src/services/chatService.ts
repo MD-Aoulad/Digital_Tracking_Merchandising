@@ -117,8 +117,9 @@ export interface ChatSettings {
 
 // ===== CONFIGURATION =====
 
-const API_BASE = 'http://localhost:3012';
-const WS_BASE = 'ws://localhost:3012/ws';
+// Configuration - Use API Gateway instead of direct service connection
+const API_BASE = process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8080/api/chat';
+const WS_BASE = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:8080';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -510,176 +511,15 @@ class ApiClient {
   }
 }
 
-// ===== FILE MANAGER =====
-
-class FileManager {
-  private downloadQueue: Map<string, Promise<string>> = new Map();
-
-  async downloadFile(fileUrl: string, fileName: string): Promise<string> {
-    const fileId = `${fileName}_${Date.now()}`;
-    
-    if (this.downloadQueue.has(fileId)) {
-      return this.downloadQueue.get(fileId)!;
-    }
-
-    const downloadPromise = this.performDownload(fileUrl, fileName);
-    this.downloadQueue.set(fileId, downloadPromise);
-    
-    try {
-      const result = await downloadPromise;
-      this.downloadQueue.delete(fileId);
-      return result;
-    } catch (error) {
-      this.downloadQueue.delete(fileId);
-      throw error;
-    }
-  }
-
-  private async performDownload(fileUrl: string, fileName: string): Promise<string> {
-    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-    const fileUri = `${downloadDir}${fileName}`;
-
-    // Ensure download directory exists
-    const dirInfo = await FileSystem.getInfoAsync(downloadDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-    }
-
-    // Download file
-    const downloadResult = await FileSystem.downloadAsync(fileUrl, fileUri);
-    
-    if (downloadResult.status !== 200) {
-      throw new Error(`Download failed with status ${downloadResult.status}`);
-    }
-
-    return downloadResult.uri;
-  }
-
-  async saveToGallery(fileUri: string): Promise<void> {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') {
-      throw new Error('Permission to access media library was denied');
-    }
-
-    await MediaLibrary.saveToLibraryAsync(fileUri);
-  }
-
-  async shareFile(fileUri: string): Promise<void> {
-    // This would integrate with the device's share functionality
-    // Implementation depends on the specific sharing library used
-    console.log('Sharing file:', fileUri);
-  }
-}
-
-// ===== NOTIFICATION MANAGER =====
-
-class NotificationManager {
-  private isInitialized = false;
-
-  async initialize() {
-    if (this.isInitialized) return;
-
-    // Only initialize notifications on mobile platforms
-    if (Platform.OS === 'web') {
-      console.log('Push notifications not supported on web platform');
-      this.isInitialized = true;
-      return;
-    }
-
-    // Request permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
-      return;
-    }
-
-    // Configure notification behavior
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
-
-    this.isInitialized = true;
-  }
-
-  async scheduleLocalNotification(title: string, body: string, data?: any) {
-    await this.initialize();
-    
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        data,
-        sound: true,
-      },
-      trigger: null, // Immediate
-    });
-  }
-
-  async cancelAllNotifications() {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-  }
-}
-
 // ===== MAIN CHAT SERVICE =====
 
 class MobileChatService {
   private wsManager = new WebSocketManager();
   private apiClient = new ApiClient();
-  private fileManager = new FileManager();
-  private notificationManager = new NotificationManager();
-  private settings: ChatSettings = {
-    notificationsEnabled: true,
-    soundEnabled: true,
-    vibrationEnabled: true,
-    autoDownloadMedia: true,
-    maxFileSize: 10,
-    theme: 'auto',
-    language: 'en',
-  };
 
   // Initialize the service
   async initialize(token: string) {
     this.apiClient.setToken(token);
-    await this.loadSettings();
-    await this.notificationManager.initialize();
-  }
-
-  // Settings management
-  async loadSettings() {
-    try {
-      const stored = await AsyncStorage.getItem('chatSettings');
-      if (stored) {
-        this.settings = { ...this.settings, ...JSON.parse(stored) };
-      }
-    } catch (error) {
-      console.error('Failed to load chat settings:', error);
-    }
-  }
-
-  async saveSettings(settings: Partial<ChatSettings>) {
-    this.settings = { ...this.settings, ...settings };
-    try {
-      await AsyncStorage.setItem('chatSettings', JSON.stringify(this.settings));
-    } catch (error) {
-      console.error('Failed to save chat settings:', error);
-    }
-  }
-
-  getSettings(): ChatSettings {
-    return { ...this.settings };
   }
 
   // WebSocket management
@@ -750,65 +590,6 @@ class MobileChatService {
 
   async markAsRead(messageId: string): Promise<void> {
     return this.apiClient.markAsRead(messageId);
-  }
-
-  // File operations
-  async pickImage(): Promise<string | null> {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      return result.assets[0].uri;
-    }
-    return null;
-  }
-
-  async pickVideo(): Promise<string | null> {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      return result.assets[0].uri;
-    }
-    return null;
-  }
-
-  async pickDocument(): Promise<string | null> {
-    // Document picker functionality would be implemented here
-    // For now, return null as placeholder
-    console.log('Document picker not implemented yet');
-    return null;
-  }
-
-  async downloadFile(fileUrl: string, fileName: string, onProgress?: (progress: number) => void): Promise<string> {
-    return this.fileManager.downloadFile(fileUrl, fileName);
-  }
-
-  async saveToGallery(fileUri: string): Promise<void> {
-    return this.fileManager.saveToGallery(fileUri);
-  }
-
-  async shareFile(fileUri: string): Promise<void> {
-    return this.fileManager.shareFile(fileUri);
-  }
-
-  // Notification operations
-  async sendNotification(title: string, body: string, data?: any): Promise<void> {
-    if (this.settings.notificationsEnabled) {
-      await this.notificationManager.scheduleLocalNotification(title, body, data);
-    }
-  }
-
-  async cancelAllNotifications(): Promise<void> {
-    await this.notificationManager.cancelAllNotifications();
   }
 
   // Typing indicators
