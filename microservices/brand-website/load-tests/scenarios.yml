@@ -1,0 +1,76 @@
+config:
+  target: 'http://localhost:3013'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up phase"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load phase"
+    - duration: 60
+      arrivalRate: 20
+      name: "Peak load phase"
+    - duration: 60
+      arrivalRate: 5
+      name: "Cool down phase"
+  defaults:
+    headers:
+      User-Agent: "Artillery Load Test"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept-Language: "en-US,en;q=0.5"
+      Accept-Encoding: "gzip, deflate"
+      Connection: "keep-alive"
+
+scenarios:
+  - name: "Homepage Load Test"
+    weight: 40
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+            - contentType: html
+      - think: 2
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+
+  - name: "Features Section Test"
+    weight: 20
+    flow:
+      - get:
+          url: "/#features"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+
+  - name: "Pricing Section Test"
+    weight: 20
+    flow:
+      - get:
+          url: "/#pricing"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+
+  - name: "Contact Section Test"
+    weight: 20
+    flow:
+      - get:
+          url: "/#contact"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200 

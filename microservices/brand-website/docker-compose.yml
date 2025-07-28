@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  brand-website:
+    build: .
+    ports:
+      - "3013:3013"
+    environment:
+      - NODE_ENV=production
+      - PORT=3013
+    volumes:
+      - ./public:/app/public
+    restart: unless-stopped
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    external: true 

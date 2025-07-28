@@ -39,14 +39,10 @@ scrape_configs:
       - targets: ['postgres:5432']
     metrics_path: '/metrics'
     scrape_interval: 30s
-    profiles:
-      - database
 
   # Redis metrics (if using Redis)
   - job_name: 'redis'
     static_configs:
       - targets: ['redis:6379']
     metrics_path: '/metrics'
-    scrape_interval: 30s
-    profiles:
-      - cache 
+    scrape_interval: 30s 
