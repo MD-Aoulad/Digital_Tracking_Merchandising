@@ -188,7 +188,7 @@ const AppContent: React.FC = () => {
           } />
           <Route path="admin" element={
             <ProtectedRoute requiredRole={UserRole.ADMIN}>
-              <AdminTab currentUserRole={MemberRole.EMPLOYEE} />
+              <AdminTab currentUserRole={MemberRole.ADMIN} />
             </ProtectedRoute>
           } />
           <Route path="posting-board" element={

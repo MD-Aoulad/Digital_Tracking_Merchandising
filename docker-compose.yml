@@ -87,7 +87,7 @@ services:
       context: ./microservices/iam-service
       dockerfile: Dockerfile
     ports:
-      - "3010:3010"  # External port 3010, internal port 3010
+      - "3015:3010"  # External port 3015, internal port 3010
     environment:
       - NODE_ENV=development
       - PORT=3010
@@ -461,7 +461,7 @@ services:
       - POSTGRES_USER=iam_user
       - POSTGRES_PASSWORD=iam_password
     ports:
-      - "5437:5432"
+      - "5441:5432"
     volumes:
       - iam-db-data:/var/lib/postgresql/data
     networks:
