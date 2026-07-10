@@ -694,7 +694,7 @@ app.put('/messages/:id', verifyToken, async (req, res) => {
 
     // Check if message exists and user owns it
     const messageResult = await pool.query(
-      'SELECT * FROM chat_messages WHERE id = $1 AND user_id = $2',
+      'SELECT * FROM chat_messages WHERE id = $1 AND sender_id = $2',
       [id, userId]
     );
 
@@ -703,8 +703,8 @@ app.put('/messages/:id', verifyToken, async (req, res) => {
     }
 
     const result = await pool.query(`
-      UPDATE chat_messages 
-      SET message = $1, updated_at = CURRENT_TIMESTAMP
+      UPDATE chat_messages
+      SET content = $1, is_edited = true, edited_at = CURRENT_TIMESTAMP
       WHERE id = $2
       RETURNING *
     `, [message, id]);
@@ -712,7 +712,41 @@ app.put('/messages/:id', verifyToken, async (req, res) => {
     const updatedMessage = result.rows[0];
 
     // Notify all clients in the room
-    io.to(updatedMessage.room_id).emit('message-updated', updatedMessage);
+    io.to(updatedMessage.channel_id).emit('message-updated', updatedMessage);
+
+    res.json(updatedMessage);
+  } catch (error) {
+    logger.error('Error editing message:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+// PATCH alias for the same edit-message behavior (kept for compatibility
+// with API clients that call PATCH instead of PUT).
+app.patch('/messages/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const userId = req.user.id || req.user.userId || req.headers['x-user-id'];
+
+    const messageResult = await pool.query(
+      'SELECT * FROM chat_messages WHERE id = $1 AND sender_id = $2',
+      [id, userId]
+    );
+
+    if (messageResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or not owned by user' });
+    }
+
+    const result = await pool.query(`
+      UPDATE chat_messages
+      SET content = $1, is_edited = true, edited_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `, [message, id]);
+
+    const updatedMessage = result.rows[0];
+    io.to(updatedMessage.channel_id).emit('message-updated', updatedMessage);
 
     res.json(updatedMessage);
   } catch (error) {
@@ -1049,6 +1083,96 @@ app.get('/stats', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('Error fetching chat statistics:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// 16. Get User Activity (per-channel activity summary for the current user)
+app.get('/user-activity', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id || req.user.userId || req.headers['x-user-id'];
+    const { channelId, dateFrom, dateTo } = req.query;
+
+    let dateFilter = '';
+    const dateParams = [];
+    let paramCount = 0;
+
+    if (dateFrom) {
+      paramCount++;
+      dateFilter += ` AND m.created_at >= $${paramCount}`;
+      dateParams.push(dateFrom);
+    }
+
+    if (dateTo) {
+      paramCount++;
+      dateFilter += ` AND m.created_at <= $${paramCount}`;
+      dateParams.push(dateTo);
+    }
+
+    let channelFilter = '';
+    if (channelId) {
+      paramCount++;
+      channelFilter = ` AND m.channel_id = $${paramCount}`;
+      dateParams.push(channelId);
+    }
+
+    const messagesSentResult = await pool.query(
+      `SELECT channel_id, COUNT(*) as count
+       FROM chat_messages m
+       WHERE m.sender_id = $${paramCount + 1}${dateFilter}${channelFilter}
+       GROUP BY channel_id`,
+      [...dateParams, userId]
+    );
+
+    const reactionsResult = await pool.query(
+      `SELECT m.channel_id, COUNT(*) as count
+       FROM chat_reactions r
+       JOIN chat_messages m ON r.message_id = m.id
+       WHERE r.user_id = $${paramCount + 1}${dateFilter}${channelFilter}
+       GROUP BY m.channel_id`,
+      [...dateParams, userId]
+    );
+
+    const filesResult = await pool.query(
+      `SELECT m.channel_id, COUNT(*) as count
+       FROM chat_attachments a
+       JOIN chat_messages m ON a.message_id = m.id
+       WHERE a.uploaded_by = $${paramCount + 1}${dateFilter}${channelFilter}
+       GROUP BY m.channel_id`,
+      [...dateParams, userId]
+    );
+
+    const byChannel = new Map();
+    const ensure = (chId) => {
+      if (!byChannel.has(chId)) {
+        byChannel.set(chId, {
+          channel_id: chId,
+          messages_sent: 0,
+          messages_read: 0,
+          reactions_given: 0,
+          files_shared: 0,
+          time_spent_minutes: 0
+        });
+      }
+      return byChannel.get(chId);
+    };
+
+    messagesSentResult.rows.forEach(row => {
+      ensure(row.channel_id).messages_sent = parseInt(row.count);
+    });
+    reactionsResult.rows.forEach(row => {
+      ensure(row.channel_id).reactions_given = parseInt(row.count);
+    });
+    filesResult.rows.forEach(row => {
+      ensure(row.channel_id).files_shared = parseInt(row.count);
+    });
+
+    // messages_read and time_spent_minutes aren't tracked yet (no read-receipt
+    // or presence-duration table exists) - they report 0 until that's built.
+
+    res.json(Array.from(byChannel.values()));
+  } catch (error) {
+    logger.error('Error fetching user activity:', error);
+    res.status(500).json({ error: 'Failed to fetch user activity' });
   }
 });
 

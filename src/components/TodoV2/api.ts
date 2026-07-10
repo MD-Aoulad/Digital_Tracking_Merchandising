@@ -29,7 +29,7 @@ export interface User {
   status?: string;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('authToken');
@@ -53,7 +53,7 @@ function handleError(response: Response) {
 }
 
 export async function getTodos(): Promise<Todo[]> {
-  const res = await fetch(`${API_BASE_URL}/todos`, {
+  const res = await fetch(`${API_BASE_URL}/api/todos`, {
     headers: getAuthHeaders(),
   });
   await handleError(res);
@@ -62,7 +62,7 @@ export async function getTodos(): Promise<Todo[]> {
 }
 
 export async function createTodo(todo: Omit<Todo, 'id'>): Promise<Todo> {
-  const res = await fetch(`${API_BASE_URL}/todos`, {
+  const res = await fetch(`${API_BASE_URL}/api/todos`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(todo),
@@ -73,7 +73,7 @@ export async function createTodo(todo: Omit<Todo, 'id'>): Promise<Todo> {
 }
 
 export async function updateTodo(id: string, updates: Partial<Todo>): Promise<Todo> {
-  const res = await fetch(`${API_BASE_URL}/todos/${id}`, {
+  const res = await fetch(`${API_BASE_URL}/api/todos/${id}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(updates),
@@ -84,7 +84,7 @@ export async function updateTodo(id: string, updates: Partial<Todo>): Promise<To
 }
 
 export async function deleteTodo(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/todos/${id}`, {
+  const res = await fetch(`${API_BASE_URL}/api/todos/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -92,10 +92,16 @@ export async function deleteTodo(id: string): Promise<void> {
 }
 
 export async function getUsers(): Promise<User[]> {
-  const res = await fetch(`${API_BASE_URL}/admin/users`, {
+  const res = await fetch(`${API_BASE_URL}/api/users`, {
     headers: getAuthHeaders(),
   });
   await handleError(res);
   const data = await res.json();
-  return data.users || [];
+  return (data.users || []).map((u: any) => ({
+    id: u.id,
+    name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email,
+    email: u.email,
+    role: u.role,
+    status: u.isActive ? 'active' : 'inactive',
+  }));
 } 

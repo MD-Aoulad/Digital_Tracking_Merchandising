@@ -363,7 +363,17 @@ const createProxy = (target, options = {}) => {
       // Add request ID for tracking
       const requestId = Math.random().toString(36).substring(2, 15);
       proxyReq.setHeader('X-Request-ID', requestId);
-      
+
+      // Re-serialize the body: express.json() upstream already consumed the
+      // request stream into req.body, so the proxy has nothing left to pipe
+      // unless we write it back out here (same fix as the auth proxy below).
+      if (req.body && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        const bodyData = JSON.stringify(req.body);
+        proxyReq.setHeader('Content-Type', 'application/json');
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        proxyReq.write(bodyData);
+      }
+
       // Log request with request ID
       logger.info(`${req.method} ${req.path} -> ${target}`, {
         requestId: requestId,
@@ -1002,7 +1012,9 @@ app.use('/health/notifications', createProxy(services.notification, {
 
 
 // Protected routes (require authentication)
-app.use('/api/users', verifyToken, createProxy(services.user));
+app.use('/api/users', verifyToken, createProxy(services.user, {
+  pathRewrite: { '^/api/users': '/users' }
+}));
 // Chat service proxy with path rewriting
 const chatServiceProxy = createProxyMiddleware({
   target: services.chat,
@@ -1030,7 +1042,17 @@ const chatServiceProxy = createProxyMiddleware({
     // Add request ID for tracking
     const requestId = Math.random().toString(36).substring(2, 15);
     proxyReq.setHeader('X-Request-ID', requestId);
-    
+
+    // Re-serialize the body: express.json() upstream already consumed the
+    // request stream into req.body, so the proxy has nothing left to pipe
+    // unless we write it back out here.
+    if (req.body && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      const bodyData = JSON.stringify(req.body);
+      proxyReq.setHeader('Content-Type', 'application/json');
+      proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+      proxyReq.write(bodyData);
+    }
+
     // Log request with request ID
     logger.info(`${req.method} ${req.path} -> ${services.chat}`, {
       requestId: requestId,
@@ -1061,10 +1083,16 @@ const chatServiceProxy = createProxyMiddleware({
 
 app.use('/api/chat', verifyToken, chatServiceProxy);
 app.use('/api/attendance', verifyToken, createProxy(services.attendance));
-app.use('/api/todos', verifyToken, createProxy(services.todo));
+app.use('/api/todos', verifyToken, createProxy(services.todo, {
+  pathRewrite: { '^/api/todos': '/todos' }
+}));
 app.use('/api/reports', verifyToken, createProxy(services.report));
-app.use('/api/approvals', verifyToken, createProxy(services.approval));
-app.use('/api/workplace', verifyToken, createProxy(services.workplace));
+app.use('/api/approvals', verifyToken, createProxy(services.approval, {
+  pathRewrite: { '^/api/approvals': '/approval' }
+}));
+app.use('/api/workplace', verifyToken, createProxy(services.workplace, {
+  pathRewrite: { '^/api/workplace': '/workplaces' }
+}));
 app.use('/api/notifications', verifyToken, createProxy(services.notification));
 
 // Socket.IO proxy for chat service

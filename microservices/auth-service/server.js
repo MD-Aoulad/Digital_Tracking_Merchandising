@@ -341,12 +341,13 @@ const comparePassword = async (password, hash) => {
 
 // Helper function to generate JWT token
 const generateToken = (user) => {
+  const role = user.role || 'user';
   return jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email, 
-      role: 'admin', // Default role for now
-      permissions: ['*'] // All permissions for admin
+    {
+      id: user.id,
+      email: user.email,
+      role,
+      permissions: role === 'admin' ? ['*'] : []
     },
     JWT_SECRET,
     { expiresIn: '24h' }
@@ -375,20 +376,26 @@ app.post('/admin/setup', async (req, res) => {
     const salt = Math.random().toString(36).substring(2, 15);
     const adminUser = await pool.query(
       `INSERT INTO auth_users (
-        email, 
-        password_hash, 
-        salt, 
-        is_active, 
-        is_verified, 
-        email_verified_at
-      ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email`,
+        email,
+        password_hash,
+        salt,
+        is_active,
+        is_verified,
+        email_verified_at,
+        first_name,
+        last_name,
+        role
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, email`,
       [
         'admin@company.com',
         hashedPassword,
         salt,
         true,
         true,
-        new Date()
+        new Date(),
+        'Admin',
+        'User',
+        'admin'
       ]
     );
 
@@ -469,7 +476,7 @@ app.post('/login', async (req, res) => {
 
       // Find user by email with optimized query
       const userResult = await client.query(
-        'SELECT id, email, password_hash, locked_until, failed_login_attempts, is_active, is_verified FROM auth_users WHERE email = $1 LIMIT 1',
+        'SELECT id, email, password_hash, locked_until, failed_login_attempts, is_active, is_verified, first_name, last_name, role FROM auth_users WHERE email = $1 LIMIT 1',
         [email]
       );
 
@@ -554,10 +561,10 @@ app.post('/login', async (req, res) => {
         user: {
           id: user.id,
           email: user.email,
-          firstName: 'Admin',
-          lastName: 'User',
-          role: 'admin',
-          permissions: ['*'],
+          firstName: user.first_name,
+          lastName: user.last_name,
+          role: user.role || 'user',
+          permissions: (user.role || 'user') === 'admin' ? ['*'] : [],
           isVerified: user.is_verified
         },
         token: token,
@@ -752,10 +759,10 @@ app.get('/profile', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.first_name || 'Admin',
-        lastName: user.last_name || 'User',
-        role: user.role || 'admin',
-        permissions: ['*'],
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role || 'user',
+        permissions: (user.role || 'user') === 'admin' ? ['*'] : [],
         isActive: user.is_active,
         isVerified: user.is_verified,
         emailVerifiedAt: user.email_verified_at,
@@ -1170,8 +1177,8 @@ app.post('/refresh-token', async (req, res) => {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        role: user.role,
-        permissions: ['*']
+        role: user.role || 'user',
+        permissions: (user.role || 'user') === 'admin' ? ['*'] : []
       },
       token: newToken,
       expiresIn: '24h'
@@ -1186,6 +1193,188 @@ app.post('/refresh-token', async (req, res) => {
       error: 'Failed to refresh token',
       details: error.message 
     });
+  }
+});
+
+// 11. ADMIN: LIST USERS (for other services to resolve identity data)
+app.get('/admin/users', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { page = 1, limit = 50, role, isActive, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = `
+      SELECT id, email, first_name, last_name, role, is_active, is_verified, created_at, last_login_at
+      FROM auth_users WHERE 1=1
+    `;
+    const params = [];
+    let paramCount = 1;
+
+    if (role) {
+      query += ` AND role = $${paramCount++}`;
+      params.push(role);
+    }
+    if (isActive !== undefined) {
+      query += ` AND is_active = $${paramCount++}`;
+      params.push(isActive === 'true');
+    }
+    if (search) {
+      query += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
+    params.push(parseInt(limit), offset);
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      users: result.rows.map(u => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        role: u.role,
+        isActive: u.is_active,
+        isVerified: u.is_verified,
+        createdAt: u.created_at,
+        lastLoginAt: u.last_login_at
+      }))
+    });
+  } catch (error) {
+    console.error('Admin list users error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Failed to list users', details: error.message });
+  }
+});
+
+// 12. ADMIN: GET SINGLE USER (for other services to resolve identity data)
+app.get('/admin/users/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT id, email, first_name, last_name, role, is_active, is_verified, created_at, last_login_at
+       FROM auth_users WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const u = result.rows[0];
+    res.json({
+      user: {
+        id: u.id,
+        email: u.email,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        role: u.role,
+        isActive: u.is_active,
+        isVerified: u.is_verified,
+        createdAt: u.created_at,
+        lastLoginAt: u.last_login_at
+      }
+    });
+  } catch (error) {
+    console.error('Admin get user error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Failed to get user', details: error.message });
+  }
+});
+
+// 13. ADMIN: UPDATE USER IDENTITY (email/role/isActive) - for other services to manage identity
+app.put('/admin/users/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { id } = req.params;
+    const { email, role, isActive } = req.body;
+
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
+
+    if (email !== undefined) {
+      updateFields.push(`email = $${paramCount++}`);
+      updateValues.push(email);
+    }
+    if (role !== undefined) {
+      updateFields.push(`role = $${paramCount++}`);
+      updateValues.push(role);
+    }
+    if (isActive !== undefined) {
+      updateFields.push(`is_active = $${paramCount++}`);
+      updateValues.push(isActive);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateFields.push(`updated_at = NOW()`);
+    updateValues.push(id);
+
+    const result = await pool.query(
+      `UPDATE auth_users SET ${updateFields.join(', ')} WHERE id = $${paramCount}
+       RETURNING id, email, first_name, last_name, role, is_active, is_verified`,
+      updateValues
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const u = result.rows[0];
+    res.json({
+      user: {
+        id: u.id,
+        email: u.email,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        role: u.role,
+        isActive: u.is_active,
+        isVerified: u.is_verified
+      }
+    });
+  } catch (error) {
+    console.error('Admin update user error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Email is already taken' });
+    }
+    res.status(500).json({ error: 'Failed to update user', details: error.message });
   }
 });
 

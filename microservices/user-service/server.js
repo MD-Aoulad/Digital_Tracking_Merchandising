@@ -7,6 +7,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3002;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
 
 // Database connection
 const pool = new Pool({
@@ -37,7 +38,7 @@ app.use((req, res, next) => {
 // JWT verification middleware
 const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  
+
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
   }
@@ -58,20 +59,131 @@ const requireRole = (roles) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
-    
+
     next();
   };
 };
+
+// ===== CROSS-SERVICE IDENTITY (auth-service) =====
+
+/**
+ * Mints a short-lived internal service token for server-to-server calls to
+ * auth-service's admin endpoints, so lookups aren't gated by the end-user's own role.
+ */
+const getInternalServiceToken = () => {
+  return jwt.sign(
+    { id: 'user-service', role: 'admin', service: 'user-service' },
+    JWT_SECRET,
+    { expiresIn: '1m' }
+  );
+};
+
+/**
+ * Lists users from auth-service with optional filters. Returns { users: [], } shape.
+ */
+const authListUsers = async ({ role, isActive, search, page, limit } = {}) => {
+  const token = getInternalServiceToken();
+  const params = new URLSearchParams();
+  if (role) params.set('role', role);
+  if (isActive !== undefined) params.set('isActive', isActive);
+  if (search) params.set('search', search);
+  if (page) params.set('page', page);
+  if (limit) params.set('limit', limit);
+
+  const response = await fetch(`${AUTH_SERVICE_URL}/admin/users?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) {
+    throw new Error(`auth-service returned ${response.status}`);
+  }
+  const data = await response.json();
+  return data.users || [];
+};
+
+/**
+ * Fetches a single user's identity from auth-service. Returns null if not found.
+ */
+const authGetUser = async (id) => {
+  const token = getInternalServiceToken();
+  const response = await fetch(`${AUTH_SERVICE_URL}/admin/users/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`auth-service returned ${response.status}`);
+  }
+  const data = await response.json();
+  return data.user;
+};
+
+/**
+ * Updates identity fields (email/role/isActive) on auth-service. Returns updated user.
+ */
+const authUpdateUser = async (id, fields) => {
+  const token = getInternalServiceToken();
+  const response = await fetch(`${AUTH_SERVICE_URL}/admin/users/${id}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields)
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const error = new Error(data.error || `auth-service returned ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  const data = await response.json();
+  return data.user;
+};
+
+/**
+ * Registers a new identity on auth-service (creates the auth_users row).
+ */
+const authRegisterUser = async ({ email, password, firstName, lastName, role }) => {
+  const response = await fetch(`${AUTH_SERVICE_URL}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, firstName, lastName, role })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const error = new Error(data.error || `auth-service returned ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return data.user;
+};
+
+/**
+ * Merges an auth-service identity with the local user_profiles row (if any).
+ */
+const mergeProfile = (identity, profileRow) => ({
+  ...identity,
+  profile: profileRow ? {
+    firstName: profileRow.first_name,
+    lastName: profileRow.last_name,
+    displayName: profileRow.display_name,
+    avatarUrl: profileRow.avatar_url,
+    phoneNumber: profileRow.phone_number,
+    dateOfBirth: profileRow.date_of_birth,
+    gender: profileRow.gender,
+    address: profileRow.address,
+    emergencyContact: profileRow.emergency_contact,
+    employeeId: profileRow.employee_id,
+    hireDate: profileRow.hire_date
+  } : null
+});
 
 // Health check
 app.get('/health', async (req, res) => {
   let dbStatus = 'disconnected';
   let dbError = null;
-  
+
   try {
     const client = await pool.connect();
     await client.query('SELECT 1 as test');
@@ -81,7 +193,7 @@ app.get('/health', async (req, res) => {
     dbStatus = 'disconnected';
     dbError = error.message;
   }
-  
+
   res.json({
     status: 'OK',
     service: 'User Management',
@@ -118,135 +230,44 @@ app.get('/docs', (req, res) => {
 });
 
 // Complete User Management API Endpoints
+// Identity (email/role/isActive) is sourced from auth-service; extended
+// profile fields (name/phone/address/etc) live in this service's own
+// user_profiles table, keyed by auth_user_id.
 
 // 1. GET ALL USERS (Admin only)
 app.get('/users', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { page = 1, limit = 20, role, isActive, search } = req.query;
-    const offset = (page - 1) * limit;
-    
-    let query = `
-      SELECT 
-        id, 
-        email, 
-        first_name, 
-        last_name, 
-        role, 
-        is_active, 
-        is_verified,
-        email_verified_at,
-        created_at, 
-        updated_at, 
-        last_login_at
-      FROM users 
-      WHERE 1=1
-    `;
-    
-    const queryParams = [];
-    let paramCount = 1;
-    
-    // Add filters
-    if (role) {
-      query += ` AND role = $${paramCount++}`;
-      queryParams.push(role);
+
+    const identities = await authListUsers({ role, isActive, search, page, limit });
+    const ids = identities.map(u => u.id);
+
+    let profileRows = [];
+    if (ids.length > 0) {
+      const result = await pool.query(
+        'SELECT * FROM user_profiles WHERE auth_user_id = ANY($1)',
+        [ids]
+      );
+      profileRows = result.rows;
     }
-    
-    if (isActive !== undefined) {
-      query += ` AND is_active = $${paramCount++}`;
-      queryParams.push(isActive === 'true');
-    }
-    
-    if (search) {
-      query += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
-      queryParams.push(`%${search}%`);
-    }
-    
-    // Add pagination
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
-    queryParams.push(parseInt(limit), offset);
-    
-    const result = await pool.query(query, queryParams);
-    
-    // Get total count for pagination
-    let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
-    const countParams = [];
-    paramCount = 1;
-    
-    if (role) {
-      countQuery += ` AND role = $${paramCount++}`;
-      countParams.push(role);
-    }
-    
-    if (isActive !== undefined) {
-      countQuery += ` AND is_active = $${paramCount++}`;
-      countParams.push(isActive === 'true');
-    }
-    
-    if (search) {
-      countQuery += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
-      countParams.push(`%${search}%`);
-    }
-    
-    const countResult = await pool.query(countQuery, countParams);
-    const total = parseInt(countResult.rows[0].total);
-    
+    const profilesByAuthId = new Map(profileRows.map(p => [p.auth_user_id, p]));
+
+    const users = identities.map(identity => mergeProfile(identity, profilesByAuthId.get(identity.id)));
+
     res.json({
-      users: result.rows,
+      users,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
+        total: users.length
       }
     });
-    
+
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get users',
-      details: error.message 
-    });
-  }
-});
-
-// 2. GET USER BY ID
-app.get('/users/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Check if user can access this profile (admin or self)
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    
-    const result = await pool.query(
-      `SELECT 
-        id, 
-        email, 
-        first_name, 
-        last_name, 
-        role, 
-        is_active, 
-        is_verified,
-        email_verified_at,
-        created_at, 
-        updated_at, 
-        last_login_at
-      FROM users WHERE id = $1`,
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.json({ user: result.rows[0] });
-    
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get user',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -255,61 +276,33 @@ app.get('/users/:id', verifyToken, async (req, res) => {
 app.post('/users', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { email, firstName, lastName, role = 'user', password } = req.body;
-    
+
     if (!email || !firstName || !lastName || !password) {
-      return res.status(400).json({ 
-        error: 'Email, firstName, lastName, and password are required' 
+      return res.status(400).json({
+        error: 'Email, firstName, lastName, and password are required'
       });
     }
-    
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
-        error: 'Invalid email format' 
-      });
-    }
-    
-    // Check if user already exists
-    const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
+
+    const identity = await authRegisterUser({ email, password, firstName, lastName, role });
+
+    // Create the matching local profile row
+    await pool.query(
+      `INSERT INTO user_profiles (auth_user_id, first_name, last_name)
+       VALUES ($1, $2, $3)`,
+      [identity.id, firstName, lastName]
     );
-    
-    if (existingUser.rows.length > 0) {
-      return res.status(409).json({ 
-        error: 'User with this email already exists' 
-      });
-    }
-    
-    // Hash password
-    const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(password, 12);
-    
-    // Create user
-    const result = await pool.query(
-      `INSERT INTO users (
-        email, 
-        first_name, 
-        last_name, 
-        role, 
-        password_hash,
-        is_active,
-        is_verified
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, first_name, last_name, role`,
-      [email, firstName, lastName, role, hashedPassword, true, false]
-    );
-    
+
     res.status(201).json({
       message: 'User created successfully',
-      user: result.rows[0]
+      user: identity
     });
-    
+
   } catch (error) {
     console.error('Create user error:', error);
-    res.status(500).json({ 
+    const status = error.status === 409 ? 409 : 500;
+    res.status(status).json({
       error: 'Failed to create user',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -319,134 +312,101 @@ app.put('/users/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { email, firstName, lastName, role, isActive } = req.body;
-    
+
     // Check if user can update this profile (admin or self)
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+    if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
-    
+
     // Only admins can change role and active status
-    if (req.user.role !== 'admin') {
-      if (role !== undefined || isActive !== undefined) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+    if (req.user.role !== 'admin' && (role !== undefined || isActive !== undefined)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    let identity = null;
+    const identityFields = {};
+    if (email !== undefined) identityFields.email = email;
+    if (role !== undefined && req.user.role === 'admin') identityFields.role = role;
+    if (isActive !== undefined && req.user.role === 'admin') identityFields.isActive = isActive;
+
+    if (Object.keys(identityFields).length > 0) {
+      identity = await authUpdateUser(id, identityFields);
+      if (!identity) {
+        return res.status(404).json({ error: 'User not found' });
       }
     }
-    
-    // Validate email if provided
-    if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ 
-          error: 'Invalid email format' 
-        });
+
+    if (firstName || lastName) {
+      const existing = await pool.query('SELECT id FROM user_profiles WHERE auth_user_id = $1', [id]);
+      if (existing.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO user_profiles (auth_user_id, first_name, last_name) VALUES ($1, $2, $3)`,
+          [id, firstName || 'Unknown', lastName || 'Unknown']
+        );
+      } else {
+        const updateFields = [];
+        const updateValues = [];
+        let paramCount = 1;
+        if (firstName) {
+          updateFields.push(`first_name = $${paramCount++}`);
+          updateValues.push(firstName);
+        }
+        if (lastName) {
+          updateFields.push(`last_name = $${paramCount++}`);
+          updateValues.push(lastName);
+        }
+        updateFields.push(`updated_at = NOW()`);
+        updateValues.push(id);
+        await pool.query(
+          `UPDATE user_profiles SET ${updateFields.join(', ')} WHERE auth_user_id = $${paramCount}`,
+          updateValues
+        );
       }
-      
-      // Check if email is already taken
-      const existingUser = await pool.query(
-        'SELECT id FROM users WHERE email = $1 AND id != $2',
-        [email, id]
-      );
-      
-      if (existingUser.rows.length > 0) {
-        return res.status(409).json({ 
-          error: 'Email is already taken' 
-        });
+    }
+
+    if (!identity) {
+      identity = await authGetUser(id);
+      if (!identity) {
+        return res.status(404).json({ error: 'User not found' });
       }
     }
-    
-    // Build update query
-    const updateFields = [];
-    const updateValues = [];
-    let paramCount = 1;
-    
-    if (email) {
-      updateFields.push(`email = $${paramCount++}`);
-      updateValues.push(email);
-    }
-    
-    if (firstName) {
-      updateFields.push(`first_name = $${paramCount++}`);
-      updateValues.push(firstName);
-    }
-    
-    if (lastName) {
-      updateFields.push(`last_name = $${paramCount++}`);
-      updateValues.push(lastName);
-    }
-    
-    if (role && req.user.role === 'admin') {
-      updateFields.push(`role = $${paramCount++}`);
-      updateValues.push(role);
-    }
-    
-    if (isActive !== undefined && req.user.role === 'admin') {
-      updateFields.push(`is_active = $${paramCount++}`);
-      updateValues.push(isActive);
-    }
-    
-    if (updateFields.length === 0) {
-      return res.status(400).json({ 
-        error: 'No fields to update' 
-      });
-    }
-    
-    updateFields.push(`updated_at = NOW()`);
-    updateValues.push(id);
-    
-    const result = await pool.query(
-      `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING id, email, first_name, last_name, role, is_active`,
-      updateValues
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
+
     res.json({
       message: 'User updated successfully',
-      user: result.rows[0]
+      user: identity
     });
-    
+
   } catch (error) {
     console.error('Update user error:', error);
-    res.status(500).json({ 
+    const status = error.status === 409 ? 409 : 500;
+    res.status(status).json({
       error: 'Failed to update user',
-      details: error.message 
+      details: error.message
     });
   }
 });
 
-// 5. DELETE USER (Admin only)
+// 5. DELETE USER (Admin only) - soft delete via deactivation
 app.delete('/users/:id', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Check if user exists
-    const userResult = await pool.query(
-      'SELECT id FROM users WHERE id = $1',
-      [id]
-    );
-    
-    if (userResult.rows.length === 0) {
+
+    const identity = await authUpdateUser(id, { isActive: false });
+
+    if (!identity) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    // Soft delete (mark as inactive instead of hard delete)
-    await pool.query(
-      'UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1',
-      [id]
-    );
-    
+
     res.json({
       message: 'User deleted successfully',
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     console.error('Delete user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to delete user',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -455,66 +415,29 @@ app.delete('/users/:id', verifyToken, requireRole(['admin']), async (req, res) =
 app.get('/users/:id/profile', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Check if user can access this profile (admin or self)
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+    if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
-    
-    const result = await pool.query(
-      `SELECT 
-        id, 
-        email, 
-        first_name, 
-        last_name, 
-        role, 
-        is_active, 
-        is_verified,
-        email_verified_at,
-        created_at, 
-        updated_at, 
-        last_login_at
-      FROM users WHERE id = $1`,
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
+
+    const identity = await authGetUser(id);
+    if (!identity) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    const user = result.rows[0];
-    
-    // Get additional profile information
+
     const profileResult = await pool.query(
-      `SELECT 
-        phone,
-        address,
-        city,
-        state,
-        country,
-        postal_code,
-        date_of_birth,
-        gender,
-        avatar_url,
-        bio
-      FROM user_profiles WHERE user_id = $1`,
+      'SELECT * FROM user_profiles WHERE auth_user_id = $1',
       [id]
     );
-    
-    const profile = profileResult.rows[0] || {};
-    
-    res.json({
-      user: {
-        ...user,
-        profile
-      }
-    });
-    
+
+    res.json({ user: mergeProfile(identity, profileResult.rows[0]) });
+
   } catch (error) {
     console.error('Get user profile error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get user profile',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -523,75 +446,83 @@ app.get('/users/:id/profile', verifyToken, async (req, res) => {
 app.put('/users/:id/profile', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { phone, address, city, state, country, postalCode, dateOfBirth, gender, bio } = req.body;
-    
+    const { phone, address, city, state, country, postalCode, dateOfBirth, gender, avatarUrl, displayName } = req.body;
+
     // Check if user can update this profile (admin or self)
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+    if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
-    
-    // Check if user exists
-    const userResult = await pool.query(
-      'SELECT id FROM users WHERE id = $1',
-      [id]
-    );
-    
-    if (userResult.rows.length === 0) {
+
+    const identity = await authGetUser(id);
+    if (!identity) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    // Check if profile exists
-    const profileResult = await pool.query(
-      'SELECT user_id FROM user_profiles WHERE user_id = $1',
-      [id]
-    );
-    
-    if (profileResult.rows.length === 0) {
-      // Create new profile
+
+    // address is stored as JSONB; nest the flat request fields into it
+    const addressJson = (address || city || state || country || postalCode)
+      ? JSON.stringify({ street: address, city, state, country, postal_code: postalCode })
+      : null;
+
+    const existing = await pool.query('SELECT id FROM user_profiles WHERE auth_user_id = $1', [id]);
+
+    if (existing.rows.length === 0) {
       await pool.query(
         `INSERT INTO user_profiles (
-          user_id, 
-          phone, 
-          address, 
-          city, 
-          state, 
-          country, 
-          postal_code, 
-          date_of_birth, 
-          gender, 
-          bio
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [id, phone, address, city, state, country, postalCode, dateOfBirth, gender, bio]
+          auth_user_id, first_name, last_name, phone_number, address,
+          date_of_birth, gender, avatar_url, display_name
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [id, identity.firstName || 'Unknown', identity.lastName || 'Unknown', phone, addressJson, dateOfBirth || null, gender, avatarUrl, displayName]
       );
     } else {
-      // Update existing profile
-      await pool.query(
-        `UPDATE user_profiles SET 
-          phone = $1, 
-          address = $2, 
-          city = $3, 
-          state = $4, 
-          country = $5, 
-          postal_code = $6, 
-          date_of_birth = $7, 
-          gender = $8, 
-          bio = $9,
-          updated_at = NOW()
-        WHERE user_id = $10`,
-        [phone, address, city, state, country, postalCode, dateOfBirth, gender, bio, id]
-      );
+      const updateFields = [];
+      const updateValues = [];
+      let paramCount = 1;
+
+      if (phone !== undefined) {
+        updateFields.push(`phone_number = $${paramCount++}`);
+        updateValues.push(phone);
+      }
+      if (addressJson !== null) {
+        updateFields.push(`address = $${paramCount++}`);
+        updateValues.push(addressJson);
+      }
+      if (dateOfBirth !== undefined) {
+        updateFields.push(`date_of_birth = $${paramCount++}`);
+        updateValues.push(dateOfBirth);
+      }
+      if (gender !== undefined) {
+        updateFields.push(`gender = $${paramCount++}`);
+        updateValues.push(gender);
+      }
+      if (avatarUrl !== undefined) {
+        updateFields.push(`avatar_url = $${paramCount++}`);
+        updateValues.push(avatarUrl);
+      }
+      if (displayName !== undefined) {
+        updateFields.push(`display_name = $${paramCount++}`);
+        updateValues.push(displayName);
+      }
+
+      if (updateFields.length > 0) {
+        updateFields.push(`updated_at = NOW()`);
+        updateValues.push(id);
+        await pool.query(
+          `UPDATE user_profiles SET ${updateFields.join(', ')} WHERE auth_user_id = $${paramCount}`,
+          updateValues
+        );
+      }
     }
-    
+
     res.json({
       message: 'User profile updated successfully',
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     console.error('Update user profile error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to update user profile',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -600,51 +531,23 @@ app.put('/users/:id/profile', verifyToken, async (req, res) => {
 app.get('/users/search', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { q, role, isActive, limit = 10 } = req.query;
-    
+
     if (!q) {
       return res.status(400).json({ error: 'Search query is required' });
     }
-    
-    let query = `
-      SELECT 
-        id, 
-        email, 
-        first_name, 
-        last_name, 
-        role, 
-        is_active
-      FROM users 
-      WHERE (email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)
-    `;
-    
-    const queryParams = [`%${q}%`];
-    let paramCount = 2;
-    
-    if (role) {
-      query += ` AND role = $${paramCount++}`;
-      queryParams.push(role);
-    }
-    
-    if (isActive !== undefined) {
-      query += ` AND is_active = $${paramCount++}`;
-      queryParams.push(isActive === 'true');
-    }
-    
-    query += ` ORDER BY first_name, last_name LIMIT $${paramCount++}`;
-    queryParams.push(parseInt(limit));
-    
-    const result = await pool.query(query, queryParams);
-    
+
+    const users = await authListUsers({ role, isActive, search: q, limit });
+
     res.json({
-      users: result.rows,
-      count: result.rows.length
+      users,
+      count: users.length
     });
-    
+
   } catch (error) {
     console.error('Search users error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to search users',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -653,26 +556,23 @@ app.get('/users/search', verifyToken, requireRole(['admin']), async (req, res) =
 app.post('/users/:id/activate', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await pool.query(
-      'UPDATE users SET is_active = true, updated_at = NOW() WHERE id = $1 RETURNING id, email, is_active',
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
+
+    const identity = await authUpdateUser(id, { isActive: true });
+
+    if (!identity) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json({
       message: 'User activated successfully',
-      user: result.rows[0]
+      user: identity
     });
-    
+
   } catch (error) {
     console.error('Activate user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to activate user',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -681,26 +581,23 @@ app.post('/users/:id/activate', verifyToken, requireRole(['admin']), async (req,
 app.post('/users/:id/deactivate', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const result = await pool.query(
-      'UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id, email, is_active',
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
+
+    const identity = await authUpdateUser(id, { isActive: false });
+
+    if (!identity) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json({
       message: 'User deactivated successfully',
-      user: result.rows[0]
+      user: identity
     });
-    
+
   } catch (error) {
     console.error('Deactivate user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to deactivate user',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -708,44 +605,73 @@ app.post('/users/:id/deactivate', verifyToken, requireRole(['admin']), async (re
 // 11. USER STATISTICS (Admin only)
 app.get('/users/stats', verifyToken, requireRole(['admin']), async (req, res) => {
   try {
-    // Get total users
-    const totalResult = await pool.query('SELECT COUNT(*) as total FROM users');
-    const total = parseInt(totalResult.rows[0].total);
-    
-    // Get active users
-    const activeResult = await pool.query('SELECT COUNT(*) as active FROM users WHERE is_active = true');
-    const active = parseInt(activeResult.rows[0].active);
-    
-    // Get users by role
-    const roleResult = await pool.query(
-      'SELECT role, COUNT(*) as count FROM users GROUP BY role'
-    );
-    
-    // Get users by verification status
-    const verifiedResult = await pool.query(
-      'SELECT is_verified, COUNT(*) as count FROM users GROUP BY is_verified'
-    );
-    
-    // Get recent registrations (last 30 days)
-    const recentResult = await pool.query(
-      'SELECT COUNT(*) as recent FROM users WHERE created_at >= NOW() - INTERVAL \'30 days\''
-    );
-    const recent = parseInt(recentResult.rows[0].recent);
-    
+    const users = await authListUsers({ limit: 1000 });
+
+    const total = users.length;
+    const active = users.filter(u => u.isActive).length;
+    const recent = users.filter(u => new Date(u.createdAt) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length;
+
+    const byRole = Object.entries(
+      users.reduce((acc, u) => {
+        acc[u.role] = (acc[u.role] || 0) + 1;
+        return acc;
+      }, {})
+    ).map(([role, count]) => ({ role, count }));
+
+    const byVerification = Object.entries(
+      users.reduce((acc, u) => {
+        const key = u.isVerified ? 'true' : 'false';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {})
+    ).map(([is_verified, count]) => ({ is_verified: is_verified === 'true', count }));
+
     res.json({
       total,
       active,
       inactive: total - active,
       recentRegistrations: recent,
-      byRole: roleResult.rows,
-      byVerification: verifiedResult.rows
+      byRole,
+      byVerification
     });
-    
+
   } catch (error) {
     console.error('User stats error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get user statistics',
-      details: error.message 
+      details: error.message
+    });
+  }
+});
+
+// 2. GET USER BY ID (registered after the static /users/* routes above so it
+// doesn't shadow them, since Express matches routes in registration order)
+app.get('/users/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if user can access this profile (admin or self)
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const identity = await authGetUser(id);
+    if (!identity) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const profileResult = await pool.query(
+      'SELECT * FROM user_profiles WHERE auth_user_id = $1',
+      [id]
+    );
+
+    res.json({ user: mergeProfile(identity, profileResult.rows[0]) });
+
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      error: 'Failed to get user',
+      details: error.message
     });
   }
 });
@@ -753,7 +679,7 @@ app.get('/users/stats', verifyToken, requireRole(['admin']), async (req, res) =>
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  
+
   if (!res.headersSent) {
     res.status(500).json({
       error: 'Internal server error',

@@ -8,6 +8,49 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3007;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
+
+// ===== CROSS-SERVICE USER RESOLUTION =====
+
+/**
+ * Mints a short-lived internal service token for server-to-server calls,
+ * so enrichment lookups aren't gated by the requesting end-user's own role.
+ */
+const getInternalServiceToken = () => {
+  return jwt.sign(
+    { id: 'approval-service', role: 'admin', service: 'approval-service' },
+    JWT_SECRET,
+    { expiresIn: '1m' }
+  );
+};
+
+/**
+ * Resolves a set of auth-service user ids to {id, email, firstName, lastName}.
+ * Returns a Map keyed by user id; failed/missing lookups are simply omitted.
+ */
+const resolveUsers = async (ids) => {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  const token = getInternalServiceToken();
+  const results = await Promise.all(uniqueIds.map(async (id) => {
+    try {
+      const response = await fetch(`${AUTH_SERVICE_URL}/admin/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.user;
+    } catch (error) {
+      console.error(`Failed to resolve user ${id}:`, error);
+      return null;
+    }
+  }));
+
+  const map = new Map();
+  results.forEach(user => {
+    if (user) map.set(user.id, user);
+  });
+  return map;
+};
 
 // Database connection
 const pool = new Pool({
@@ -450,7 +493,7 @@ app.post('/approval/requests', verifyToken, async (req, res) => {
     }
     
     const workflow = workflowResult.rows[0];
-    const steps = JSON.parse(workflow.steps);
+    const steps = workflow.steps;
     
     // Determine initial status
     let status = 'pending';
@@ -470,6 +513,8 @@ app.post('/approval/requests', verifyToken, async (req, res) => {
         requester_id,
         title,
         description,
+        request_data,
+        total_steps,
         request_type,
         priority,
         due_date,
@@ -479,13 +524,15 @@ app.post('/approval/requests', verifyToken, async (req, res) => {
         current_step,
         current_approver,
         steps_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id, title, status, current_step, current_approver`,
       [
         workflowId,
         req.user.id,
         title,
         description || null,
+        '{}',
+        steps.length,
         requestType,
         priority,
         dueDate || null,
@@ -535,7 +582,7 @@ app.get('/approval/requests', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT 
+      SELECT
         ar.id,
         ar.title,
         ar.description,
@@ -545,15 +592,12 @@ app.get('/approval/requests', verifyToken, async (req, res) => {
         ar.current_step,
         ar.current_approver,
         ar.due_date,
+        ar.requester_id,
         ar.created_at,
         ar.updated_at,
-        aw.name as workflow_name,
-        u.first_name,
-        u.last_name,
-        u.email
+        aw.name as workflow_name
       FROM approval_requests ar
       LEFT JOIN approval_workflows aw ON ar.workflow_id = aw.id
-      LEFT JOIN users u ON ar.requester_id = u.id
       WHERE 1=1
     `;
     
@@ -624,9 +668,20 @@ app.get('/approval/requests', verifyToken, async (req, res) => {
     
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
-    
+
+    const users = await resolveUsers(result.rows.map(r => r.requester_id));
+    const requests = result.rows.map(r => {
+      const user = users.get(r.requester_id);
+      return {
+        ...r,
+        first_name: user?.firstName || null,
+        last_name: user?.lastName || null,
+        email: user?.email || null
+      };
+    });
+
     res.json({
-      requests: result.rows,
+      requests,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -634,71 +689,11 @@ app.get('/approval/requests', verifyToken, async (req, res) => {
         pages: Math.ceil(total / limit)
       }
     });
-    
+
   } catch (error) {
     console.error('Get requests error:', error);
     res.status(500).json({ 
       error: 'Failed to get approval requests',
-      details: error.message 
-    });
-  }
-});
-
-// 8. GET REQUEST DETAILS
-app.get('/approval/requests/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await pool.query(
-      `SELECT 
-        ar.*,
-        aw.name as workflow_name,
-        aw.steps as workflow_steps,
-        u.first_name,
-        u.last_name,
-        u.email
-      FROM approval_requests ar
-      LEFT JOIN approval_workflows aw ON ar.workflow_id = aw.id
-      LEFT JOIN users u ON ar.requester_id = u.id
-      WHERE ar.id = $1`,
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-    
-    const request = result.rows[0];
-    
-    // Get approval history
-    const historyResult = await pool.query(
-      `SELECT 
-        ah.*,
-        u.first_name,
-        u.last_name,
-        u.email
-      FROM approval_history ah
-      LEFT JOIN users u ON ah.approver_id = u.id
-      WHERE ah.request_id = $1
-      ORDER BY ah.created_at ASC`,
-      [id]
-    );
-    
-    res.json({
-      request: {
-        ...request,
-        attachments: request.attachments ? JSON.parse(request.attachments) : null,
-        metadata: request.metadata ? JSON.parse(request.metadata) : null,
-        stepsData: request.steps_data ? JSON.parse(request.steps_data) : null,
-        workflowSteps: request.workflow_steps ? JSON.parse(request.workflow_steps) : null
-      },
-      history: historyResult.rows
-    });
-    
-  } catch (error) {
-    console.error('Get request error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get request',
       details: error.message 
     });
   }
@@ -729,7 +724,7 @@ app.post('/approval/requests/:id/approve', verifyToken, async (req, res) => {
       });
     }
     
-    const stepsData = JSON.parse(request.steps_data);
+    const stepsData = request.steps_data;
     const currentStepData = stepsData[request.current_step - 1];
     
     if (currentStepData.approverRole !== req.user.role) {
@@ -766,18 +761,19 @@ app.post('/approval/requests/:id/approve', verifyToken, async (req, res) => {
       [newStatus, newCurrentStep, newCurrentApprover, id]
     );
     
-    // Add to approval history
+    // Add to approval history (per-step trail)
     await pool.query(
-      `INSERT INTO approval_history (
+      `INSERT INTO approval_steps (
         request_id,
+        step_number,
         approver_id,
-        action,
+        status,
         comments,
-        step_number
-      ) VALUES ($1, $2, $3, $4, $5)`,
-      [id, req.user.id, 'approved', comments || null, request.current_step]
+        approved_at
+      ) VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [id, request.current_step, req.user.id, 'approved', comments || null]
     );
-    
+
     res.json({
       message: 'Request approved successfully',
       request: {
@@ -828,7 +824,7 @@ app.post('/approval/requests/:id/reject', verifyToken, async (req, res) => {
       });
     }
     
-    const stepsData = JSON.parse(request.steps_data);
+    const stepsData = request.steps_data;
     const currentStepData = stepsData[request.current_step - 1];
     
     if (currentStepData.approverRole !== req.user.role) {
@@ -848,18 +844,19 @@ app.post('/approval/requests/:id/reject', verifyToken, async (req, res) => {
       [id]
     );
     
-    // Add to approval history
+    // Add to approval history (per-step trail)
     await pool.query(
-      `INSERT INTO approval_history (
+      `INSERT INTO approval_steps (
         request_id,
+        step_number,
         approver_id,
-        action,
+        status,
         comments,
-        step_number
-      ) VALUES ($1, $2, $3, $4, $5)`,
-      [id, req.user.id, 'rejected', comments, request.current_step]
+        approved_at
+      ) VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [id, request.current_step, req.user.id, 'rejected', comments]
     );
-    
+
     res.json({
       message: 'Request rejected successfully',
       request: {
@@ -908,7 +905,7 @@ app.post('/approval/requests/:id/return', verifyToken, async (req, res) => {
       });
     }
     
-    const stepsData = JSON.parse(request.steps_data);
+    const stepsData = request.steps_data;
     const currentStepData = stepsData[request.current_step - 1];
     
     if (currentStepData.approverRole !== req.user.role) {
@@ -928,18 +925,19 @@ app.post('/approval/requests/:id/return', verifyToken, async (req, res) => {
       [id]
     );
     
-    // Add to approval history
+    // Add to approval history (per-step trail)
     await pool.query(
-      `INSERT INTO approval_history (
+      `INSERT INTO approval_steps (
         request_id,
+        step_number,
         approver_id,
-        action,
+        status,
         comments,
-        step_number
-      ) VALUES ($1, $2, $3, $4, $5)`,
-      [id, req.user.id, 'returned', comments, request.current_step]
+        approved_at
+      ) VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [id, request.current_step, req.user.id, 'returned', comments]
     );
-    
+
     res.json({
       message: 'Request returned for revision successfully',
       request: {
@@ -964,7 +962,7 @@ app.get('/approval/requests/pending', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
     
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         ar.id,
         ar.title,
         ar.description,
@@ -974,30 +972,33 @@ app.get('/approval/requests/pending', verifyToken, async (req, res) => {
         ar.current_step,
         ar.current_approver,
         ar.due_date,
+        ar.requester_id,
         ar.created_at,
-        aw.name as workflow_name,
-        u.first_name,
-        u.last_name,
-        u.email
+        aw.name as workflow_name
       FROM approval_requests ar
       LEFT JOIN approval_workflows aw ON ar.workflow_id = aw.id
-      LEFT JOIN users u ON ar.requester_id = u.id
       WHERE ar.status IN ('pending', 'in_progress')
       AND ar.current_approver = $1
       ORDER BY ar.created_at DESC
       LIMIT $2 OFFSET $3`,
       [req.user.role, parseInt(limit), offset]
     );
-    
+
+    const users = await resolveUsers(result.rows.map(r => r.requester_id));
+    const requests = result.rows.map(r => {
+      const user = users.get(r.requester_id);
+      return { ...r, first_name: user?.firstName || null, last_name: user?.lastName || null, email: user?.email || null };
+    });
+
     res.json({
-      requests: result.rows,
+      requests,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: result.rows.length
+        total: requests.length
       }
     });
-    
+
   } catch (error) {
     console.error('Get pending requests error:', error);
     res.status(500).json({ 
@@ -1014,7 +1015,7 @@ app.get('/approval/requests/assigned', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
     
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         ar.id,
         ar.title,
         ar.description,
@@ -1024,29 +1025,32 @@ app.get('/approval/requests/assigned', verifyToken, async (req, res) => {
         ar.current_step,
         ar.current_approver,
         ar.due_date,
+        ar.requester_id,
         ar.created_at,
-        aw.name as workflow_name,
-        u.first_name,
-        u.last_name,
-        u.email
+        aw.name as workflow_name
       FROM approval_requests ar
       LEFT JOIN approval_workflows aw ON ar.workflow_id = aw.id
-      LEFT JOIN users u ON ar.requester_id = u.id
       WHERE ar.current_approver = $1
       ORDER BY ar.created_at DESC
       LIMIT $2 OFFSET $3`,
       [req.user.role, parseInt(limit), offset]
     );
-    
+
+    const users = await resolveUsers(result.rows.map(r => r.requester_id));
+    const requests = result.rows.map(r => {
+      const user = users.get(r.requester_id);
+      return { ...r, first_name: user?.firstName || null, last_name: user?.lastName || null, email: user?.email || null };
+    });
+
     res.json({
-      requests: result.rows,
+      requests,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: result.rows.length
+        total: requests.length
       }
     });
-    
+
   } catch (error) {
     console.error('Get assigned requests error:', error);
     res.status(500).json({ 
@@ -1182,9 +1186,75 @@ app.get('/approval/requests/stats', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('Get request stats error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get request statistics',
-      details: error.message 
+      details: error.message
+    });
+  }
+});
+
+// 8. GET REQUEST DETAILS (registered after the static /approval/requests/*
+// routes above so it doesn't shadow them, since Express matches routes in registration order)
+app.get('/approval/requests/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT
+        ar.*,
+        aw.name as workflow_name,
+        aw.steps as workflow_steps
+      FROM approval_requests ar
+      LEFT JOIN approval_workflows aw ON ar.workflow_id = aw.id
+      WHERE ar.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    const request = result.rows[0];
+
+    // Get approval history (per-step trail)
+    const historyResult = await pool.query(
+      `SELECT *
+      FROM approval_steps
+      WHERE request_id = $1
+      ORDER BY step_number ASC`,
+      [id]
+    );
+
+    const requesterMap = await resolveUsers([request.requester_id]);
+    const requester = requesterMap.get(request.requester_id);
+
+    const historyUsers = await resolveUsers(historyResult.rows.map(h => h.approver_id));
+    const history = historyResult.rows.map(h => {
+      const user = historyUsers.get(h.approver_id);
+      return {
+        ...h,
+        first_name: user?.firstName || null,
+        last_name: user?.lastName || null,
+        email: user?.email || null
+      };
+    });
+
+    res.json({
+      request: {
+        ...request,
+        first_name: requester?.firstName || null,
+        last_name: requester?.lastName || null,
+        email: requester?.email || null,
+        workflowSteps: request.workflow_steps || null
+      },
+      history
+    });
+
+  } catch (error) {
+    console.error('Get request error:', error);
+    res.status(500).json({
+      error: 'Failed to get request',
+      details: error.message
     });
   }
 });

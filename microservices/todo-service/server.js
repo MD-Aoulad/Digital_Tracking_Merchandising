@@ -346,6 +346,59 @@ const requireRole = (roles) => {
   };
 };
 
+// ===== CROSS-SERVICE USER RESOLUTION =====
+
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
+
+/**
+ * Mints a short-lived internal service token for server-to-server calls,
+ * so enrichment lookups aren't gated by the requesting end-user's own role.
+ */
+const getInternalServiceToken = () => {
+  return jwt.sign(
+    { id: 'todo-service', role: 'admin', service: 'todo-service' },
+    process.env.JWT_SECRET || 'microservice-jwt-secret',
+    { expiresIn: '1m' }
+  );
+};
+
+/**
+ * Resolves a set of auth-service user ids to {id, email, firstName, lastName}.
+ * Returns a Map keyed by user id; failed/missing lookups are simply omitted.
+ */
+const resolveUsers = async (ids) => {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  const token = getInternalServiceToken();
+  const results = await Promise.all(uniqueIds.map(async (id) => {
+    try {
+      const response = await fetch(`${AUTH_SERVICE_URL}/admin/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.user;
+    } catch (error) {
+      logger.error(`Failed to resolve user ${id}:`, error);
+      return null;
+    }
+  }));
+
+  const map = new Map();
+  results.forEach(user => {
+    if (user) map.set(user.id, user);
+  });
+  return map;
+};
+
+/**
+ * Checks whether a given user id exists and is active, via auth-service.
+ */
+const userExists = async (id) => {
+  const users = await resolveUsers([id]);
+  const user = users.get(id);
+  return !!user && user.isActive;
+};
+
 // ===== HEALTH CHECK ENDPOINT =====
 
 /**
@@ -413,30 +466,20 @@ app.get('/todos', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT 
+      SELECT
         t.id,
         t.title,
         t.description,
         t.priority,
         t.status,
-        t.category,
         t.due_date,
         t.completed_at,
         t.created_at,
         t.updated_at,
-        t.user_id,
-        t.assigned_to,
         t.assigned_by,
-        t.assigned_at,
-        u.email as assigned_to_email,
-        u.first_name as assigned_to_first_name,
-        u.last_name as assigned_to_last_name,
-        c.email as created_by_email,
-        c.first_name as created_by_first_name,
-        c.last_name as created_by_last_name
+        t.assigned_to,
+        t.assigned_by
       FROM todos t
-      LEFT JOIN users u ON t.assigned_to = u.id
-      LEFT JOIN users c ON t.user_id = c.id
       WHERE t.assigned_to = $1
     `;
     
@@ -454,40 +497,30 @@ app.get('/todos', verifyToken, async (req, res) => {
       queryParams.push(priority);
     }
     
-    if (category) {
-      query += ` AND t.category = $${paramCount++}`;
-      queryParams.push(category);
-    }
-    
     if (search) {
       query += ` AND (t.title ILIKE $${paramCount} OR t.description ILIKE $${paramCount})`;
       queryParams.push(`%${search}%`);
     }
-    
+
     // Add pagination
     query += ` ORDER BY t.created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
     queryParams.push(parseInt(limit), offset);
-    
+
     const result = await pool.query(query, queryParams);
-    
+
     // Get total count for pagination
     let countQuery = 'SELECT COUNT(*) as total FROM todos WHERE assigned_to = $1';
     const countParams = [req.user.id];
     paramCount = 2;
-    
+
     if (status) {
       countQuery += ` AND status = $${paramCount++}`;
       countParams.push(status);
     }
-    
+
     if (priority) {
       countQuery += ` AND priority = $${paramCount++}`;
       countParams.push(priority);
-    }
-    
-    if (category) {
-      countQuery += ` AND category = $${paramCount++}`;
-      countParams.push(category);
     }
     
     if (search) {
@@ -497,9 +530,25 @@ app.get('/todos', verifyToken, async (req, res) => {
     
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
-    
+
+    const userIds = result.rows.flatMap(t => [t.assigned_to, t.assigned_by]);
+    const users = await resolveUsers(userIds);
+    const todos = result.rows.map(t => {
+      const assignedToUser = users.get(t.assigned_to);
+      const creatorUser = users.get(t.assigned_by);
+      return {
+        ...t,
+        assigned_to_email: assignedToUser?.email || null,
+        assigned_to_first_name: assignedToUser?.firstName || null,
+        assigned_to_last_name: assignedToUser?.lastName || null,
+        created_by_email: creatorUser?.email || null,
+        created_by_first_name: creatorUser?.firstName || null,
+        created_by_last_name: creatorUser?.lastName || null
+      };
+    });
+
     res.json({
-      todos: result.rows,
+      todos,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -507,61 +556,12 @@ app.get('/todos', verifyToken, async (req, res) => {
         pages: Math.ceil(total / limit)
       }
     });
-    
+
   } catch (error) {
     console.error('Get todos error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get todos',
-      details: error.message 
-    });
-  }
-});
-
-// 2. GET TODO BY ID
-app.get('/todos/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await pool.query(
-      `SELECT 
-        t.id,
-        t.title,
-        t.description,
-        t.priority,
-        t.status,
-        t.category,
-        t.due_date,
-        t.completed_at,
-        t.created_at,
-        t.updated_at,
-        t.user_id,
-        t.assigned_to,
-        t.assigned_by,
-        t.assigned_at,
-        u.email as assigned_to_email,
-        u.first_name as assigned_to_first_name,
-        u.last_name as assigned_to_last_name,
-        c.email as created_by_email,
-        c.first_name as created_by_first_name,
-        c.last_name as created_by_last_name
-      FROM todos t
-      LEFT JOIN users u ON t.assigned_to = u.id
-      LEFT JOIN users c ON t.user_id = c.id
-      WHERE t.id = $1 AND (t.assigned_to = $2 OR t.user_id = $2 OR $3 = 'admin')`,
-      [id, req.user.id, req.user.role]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
-    
-    res.json({ todo: result.rows[0] });
-    
-  } catch (error) {
-    console.error('Get todo error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get todo',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -587,44 +587,35 @@ app.post('/todos', verifyToken, async (req, res) => {
     
     // Check if assignedTo exists (if provided)
     if (assignedTo) {
-      const userResult = await pool.query(
-        'SELECT id FROM users WHERE id = $1 AND is_active = true',
-        [assignedTo]
-      );
-      
-      if (userResult.rows.length === 0) {
-        return res.status(400).json({ 
-          error: 'Assigned user not found or inactive' 
+      const exists = await userExists(assignedTo);
+
+      if (!exists) {
+        return res.status(400).json({
+          error: 'Assigned user not found or inactive'
         });
       }
     }
-    
+
     // Create todo
     const result = await pool.query(
       `INSERT INTO todos (
-        title, 
-        description, 
-        priority, 
-        category, 
-        due_date, 
-        status, 
-        user_id, 
-        assigned_to, 
-        assigned_by, 
-        assigned_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-      RETURNING id, title, description, priority, category, due_date, status, created_at`,
+        title,
+        description,
+        priority,
+        due_date,
+        status,
+        assigned_to,
+        assigned_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, title, description, priority, due_date, status, created_at`,
       [
         title,
         description || null,
         priority,
-        category || null,
         dueDate || null,
         'pending',
-        req.user.id,
         assignedTo || req.user.id,
-        req.user.id,
-        new Date()
+        req.user.id
       ]
     );
     
@@ -650,17 +641,17 @@ app.put('/todos/:id', verifyToken, async (req, res) => {
     
     // Check if user can update this todo
     const todoResult = await pool.query(
-      'SELECT user_id, assigned_to FROM todos WHERE id = $1',
+      'SELECT creator, assigned_to FROM todos WHERE id = $1',
       [id]
     );
-    
+
     if (todoResult.rows.length === 0) {
       return res.status(404).json({ error: 'Todo not found' });
     }
-    
+
     const todo = todoResult.rows[0];
-    const canUpdate = req.user.role === 'admin' || 
-                     todo.user_id === req.user.id || 
+    const canUpdate = req.user.role === 'admin' ||
+                     todo.assigned_by === req.user.id ||
                      todo.assigned_to === req.user.id;
     
     if (!canUpdate) {
@@ -705,11 +696,6 @@ app.put('/todos/:id', verifyToken, async (req, res) => {
     if (priority) {
       updateFields.push(`priority = $${paramCount++}`);
       updateValues.push(priority);
-    }
-    
-    if (category !== undefined) {
-      updateFields.push(`category = $${paramCount++}`);
-      updateValues.push(category);
     }
     
     if (dueDate !== undefined) {
@@ -764,16 +750,16 @@ app.delete('/todos/:id', verifyToken, async (req, res) => {
     
     // Check if user can delete this todo
     const todoResult = await pool.query(
-      'SELECT user_id FROM todos WHERE id = $1',
+      'SELECT creator FROM todos WHERE id = $1',
       [id]
     );
-    
+
     if (todoResult.rows.length === 0) {
       return res.status(404).json({ error: 'Todo not found' });
     }
-    
+
     const todo = todoResult.rows[0];
-    const canDelete = req.user.role === 'admin' || todo.user_id === req.user.id;
+    const canDelete = req.user.role === 'admin' || todo.assigned_by === req.user.id;
     
     if (!canDelete) {
       return res.status(403).json({ error: 'Insufficient permissions' });
@@ -802,27 +788,21 @@ app.get('/todos/assigned', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT 
+      SELECT
         t.id,
         t.title,
         t.description,
         t.priority,
         t.status,
-        t.category,
         t.due_date,
         t.completed_at,
         t.created_at,
         t.updated_at,
-        t.user_id,
-        t.assigned_to,
         t.assigned_by,
-        t.assigned_at,
-        c.email as created_by_email,
-        c.first_name as created_by_first_name,
-        c.last_name as created_by_last_name
+        t.assigned_to,
+        t.assigned_by
       FROM todos t
-      LEFT JOIN users c ON t.user_id = c.id
-      WHERE t.assigned_to = $1 AND t.user_id != $1
+      WHERE t.assigned_to = $1 AND t.assigned_by != $1
     `;
     
     const queryParams = [req.user.id];
@@ -842,22 +822,33 @@ app.get('/todos/assigned', verifyToken, async (req, res) => {
     queryParams.push(parseInt(limit), offset);
     
     const result = await pool.query(query, queryParams);
-    
+
+    const users = await resolveUsers(result.rows.map(t => t.assigned_by));
+    const todos = result.rows.map(t => {
+      const creatorUser = users.get(t.assigned_by);
+      return {
+        ...t,
+        created_by_email: creatorUser?.email || null,
+        created_by_first_name: creatorUser?.firstName || null,
+        created_by_last_name: creatorUser?.lastName || null
+      };
+    });
+
     res.json({
-      todos: result.rows,
+      todos,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: result.rows.length,
-        pages: Math.ceil(result.rows.length / limit)
+        total: todos.length,
+        pages: Math.ceil(todos.length / limit)
       }
     });
-    
+
   } catch (error) {
     console.error('Get assigned todos error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get assigned todos',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -869,54 +860,59 @@ app.get('/todos/created', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT 
+      SELECT
         t.id,
         t.title,
         t.description,
         t.priority,
         t.status,
-        t.category,
         t.due_date,
         t.completed_at,
         t.created_at,
         t.updated_at,
-        t.user_id,
-        t.assigned_to,
         t.assigned_by,
-        t.assigned_at,
-        u.email as assigned_to_email,
-        u.first_name as assigned_to_first_name,
-        u.last_name as assigned_to_last_name
+        t.assigned_to,
+        t.assigned_by
       FROM todos t
-      LEFT JOIN users u ON t.assigned_to = u.id
-      WHERE t.user_id = $1
+      WHERE t.assigned_by = $1
     `;
-    
+
     const queryParams = [req.user.id];
     let paramCount = 2;
-    
+
     if (status) {
       query += ` AND t.status = $${paramCount++}`;
       queryParams.push(status);
     }
-    
+
     if (priority) {
       query += ` AND t.priority = $${paramCount++}`;
       queryParams.push(priority);
     }
-    
+
     query += ` ORDER BY t.created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
     queryParams.push(parseInt(limit), offset);
-    
+
     const result = await pool.query(query, queryParams);
-    
+
+    const users = await resolveUsers(result.rows.map(t => t.assigned_to));
+    const todos = result.rows.map(t => {
+      const assignedToUser = users.get(t.assigned_to);
+      return {
+        ...t,
+        assigned_to_email: assignedToUser?.email || null,
+        assigned_to_first_name: assignedToUser?.firstName || null,
+        assigned_to_last_name: assignedToUser?.lastName || null
+      };
+    });
+
     res.json({
-      todos: result.rows,
+      todos,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: result.rows.length,
-        pages: Math.ceil(result.rows.length / limit)
+        total: todos.length,
+        pages: Math.ceil(todos.length / limit)
       }
     });
     
@@ -952,23 +948,19 @@ app.post('/todos/:id/assign', verifyToken, requireRole(['admin']), async (req, r
     }
     
     // Check if assignedTo user exists
-    const userResult = await pool.query(
-      'SELECT id FROM users WHERE id = $1 AND is_active = true',
-      [assignedTo]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(400).json({ 
-        error: 'Assigned user not found or inactive' 
+    const assignedToExists = await userExists(assignedTo);
+
+    if (!assignedToExists) {
+      return res.status(400).json({
+        error: 'Assigned user not found or inactive'
       });
     }
-    
+
     // Update assignment
     const result = await pool.query(
-      `UPDATE todos SET 
-        assigned_to = $1, 
-        assigned_by = $2, 
-        assigned_at = NOW(),
+      `UPDATE todos SET
+        assigned_to = $1,
+        assigned_by = $2,
         updated_at = NOW()
       WHERE id = $3 RETURNING *`,
       [assignedTo, req.user.id, id]
@@ -1096,55 +1088,56 @@ app.get('/todos/search', verifyToken, async (req, res) => {
     }
     
     let query = `
-      SELECT 
+      SELECT
         t.id,
         t.title,
         t.description,
         t.priority,
         t.status,
-        t.category,
         t.due_date,
         t.completed_at,
         t.created_at,
-        t.assigned_to,
-        u.email as assigned_to_email,
-        u.first_name as assigned_to_first_name,
-        u.last_name as assigned_to_last_name
+        t.assigned_to
       FROM todos t
-      LEFT JOIN users u ON t.assigned_to = u.id
       WHERE (t.title ILIKE $1 OR t.description ILIKE $1)
     `;
-    
+
     const queryParams = [`%${q}%`];
     let paramCount = 2;
-    
+
     // Add user filter (only show todos assigned to or created by user)
-    query += ` AND (t.assigned_to = $${paramCount++} OR t.user_id = $${paramCount++})`;
+    query += ` AND (t.assigned_to = $${paramCount++} OR t.assigned_by = $${paramCount++})`;
     queryParams.push(req.user.id, req.user.id);
-    
+
     if (status) {
       query += ` AND t.status = $${paramCount++}`;
       queryParams.push(status);
     }
-    
+
     if (priority) {
       query += ` AND t.priority = $${paramCount++}`;
       queryParams.push(priority);
     }
-    
-    if (category) {
-      query += ` AND t.category = $${paramCount++}`;
-      queryParams.push(category);
-    }
-    
+
     query += ` ORDER BY t.created_at DESC LIMIT $${paramCount++}`;
     queryParams.push(parseInt(limit));
-    
+
     const result = await pool.query(query, queryParams);
-    
+
+    const users = await resolveUsers(result.rows.map(t => t.assigned_to));
+    const todos = result.rows.map(t => {
+      const assignedToUser = users.get(t.assigned_to);
+      return {
+        ...t,
+        assigned_to_email: assignedToUser?.email || null,
+        assigned_to_first_name: assignedToUser?.firstName || null,
+        assigned_to_last_name: assignedToUser?.lastName || null
+      };
+    });
+
     res.json({
-      todos: result.rows,
-      count: result.rows.length
+      todos,
+      count: todos.length
     });
     
   } catch (error) {
@@ -1217,14 +1210,12 @@ app.get('/todos/stats', verifyToken, async (req, res) => {
 app.get('/todos/categories', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT DISTINCT category FROM todos WHERE category IS NOT NULL ORDER BY category'
+      'SELECT id, name, description, color, icon FROM todo_categories WHERE is_active = true ORDER BY name'
     );
-    
-    const categories = result.rows.map(row => row.category);
-    
+
     res.json({
-      categories,
-      count: categories.length
+      categories: result.rows,
+      count: result.rows.length
     });
     
   } catch (error) {
@@ -1232,6 +1223,59 @@ app.get('/todos/categories', verifyToken, async (req, res) => {
     res.status(500).json({ 
       error: 'Failed to get categories',
       details: error.message 
+    });
+  }
+});
+
+// 2. GET TODO BY ID (registered after the static /todos/* routes above so it
+// doesn't shadow them, since Express matches routes in registration order)
+app.get('/todos/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT
+        t.id,
+        t.title,
+        t.description,
+        t.priority,
+        t.status,
+        t.due_date,
+        t.completed_at,
+        t.created_at,
+        t.updated_at,
+        t.assigned_to,
+        t.assigned_by
+      FROM todos t
+      WHERE t.id = $1 AND (t.assigned_to = $2 OR t.assigned_by = $2 OR $3 = 'admin')`,
+      [id, req.user.id, req.user.role]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Todo not found' });
+    }
+
+    const users = await resolveUsers([result.rows[0].assigned_to, result.rows[0].assigned_by]);
+    const assignedToUser = users.get(result.rows[0].assigned_to);
+    const creatorUser = users.get(result.rows[0].assigned_by);
+
+    res.json({
+      todo: {
+        ...result.rows[0],
+        assigned_to_email: assignedToUser?.email || null,
+        assigned_to_first_name: assignedToUser?.firstName || null,
+        assigned_to_last_name: assignedToUser?.lastName || null,
+        created_by_email: creatorUser?.email || null,
+        created_by_first_name: creatorUser?.firstName || null,
+        created_by_last_name: creatorUser?.lastName || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Get todo error:', error);
+    res.status(500).json({
+      error: 'Failed to get todo',
+      details: error.message
     });
   }
 });
@@ -1254,23 +1298,19 @@ app.post('/todos/bulk-assign', verifyToken, requireRole(['admin']), async (req, 
     }
     
     // Check if assignedTo user exists
-    const userResult = await pool.query(
-      'SELECT id FROM users WHERE id = $1 AND is_active = true',
-      [assignedTo]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(400).json({ 
-        error: 'Assigned user not found or inactive' 
+    const assignedToExists = await userExists(assignedTo);
+
+    if (!assignedToExists) {
+      return res.status(400).json({
+        error: 'Assigned user not found or inactive'
       });
     }
-    
+
     // Update all todos
     const result = await pool.query(
-      `UPDATE todos SET 
-        assigned_to = $1, 
-        assigned_by = $2, 
-        assigned_at = NOW(),
+      `UPDATE todos SET
+        assigned_to = $1,
+        assigned_by = $2,
         updated_at = NOW()
       WHERE id = ANY($3) RETURNING id`,
       [assignedTo, req.user.id, todoIds]

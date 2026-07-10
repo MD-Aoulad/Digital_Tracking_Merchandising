@@ -25,6 +25,88 @@ const API_BASE = (process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8080/a
 // ===== UTILITY FUNCTIONS =====
 
 /**
+ * chat-service returns raw snake_case DB rows with a smaller column set than
+ * the frontend's ChatChannel type declares (no settings/metadata/maxMembers
+ * columns exist). Normalize field names and fill in sane defaults for the
+ * fields the schema doesn't track, rather than leaving them undefined.
+ */
+const normalizeChannel = (raw: any): ChatChannel => ({
+  id: raw.id,
+  name: raw.name,
+  description: raw.description,
+  type: raw.channel_type ?? raw.type,
+  isPrivate: raw.is_private ?? raw.isPrivate ?? false,
+  isArchived: raw.is_archived ?? raw.isArchived ?? false,
+  isReadonly: raw.is_readonly ?? raw.isReadonly ?? false,
+  maxMembers: raw.max_members ?? raw.maxMembers ?? 100,
+  createdBy: raw.created_by ?? raw.createdBy,
+  createdAt: raw.created_at ?? raw.createdAt,
+  updatedAt: raw.updated_at ?? raw.updatedAt,
+  lastActivityAt: raw.last_activity_at ?? raw.lastActivityAt ?? raw.updated_at ?? raw.createdAt,
+  settings: raw.settings ?? {
+    allowFileSharing: true,
+    allowReactions: true,
+    allowEditing: true,
+    allowDeletion: true,
+    editTimeLimit: 15,
+    deletionTimeLimit: 15,
+    messageRetentionDays: 90,
+    autoArchive: false,
+    archiveAfterDays: 90,
+    requireApproval: false,
+    moderationEnabled: false,
+    profanityFilter: false,
+    linkPreview: true,
+    threadReplies: true,
+    pinnedMessages: true,
+  },
+  metadata: raw.metadata ?? {},
+  memberCount: raw.participant_count !== undefined ? parseInt(raw.participant_count, 10) : raw.memberCount,
+  userRole: raw.user_role ?? raw.userRole,
+});
+
+/**
+ * Same normalization problem as normalizeChannel: chat-service's raw message
+ * rows are snake_case with a smaller column set (no updated_at, isPinned,
+ * isFlagged, complianceData columns exist) than ChatMessage declares.
+ */
+const normalizeMessage = (raw: any): ChatMessage => ({
+  id: raw.id,
+  channelId: raw.channel_id ?? raw.channelId,
+  senderId: raw.sender_id ?? raw.senderId,
+  content: raw.content,
+  messageType: raw.message_type ?? raw.messageType ?? 'text',
+  replyToId: raw.parent_message_id ?? raw.replyToId,
+  threadId: raw.threadId,
+  isEdited: raw.is_edited ?? raw.isEdited ?? false,
+  isDeleted: raw.is_deleted ?? raw.isDeleted ?? false,
+  isPinned: raw.is_pinned ?? raw.isPinned ?? false,
+  isFlagged: raw.is_flagged ?? raw.isFlagged ?? false,
+  flagReason: raw.flag_reason ?? raw.flagReason,
+  flaggedBy: raw.flagged_by ?? raw.flaggedBy,
+  flaggedAt: raw.flagged_at ?? raw.flaggedAt,
+  createdAt: raw.created_at ?? raw.createdAt,
+  updatedAt: raw.updated_at ?? raw.updatedAt ?? raw.created_at ?? raw.createdAt,
+  editedAt: raw.edited_at ?? raw.editedAt,
+  deletedAt: raw.deleted_at ?? raw.deletedAt,
+  metadata: raw.metadata ?? {},
+  complianceData: raw.complianceData ?? raw.compliance_data ?? {
+    gdprCompliant: true,
+    retentionPolicy: 'default',
+    dataClassification: 'internal',
+    encryptionLevel: 'standard',
+    auditTrail: false,
+    legalHold: false,
+    exportable: true,
+    deletionAllowed: true,
+  },
+  attachments: raw.attachments,
+  reactions: raw.reactions,
+  readBy: raw.readBy,
+  sender: raw.sender,
+});
+
+/**
  * Get authentication headers with JWT token
  */
 const getAuthHeaders = (): Record<string, string> => {
@@ -348,7 +430,8 @@ export const channelApi = {
     
     const response = await apiRequest<ChatChannel[]>('/channels');
     // The API returns array directly, not wrapped in data property
-    return Array.isArray(response) ? response : (response.data || []);
+    const channels = Array.isArray(response) ? response : (response.data || []);
+    return channels.map(normalizeChannel);
   },
 
   // Create new channel
@@ -356,12 +439,14 @@ export const channelApi = {
     if (!isAuthenticated()) {
       throw new Error('User not authenticated');
     }
-    
+
     const response = await apiRequest<ChatChannel>('/channels', {
       method: 'POST',
       body: JSON.stringify(form),
     });
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return normalizeChannel(response.data ?? response);
   },
 
   // Get channel details
@@ -371,7 +456,9 @@ export const channelApi = {
     }
     
     const response = await apiRequest<ChatChannel>(`/channels/${id}`);
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return normalizeChannel(response.data ?? response);
   },
 
   // Update channel
@@ -379,12 +466,14 @@ export const channelApi = {
     if (!isAuthenticated()) {
       throw new Error('User not authenticated');
     }
-    
+
     const response = await apiRequest<ChatChannel>(`/channels/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return normalizeChannel(response.data ?? response);
   },
 
   // Delete channel
@@ -477,7 +566,13 @@ export const messageApi = {
     if (before) params.append('before', before);
 
     const response = await apiRequest<ChatMessage[]>(`/channels/${channelId}/messages?${params}`);
-    return response as ChatMessagesResponse;
+    // chat-service returns the message array directly, not wrapped in
+    // `{data: [...]}` (same pattern as channelApi.getChannels).
+    const rawMessages = Array.isArray(response) ? response : ((response as any).data || []);
+    return {
+      success: true,
+      data: rawMessages.map(normalizeMessage),
+    };
   },
 
   // Send message
@@ -488,9 +583,14 @@ export const messageApi = {
     
     const response = await apiRequest<ChatMessage>(`/channels/${channelId}/messages`, {
       method: 'POST',
-      body: JSON.stringify(form),
+      // chat-service's POST /channels/:id/messages destructures `message`
+      // from the body (not `content`) - translate at the wire boundary so
+      // the rest of the frontend can keep using `content` internally.
+      body: JSON.stringify({ message: form.content, messageType: form.messageType }),
     });
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return normalizeMessage(response.data ?? response);
   },
 
   // Update message
@@ -501,9 +601,12 @@ export const messageApi = {
     
     const response = await apiRequest<ChatMessage>(`/messages/${messageId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ content }),
+      // chat-service destructures `message` from the body (not `content`).
+      body: JSON.stringify({ message: content }),
     });
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return normalizeMessage(response.data ?? response);
   },
 
   // Delete message
@@ -611,7 +714,9 @@ export const messageApi = {
       method: 'POST',
       body: JSON.stringify(form),
     });
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return (response.data ?? response) as any;
   },
 };
 
@@ -646,7 +751,9 @@ export const moderationApi = {
       method: 'POST',
       body: JSON.stringify({ status, actionTaken, notes }),
     });
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return (response.data ?? response) as any;
   },
 };
 
@@ -662,7 +769,9 @@ export const analyticsApi = {
     }
     
     const response = await apiRequest<ChatAnalytics>(`/channels/${channelId}/analytics?days=${days}`);
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return (response.data ?? response) as any;
   },
 
   // Get user activity (now implemented in backend)
@@ -675,7 +784,7 @@ export const analyticsApi = {
     if (dateFrom) params.append('dateFrom', dateFrom);
     if (dateTo) params.append('dateTo', dateTo);
     const response = await apiRequest<any>(`/user-activity?${params.toString()}`);
-    return response.data;
+    return response.data ?? response;
   },
 
   // Get chat statistics (placeholder - endpoint not implemented in backend)
@@ -753,7 +862,9 @@ export const searchApi = {
     });
 
     const response = await apiRequest<ChatSearchResult>(`/search?${params}`);
-    return response.data!;
+    // Some chat-service endpoints wrap the payload in `data`, others return
+    // it directly (see the identical fallback in channelApi.getChannels).
+    return (response.data ?? response) as any;
   },
 
   // Search channels (placeholder - using general search endpoint)

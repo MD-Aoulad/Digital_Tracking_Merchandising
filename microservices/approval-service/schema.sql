@@ -10,9 +10,11 @@ CREATE TABLE approval_workflows (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    workflow_type VARCHAR(100) NOT NULL, -- 'leave_request', 'expense', 'purchase', 'policy_change'
+    workflow_type VARCHAR(100) NOT NULL DEFAULT 'general', -- 'leave_request', 'expense', 'purchase', 'policy_change'
     steps JSONB NOT NULL, -- Array of approval steps
     is_active BOOLEAN DEFAULT TRUE,
+    auto_approve BOOLEAN DEFAULT FALSE,
+    max_duration INTEGER, -- max hours allowed for the workflow to complete
     created_by UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -25,10 +27,17 @@ CREATE TABLE approval_requests (
     requester_id UUID NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    request_data JSONB NOT NULL, -- Request-specific data
+    request_data JSONB NOT NULL DEFAULT '{}', -- Request-specific data
+    attachments JSONB,
+    metadata JSONB,
     status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'cancelled'
     current_step INTEGER DEFAULT 1,
     total_steps INTEGER NOT NULL,
+    request_type VARCHAR(100),
+    priority VARCHAR(20) DEFAULT 'medium',
+    due_date TIMESTAMP WITH TIME ZONE,
+    current_approver VARCHAR(100), -- role name (not a user id) who needs to approve at current_step
+    steps_data JSONB, -- snapshot of the workflow's steps at request-creation time
     requested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

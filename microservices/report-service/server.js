@@ -19,6 +19,49 @@ const pool = new Pool({
 
 // JWT Secret (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
+
+// ===== CROSS-SERVICE USER RESOLUTION =====
+
+/**
+ * Mints a short-lived internal service token for server-to-server calls,
+ * so enrichment lookups aren't gated by the requesting end-user's own role.
+ */
+const getInternalServiceToken = () => {
+  return jwt.sign(
+    { id: 'report-service', role: 'admin', service: 'report-service' },
+    JWT_SECRET,
+    { expiresIn: '1m' }
+  );
+};
+
+/**
+ * Resolves a set of auth-service user ids to {id, email, firstName, lastName}.
+ * Returns a Map keyed by user id; failed/missing lookups are simply omitted.
+ */
+const resolveUsers = async (ids) => {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  const token = getInternalServiceToken();
+  const results = await Promise.all(uniqueIds.map(async (id) => {
+    try {
+      const response = await fetch(`${AUTH_SERVICE_URL}/admin/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.user;
+    } catch (error) {
+      console.error(`Failed to resolve user ${id}:`, error);
+      return null;
+    }
+  }));
+
+  const map = new Map();
+  results.forEach(user => {
+    if (user) map.set(user.id, user);
+  });
+  return map;
+};
 
 // Middleware
 app.use(helmet());
@@ -146,11 +189,9 @@ app.get('/api/reports/templates', verifyToken, async (req, res) => {
     } = req.query;
     
     let query = `
-      SELECT 
-        rt.*,
-        u.first_name as created_by_name
+      SELECT
+        rt.*
       FROM report_templates rt
-      LEFT JOIN users u ON rt.created_by = u.id
       WHERE rt.is_active = $1
     `;
     
@@ -195,9 +236,15 @@ app.get('/api/reports/templates', verifyToken, async (req, res) => {
     }
     
     const countResult = await pool.query(countQuery, countParams);
-    
+
+    const users = await resolveUsers(result.rows.map(t => t.created_by));
+    const templates = result.rows.map(t => ({
+      ...t,
+      created_by_name: users.get(t.created_by)?.firstName || null
+    }));
+
     res.json({
-      templates: result.rows,
+      templates,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -205,7 +252,7 @@ app.get('/api/reports/templates', verifyToken, async (req, res) => {
         pages: Math.ceil(countResult.rows[0].total / limit)
       }
     });
-    
+
   } catch (error) {
     console.error('Get report templates error:', error);
     res.status(500).json({ 
@@ -391,16 +438,12 @@ app.get('/api/reports', verifyToken, async (req, res) => {
     } = req.query;
     
     let query = `
-      SELECT 
+      SELECT
         r.*,
         rt.name as template_name,
-        rt.template_type,
-        u.first_name,
-        u.last_name,
-        u.email
+        rt.template_type
       FROM reports r
       LEFT JOIN report_templates rt ON r.template_id = rt.id
-      LEFT JOIN users u ON r.generated_by = u.id
       WHERE 1=1
     `;
     
@@ -475,9 +518,20 @@ app.get('/api/reports', verifyToken, async (req, res) => {
     }
     
     const countResult = await pool.query(countQuery, countParams);
-    
+
+    const users = await resolveUsers(result.rows.map(r => r.generated_by));
+    const reports = result.rows.map(r => {
+      const user = users.get(r.generated_by);
+      return {
+        ...r,
+        first_name: user?.firstName || null,
+        last_name: user?.lastName || null,
+        email: user?.email || null
+      };
+    });
+
     res.json({
-      reports: result.rows,
+      reports,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -551,51 +605,6 @@ app.post('/api/reports', verifyToken, async (req, res) => {
     console.error('Generate report error:', error);
     res.status(500).json({ 
       error: 'Failed to generate report',
-      details: error.message 
-    });
-  }
-});
-
-// 7. GET SPECIFIC REPORT
-app.get('/api/reports/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const query = `
-      SELECT 
-        r.*,
-        rt.name as template_name,
-        rt.template_type,
-        rt.category,
-        u.first_name,
-        u.last_name,
-        u.email
-      FROM reports r
-      LEFT JOIN report_templates rt ON r.template_id = rt.id
-      LEFT JOIN users u ON r.generated_by = u.id
-      WHERE r.id = $1
-    `;
-    
-    const result = await pool.query(query, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-    
-    // Track report view
-    await pool.query(
-      'INSERT INTO report_analytics (report_id, user_id, action) VALUES ($1, $2, $3)',
-      [id, req.user.id, 'viewed']
-    );
-    
-    res.json({
-      report: result.rows[0]
-    });
-    
-  } catch (error) {
-    console.error('Get report error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get report',
       details: error.message 
     });
   }
@@ -751,29 +760,31 @@ app.get('/api/reports/:id/comments', verifyToken, async (req, res) => {
     }
     
     const query = `
-      SELECT 
-        rc.*,
-        u.first_name,
-        u.last_name,
-        u.email
+      SELECT
+        rc.*
       FROM report_comments rc
-      LEFT JOIN users u ON rc.user_id = u.id
       WHERE rc.report_id = $1
       ORDER BY rc.created_at DESC
       LIMIT $2 OFFSET $3
     `;
-    
+
     const offset = (page - 1) * limit;
     const result = await pool.query(query, [id, limit, offset]);
-    
+
     // Get total count
     const countResult = await pool.query(
       'SELECT COUNT(*) as total FROM report_comments WHERE report_id = $1',
       [id]
     );
-    
+
+    const users = await resolveUsers(result.rows.map(c => c.user_id));
+    const comments = result.rows.map(c => {
+      const user = users.get(c.user_id);
+      return { ...c, first_name: user?.firstName || null, last_name: user?.lastName || null, email: user?.email || null };
+    });
+
     res.json({
-      comments: result.rows,
+      comments,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -806,14 +817,12 @@ app.get('/api/reports/scheduled', verifyToken, async (req, res) => {
     } = req.query;
     
     let query = `
-      SELECT 
+      SELECT
         sr.*,
         rt.name as template_name,
-        rt.template_type,
-        u.first_name as created_by_name
+        rt.template_type
       FROM scheduled_reports sr
       LEFT JOIN report_templates rt ON sr.template_id = rt.id
-      LEFT JOIN users u ON sr.created_by = u.id
       WHERE sr.is_active = $1
     `;
     
@@ -848,9 +857,15 @@ app.get('/api/reports/scheduled', verifyToken, async (req, res) => {
     }
     
     const countResult = await pool.query(countQuery, countParams);
-    
+
+    const users = await resolveUsers(result.rows.map(sr => sr.created_by));
+    const scheduledReports = result.rows.map(sr => ({
+      ...sr,
+      created_by_name: users.get(sr.created_by)?.firstName || null
+    }));
+
     res.json({
-      scheduledReports: result.rows,
+      scheduledReports,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -1181,16 +1196,12 @@ app.post('/api/reports/export', verifyToken, requireRole(['admin']), async (req,
     } = req.body;
     
     let query = `
-      SELECT 
+      SELECT
         r.*,
         rt.name as template_name,
-        rt.template_type,
-        u.first_name,
-        u.last_name,
-        u.email
+        rt.template_type
       FROM reports r
       LEFT JOIN report_templates rt ON r.template_id = rt.id
-      LEFT JOIN users u ON r.generated_by = u.id
       WHERE 1=1
     `;
     
@@ -1220,14 +1231,25 @@ app.post('/api/reports/export', verifyToken, requireRole(['admin']), async (req,
     query += ` ORDER BY r.generated_at DESC`;
     
     const result = await pool.query(query, queryParams);
-    
+
+    const users = await resolveUsers(result.rows.map(r => r.generated_by));
+    const data = result.rows.map(r => {
+      const user = users.get(r.generated_by);
+      return {
+        ...r,
+        first_name: user?.firstName || null,
+        last_name: user?.lastName || null,
+        email: user?.email || null
+      };
+    });
+
     // In a real implementation, you would generate the actual file
     // For now, we'll return the data
     res.json({
       message: 'Export completed successfully',
       format,
-      recordCount: result.rows.length,
-      data: result.rows,
+      recordCount: data.length,
+      data,
       exportDate: new Date().toISOString()
     });
     
@@ -1268,19 +1290,21 @@ app.get('/api/reports/dashboard', verifyToken, async (req, res) => {
     
     // Get recent reports
     let recentQuery = `
-      SELECT 
+      SELECT
         r.*,
-        rt.name as template_name,
-        u.first_name,
-        u.last_name
+        rt.name as template_name
       FROM reports r
       LEFT JOIN report_templates rt ON r.template_id = rt.id
-      LEFT JOIN users u ON r.generated_by = u.id
       ORDER BY r.generated_at DESC
       LIMIT 10
     `;
     const recentResult = await pool.query(recentQuery);
-    
+    const recentUsers = await resolveUsers(recentResult.rows.map(r => r.generated_by));
+    const recentReports = recentResult.rows.map(r => {
+      const user = recentUsers.get(r.generated_by);
+      return { ...r, first_name: user?.firstName || null, last_name: user?.lastName || null };
+    });
+
     // Get analytics summary
     let analyticsQuery = `
       SELECT action, COUNT(*) as count
@@ -1288,13 +1312,13 @@ app.get('/api/reports/dashboard', verifyToken, async (req, res) => {
       GROUP BY action
     `;
     const analyticsResult = await pool.query(analyticsQuery);
-    
+
     res.json({
       dashboard: {
         totalReports: parseInt(totalReportsResult.rows[0].total),
         reportsByStatus: statusResult.rows,
         reportsByTemplate: templateResult.rows,
-        recentReports: recentResult.rows,
+        recentReports,
         analyticsSummary: analyticsResult.rows
       },
       filters: { startDate, endDate }
@@ -1302,9 +1326,58 @@ app.get('/api/reports/dashboard', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('Get dashboard error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get dashboard data',
-      details: error.message 
+      details: error.message
+    });
+  }
+});
+
+// 7. GET SPECIFIC REPORT (registered after the static /api/reports/* routes
+// above so it doesn't shadow them, since Express matches routes in registration order)
+app.get('/api/reports/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT
+        r.*,
+        rt.name as template_name,
+        rt.template_type,
+        rt.category
+      FROM reports r
+      LEFT JOIN report_templates rt ON r.template_id = rt.id
+      WHERE r.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Track report view
+    await pool.query(
+      'INSERT INTO report_analytics (report_id, user_id, action) VALUES ($1, $2, $3)',
+      [id, req.user.id, 'viewed']
+    );
+
+    const generator = (await resolveUsers([result.rows[0].generated_by])).get(result.rows[0].generated_by);
+
+    res.json({
+      report: {
+        ...result.rows[0],
+        first_name: generator?.firstName || null,
+        last_name: generator?.lastName || null,
+        email: generator?.email || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Get report error:', error);
+    res.status(500).json({
+      error: 'Failed to get report',
+      details: error.message
     });
   }
 });

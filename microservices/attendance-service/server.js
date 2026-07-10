@@ -29,6 +29,84 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret';
 const UPLOAD_PATH = process.env.UPLOAD_PATH || './uploads/attendance';
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024; // 5MB
 const DEFAULT_GEOFENCE_RADIUS = parseInt(process.env.DEFAULT_GEOFENCE_RADIUS) || 100;
+const WORKPLACE_SERVICE_URL = process.env.WORKPLACE_SERVICE_URL || 'http://workplace-service:3008';
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
+
+/**
+ * Mints a short-lived internal service token for server-to-server calls to
+ * auth-service's admin endpoints, so lookups aren't gated by the end-user's own role.
+ */
+const getInternalServiceToken = () => {
+  return jwt.sign(
+    { id: 'attendance-service', role: 'admin', service: 'attendance-service' },
+    JWT_SECRET,
+    { expiresIn: '1m' }
+  );
+};
+
+/**
+ * Fetches all users with the given role from auth-service. Returns [] on failure.
+ */
+const listUsersByRole = async (role) => {
+  try {
+    const token = getInternalServiceToken();
+    const response = await fetch(`${AUTH_SERVICE_URL}/admin/users?role=${encodeURIComponent(role)}&limit=1000`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.users || [];
+  } catch (error) {
+    console.error(`Failed to list users with role ${role}:`, error);
+    return [];
+  }
+};
+
+// ===== CROSS-SERVICE WORKPLACE RESOLUTION =====
+
+/**
+ * Fetches a single workplace by id from workplace-service. Returns null on any failure.
+ */
+const getWorkplace = async (id) => {
+  if (!id) return null;
+  try {
+    const response = await fetch(`${WORKPLACE_SERVICE_URL}/workplaces/${id}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.workplace;
+  } catch (error) {
+    console.error(`Failed to fetch workplace ${id}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Fetches all active workplaces from workplace-service. Returns [] on any failure.
+ */
+const listWorkplaces = async () => {
+  try {
+    const response = await fetch(`${WORKPLACE_SERVICE_URL}/workplaces?isActive=true`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.workplaces || [];
+  } catch (error) {
+    console.error('Failed to list workplaces:', error);
+    return [];
+  }
+};
+
+/**
+ * Resolves a set of workplace ids to a Map keyed by id, via listWorkplaces().
+ */
+const resolveWorkplaces = async (ids) => {
+  const uniqueIds = new Set(ids.filter(Boolean));
+  const all = await listWorkplaces();
+  const map = new Map();
+  all.forEach(w => {
+    if (uniqueIds.has(w.id)) map.set(w.id, w);
+  });
+  return map;
+};
 
 // Database connection (optional for testing)
 let pool = null;
@@ -300,7 +378,7 @@ const initializeDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS geofence_zones (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        workplace_id UUID REFERENCES workplaces(id) ON DELETE CASCADE,
+        workplace_id UUID,
         name VARCHAR(100) NOT NULL,
         center_latitude DECIMAL(10, 8) NOT NULL,
         center_longitude DECIMAL(11, 8) NOT NULL,
@@ -315,7 +393,7 @@ const initializeDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS shifts (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        workplace_id UUID REFERENCES workplaces(id) ON DELETE CASCADE,
+        workplace_id UUID,
         name VARCHAR(100) NOT NULL,
         start_time TIME NOT NULL,
         end_time TIME NOT NULL,
@@ -462,7 +540,7 @@ app.post('/api/attendance/punch-in',
 
       // Check for existing active punch in
       const existingAttendance = await pool.query(
-        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND punch_out_time IS NULL',
+        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND clock_out_time IS NULL',
         [userId]
       );
 
@@ -470,24 +548,19 @@ app.post('/api/attendance/punch-in',
         return res.status(400).json({ error: 'Already punched in today' });
       }
 
-      // Get workplace and geofence information
-      const workplaceResult = await pool.query(
-        'SELECT * FROM workplaces WHERE id = $1',
-        [workplaceId]
-      );
+      // Get workplace and geofence information (from workplace-service)
+      const workplace = await getWorkplace(workplaceId);
 
-      if (workplaceResult.rows.length === 0) {
+      if (!workplace) {
         return res.status(404).json({ error: 'Workplace not found' });
       }
-
-      const workplace = workplaceResult.rows[0];
 
       // Check geofencing
       const isWithinGeofence = geofencingService.isWithinGeofence(
         parseFloat(latitude),
         parseFloat(longitude),
-        parseFloat(workplace.latitude),
-        parseFloat(workplace.longitude),
+        parseFloat(workplace.location_lat),
+        parseFloat(workplace.location_lng),
         DEFAULT_GEOFENCE_RADIUS
       );
 
@@ -508,23 +581,20 @@ app.post('/api/attendance/punch-in',
       // Insert attendance record
       const attendanceResult = await pool.query(
         `INSERT INTO attendance_records (
-          user_id, workplace_id, punch_in_time, punch_in_latitude, punch_in_longitude,
-          punch_in_accuracy, notes, device_info, ip_address, user_agent,
-          photo_url, shift_id, status, verification_status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          user_id, workplace_id, date, clock_in_time, clock_in_location,
+          notes, device_info, ip_address, user_agent,
+          shift_id, status, verification_status
+        ) VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
           userId,
           workplaceId,
           timestamp || new Date(),
-          latitude,
-          longitude,
-          accuracy,
+          JSON.stringify({ latitude, longitude, accuracy }),
           notes,
           deviceInfo ? JSON.stringify(deviceInfo) : null,
           ipAddress || req.ip,
           userAgent || req.get('User-Agent'),
-          req.file ? `/uploads/attendance/${req.file.filename}` : null,
           shiftId,
           'active',
           'pending'
@@ -537,7 +607,7 @@ app.post('/api/attendance/punch-in',
       io.to(`workplace:${workplaceId}`).emit('attendance:user-punched-in', {
         userId: userId,
         employeeName: req.user.name,
-        punchInTime: attendance.punch_in_time,
+        punchInTime: attendance.clock_in_time,
         location: { latitude, longitude, accuracy },
         workplace: workplace.name
       });
@@ -551,7 +621,7 @@ app.post('/api/attendance/punch-in',
         message: 'Punch in successful',
         data: {
           attendanceId: attendance.id,
-          punchInTime: attendance.punch_in_time,
+          punchInTime: attendance.clock_in_time,
           workplace: {
             id: workplace.id,
             name: workplace.name,
@@ -603,7 +673,7 @@ app.post('/api/attendance/punch-out',
 
       // Get current active attendance
       const attendanceResult = await pool.query(
-        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND punch_out_time IS NULL',
+        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND clock_out_time IS NULL',
         [userId]
       );
 
@@ -624,35 +694,29 @@ app.post('/api/attendance/punch-out',
       // Calculate work hours
       const punchOutTime = timestamp || new Date();
       const workHours = workHoursService.calculateWorkHours(
-        new Date(attendance.punch_in_time).getTime(),
+        new Date(attendance.clock_in_time).getTime(),
         new Date(punchOutTime).getTime(),
         breaks
       );
 
       // Update attendance record
       const updateResult = await pool.query(
-        `UPDATE attendance_records SET 
-          punch_out_time = $1,
-          punch_out_latitude = $2,
-          punch_out_longitude = $3,
-          punch_out_accuracy = $4,
-          notes = CASE WHEN notes IS NULL THEN $5 ELSE notes || ' | ' || $5 END,
-          device_info = CASE WHEN device_info IS NULL THEN $6 ELSE device_info || $6 END,
-          photo_url = CASE WHEN photo_url IS NULL THEN $7 ELSE photo_url || ' | ' || $7 END,
-          total_work_hours = $8,
-          net_work_hours = $9,
-          total_break_hours = $10,
-          overtime_hours = $11,
+        `UPDATE attendance_records SET
+          clock_out_time = $1,
+          clock_out_location = $2,
+          notes = CASE WHEN notes IS NULL THEN $3 ELSE notes || ' | ' || $3 END,
+          device_info = CASE WHEN device_info IS NULL THEN $4 ELSE device_info || $4 END,
+          total_work_hours = $5,
+          net_work_hours = $6,
+          total_break_hours = $7,
+          overtime_hours = $8,
           status = 'completed'
-        WHERE id = $12 RETURNING *`,
+        WHERE id = $9 RETURNING *`,
         [
           punchOutTime,
-          latitude,
-          longitude,
-          accuracy,
+          JSON.stringify({ latitude, longitude, accuracy }),
           notes,
           deviceInfo ? JSON.stringify(deviceInfo) : null,
-          req.file ? `/uploads/attendance/${req.file.filename}` : null,
           workHours.totalHours,
           workHours.netHours,
           workHours.breakHours,
@@ -667,7 +731,7 @@ app.post('/api/attendance/punch-out',
       io.to(`workplace:${attendance.workplace_id}`).emit('attendance:user-punched-out', {
         userId: userId,
         employeeName: req.user.name,
-        punchOutTime: updatedAttendance.punch_out_time,
+        punchOutTime: updatedAttendance.clock_out_time,
         workHours: workHours.netHours
       });
 
@@ -680,7 +744,7 @@ app.post('/api/attendance/punch-out',
         message: 'Punch out successful',
         data: {
           attendanceId: updatedAttendance.id,
-          punchOutTime: updatedAttendance.punch_out_time,
+          punchOutTime: updatedAttendance.clock_out_time,
           totalWorkHours: workHours.totalHours,
           netWorkHours: workHours.netHours,
           breakHours: workHours.breakHours,
@@ -723,7 +787,7 @@ app.post('/api/attendance/break/start',
 
       // Get current active attendance
       const attendanceResult = await pool.query(
-        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND punch_out_time IS NULL',
+        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND clock_out_time IS NULL',
         [userId]
       );
 
@@ -802,7 +866,7 @@ app.post('/api/attendance/break/end',
 
       // Get current active attendance
       const attendanceResult = await pool.query(
-        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND punch_out_time IS NULL',
+        'SELECT * FROM attendance_records WHERE user_id = $1 AND date = CURRENT_DATE AND clock_out_time IS NULL',
         [userId]
       );
 
@@ -888,10 +952,9 @@ app.get('/api/attendance/current',
 
       // Get current attendance
       const attendanceResult = await pool.query(
-        `SELECT ar.*, w.name as workplace_name, w.address as workplace_address
+        `SELECT ar.*
          FROM attendance_records ar
-         LEFT JOIN workplaces w ON ar.workplace_id = w.id
-         WHERE ar.user_id = $1 AND ar.date = CURRENT_DATE AND ar.punch_out_time IS NULL`,
+         WHERE ar.user_id = $1 AND ar.date = CURRENT_DATE AND ar.clock_out_time IS NULL`,
         [userId]
       );
 
@@ -906,6 +969,9 @@ app.get('/api/attendance/current',
       }
 
       const attendance = attendanceResult.rows[0];
+      const workplace = await getWorkplace(attendance.workplace_id);
+      attendance.workplace_name = workplace?.name || null;
+      attendance.workplace_address = workplace?.address || null;
 
       // Get current break if any
       const breakResult = await pool.query(
@@ -918,7 +984,7 @@ app.get('/api/attendance/current',
       // Calculate current work hours
       const currentTime = new Date();
       const workHours = workHoursService.calculateWorkHours(
-        new Date(attendance.punch_in_time).getTime(),
+        new Date(attendance.clock_in_time).getTime(),
         currentTime.getTime(),
         currentBreak ? [currentBreak] : []
       );
@@ -929,7 +995,7 @@ app.get('/api/attendance/current',
           isPunchedIn: true,
           currentAttendance: {
             id: attendance.id,
-            punchInTime: attendance.punch_in_time,
+            punchInTime: attendance.clock_in_time,
             workplace: {
               id: attendance.workplace_id,
               name: attendance.workplace_name,
@@ -963,50 +1029,40 @@ app.get('/api/attendance/team/status',
       const { workplaceId, shiftId, date } = req.query;
       const managerId = req.user.id;
 
-      let query = `
-        SELECT 
-          u.id as user_id,
-          u.name as employee_name,
-          ar.status,
-          ar.punch_in_time,
-          ar.total_work_hours,
-          ar.punch_in_latitude,
-          ar.punch_in_longitude,
-          ar.last_updated
-        FROM users u
-        LEFT JOIN attendance_records ar ON u.id = ar.user_id AND ar.date = $1
-        WHERE u.role = 'employee'
-      `;
+      const employees = await listUsersByRole('employee');
+      const targetDate = date || new Date().toISOString().split('T')[0];
 
-      const queryParams = [date || new Date().toISOString().split('T')[0]];
+      let query = `SELECT * FROM attendance_records WHERE date = $1`;
+      const queryParams = [targetDate];
       let paramIndex = 2;
 
       if (workplaceId) {
-        query += ` AND ar.workplace_id = $${paramIndex}`;
+        query += ` AND workplace_id = $${paramIndex}`;
         queryParams.push(workplaceId);
         paramIndex++;
       }
 
       if (shiftId) {
-        query += ` AND ar.shift_id = $${paramIndex}`;
+        query += ` AND shift_id = $${paramIndex}`;
         queryParams.push(shiftId);
         paramIndex++;
       }
 
       const result = await pool.query(query, queryParams);
+      const attendanceByUser = new Map(result.rows.map(row => [row.user_id, row]));
 
-      const teamStatus = result.rows.map(row => ({
-        userId: row.user_id,
-        employeeName: row.employee_name,
-        status: row.status || 'absent',
-        punchInTime: row.punch_in_time,
-        workHours: row.total_work_hours || 0,
-        location: row.punch_in_latitude ? {
-          latitude: row.punch_in_latitude,
-          longitude: row.punch_in_longitude
-        } : null,
-        lastSeen: row.last_updated
-      }));
+      const teamStatus = employees.map(employee => {
+        const row = attendanceByUser.get(employee.id);
+        return {
+          userId: employee.id,
+          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+          status: row?.status || 'absent',
+          punchInTime: row?.clock_in_time || null,
+          workHours: row?.total_work_hours || 0,
+          location: row?.clock_in_location || null,
+          lastSeen: row?.updated_at || null
+        };
+      });
 
       const summary = {
         totalEmployees: teamStatus.length,
@@ -1211,20 +1267,18 @@ app.get('/api/attendance/workplaces', authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await pool.query(
-      'SELECT id, name, address, latitude, longitude, radius, is_active FROM workplaces WHERE is_active = true ORDER BY name'
-    );
+    const workplaces = await listWorkplaces();
 
     res.json({
       success: true,
-      data: result.rows.map(row => ({
-        id: row.id,
-        name: row.name,
-        address: row.address,
-        latitude: parseFloat(row.latitude),
-        longitude: parseFloat(row.longitude),
-        radius: row.radius,
-        isActive: row.is_active
+      data: workplaces.map(w => ({
+        id: w.id,
+        name: w.name,
+        address: w.address,
+        latitude: parseFloat(w.location_lat),
+        longitude: parseFloat(w.location_lng),
+        radius: DEFAULT_GEOFENCE_RADIUS,
+        isActive: w.is_active
       }))
     });
 
@@ -1245,14 +1299,12 @@ app.get('/api/attendance/history',
       const offset = (page - 1) * limit;
 
       let query = `
-        SELECT 
+        SELECT
           ar.*,
-          w.name as workplace_name,
           s.name as shift_name,
           COUNT(b.id) as break_count,
           SUM(b.duration_minutes) as total_break_minutes
         FROM attendance_records ar
-        LEFT JOIN workplaces w ON ar.workplace_id = w.id
         LEFT JOIN shifts s ON ar.shift_id = s.id
         LEFT JOIN breaks b ON ar.id = b.attendance_id
         WHERE ar.user_id = $1
@@ -1273,7 +1325,7 @@ app.get('/api/attendance/history',
         paramIndex++;
       }
 
-      query += ` GROUP BY ar.id, w.name, s.name ORDER BY ar.date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      query += ` GROUP BY ar.id, s.name ORDER BY ar.date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       queryParams.push(parseInt(limit), offset);
 
       const result = await pool.query(query, queryParams);
@@ -1293,10 +1345,16 @@ app.get('/api/attendance/history',
       const countResult = await pool.query(countQuery, countParams);
       const totalCount = parseInt(countResult.rows[0].count);
 
+      const workplaces = await resolveWorkplaces(result.rows.map(r => r.workplace_id));
+      const attendance = result.rows.map(r => ({
+        ...r,
+        workplace_name: workplaces.get(r.workplace_id)?.name || null
+      }));
+
       res.json({
         success: true,
         data: {
-          attendance: result.rows,
+          attendance,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),

@@ -738,20 +738,22 @@ const ChatWindow: React.FC<{
   hasMore: boolean;
   onLoadMore: () => void;
   typingUsers: string[];
-}> = ({ 
-  channel, 
-  messages, 
-  currentUser, 
-  onSendMessage, 
-  onFlagMessage, 
-  onEditMessage, 
-  onDeleteMessage, 
+  onToggleInfoPanel: () => void;
+}> = ({
+  channel,
+  messages,
+  currentUser,
+  onSendMessage,
+  onFlagMessage,
+  onEditMessage,
+  onDeleteMessage,
   onAddReaction,
   loading,
   error,
   hasMore,
   onLoadMore,
-  typingUsers
+  typingUsers,
+  onToggleInfoPanel
 }) => {
   const [messageInput, setMessageInput] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -881,7 +883,11 @@ const ChatWindow: React.FC<{
                 {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
               </div>
             )}
-            <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <button
+              onClick={onToggleInfoPanel}
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              title="Channel info"
+            >
               <MoreVertical className="w-4 h-4" />
             </button>
           </div>
@@ -1150,7 +1156,11 @@ const InfoPanel: React.FC<{
   currentUser: ChatUser;
   onRequestDataExport: () => void;
   onViewFlaggedMessages: () => void;
-}> = ({ channel, currentUser, onRequestDataExport, onViewFlaggedMessages }) => {
+  onClose: () => void;
+  userActivity: any;
+  activityLoading: boolean;
+  activityError: string | null;
+}> = ({ channel, currentUser, onRequestDataExport, onViewFlaggedMessages, onClose, userActivity, activityLoading, activityError }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'members' | 'analytics' | 'compliance'>('info');
   const [analytics, setAnalytics] = useState<any>(null);
 
@@ -1164,8 +1174,11 @@ const InfoPanel: React.FC<{
   if (!channel) {
     return (
       <aside className="w-80 bg-gray-50 border-l border-gray-200 h-full flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Channel Info</h3>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200">
+            <X className="w-4 h-4" />
+          </button>
         </div>
         <div className="p-4 text-gray-400 text-center">
           Select a channel to view information
@@ -1177,8 +1190,11 @@ const InfoPanel: React.FC<{
   return (
     <aside className="w-80 bg-gray-50 border-l border-gray-200 h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Channel Info</h3>
+        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200">
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Tabs */}
@@ -1281,26 +1297,73 @@ const InfoPanel: React.FC<{
         )}
 
         {activeTab === 'analytics' && (
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">Channel Analytics</h4>
-            {analytics ? (
-              <div className="space-y-3">
-                <div className="bg-white p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Total Messages</p>
-                  <p className="text-2xl font-bold text-gray-900">{analytics.total_messages}</p>
+          <div className="space-y-6">
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Channel Analytics</h4>
+              {analytics ? (
+                <div className="space-y-3">
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-sm text-gray-500">Total Messages</p>
+                    <p className="text-2xl font-bold text-gray-900">{analytics.total_messages}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-sm text-gray-500">Active Users</p>
+                    <p className="text-2xl font-bold text-gray-900">{analytics.active_users}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-sm text-gray-500">Avg Messages/Day</p>
+                    <p className="text-2xl font-bold text-gray-900">{analytics.avg_messages_per_day}</p>
+                  </div>
                 </div>
-                <div className="bg-white p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Active Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{analytics.active_users}</p>
+              ) : (
+                <p className="text-gray-500">Loading analytics...</p>
+              )}
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Your Activity in This Channel</h4>
+              {activityLoading ? (
+                <div className="flex items-center text-sm text-gray-500">
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Loading...
                 </div>
-                <div className="bg-white p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Avg Messages/Day</p>
-                  <p className="text-2xl font-bold text-gray-900">{analytics.avg_messages_per_day}</p>
+              ) : activityError ? (
+                <div className="flex items-center text-sm text-red-600">
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  {activityError}
                 </div>
-              </div>
-            ) : (
-              <p className="text-gray-500">Loading analytics...</p>
-            )}
+              ) : userActivity ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <Send className="w-4 h-4 mx-auto text-blue-500 mb-1" />
+                    <p className="text-lg font-semibold text-gray-900">{userActivity.messages_sent || 0}</p>
+                    <p className="text-xs text-gray-500">Messages Sent</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <Eye className="w-4 h-4 mx-auto text-gray-500 mb-1" />
+                    <p className="text-lg font-semibold text-gray-900">{userActivity.messages_read || 0}</p>
+                    <p className="text-xs text-gray-500">Messages Read</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <Smile className="w-4 h-4 mx-auto text-yellow-500 mb-1" />
+                    <p className="text-lg font-semibold text-gray-900">{userActivity.reactions_given || 0}</p>
+                    <p className="text-xs text-gray-500">Reactions</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <Paperclip className="w-4 h-4 mx-auto text-purple-500 mb-1" />
+                    <p className="text-lg font-semibold text-gray-900">{userActivity.files_shared || 0}</p>
+                    <p className="text-xs text-gray-500">Files Shared</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center col-span-2">
+                    <Clock className="w-4 h-4 mx-auto text-green-500 mb-1" />
+                    <p className="text-lg font-semibold text-gray-900">{userActivity.time_spent_minutes || 0}</p>
+                    <p className="text-xs text-gray-500">Minutes Spent</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">No activity data.</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -1344,6 +1407,7 @@ const ChatPage: React.FC = () => {
   const { user, isLoading } = useAuth();
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [showFlaggedMessagesModal, setShowFlaggedMessagesModal] = useState(false);
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [createChannelLoading, setCreateChannelLoading] = useState(false);
@@ -1618,13 +1682,20 @@ const ChatPage: React.FC = () => {
         hasMore={hasMore}
         onLoadMore={loadMoreMessages}
         typingUsers={wsApi.getTypingUsers()}
+        onToggleInfoPanel={() => setShowInfoPanel(v => !v)}
       />
-      <InfoPanel
-        channel={selectedChannel}
-        currentUser={currentUser}
-        onRequestDataExport={handleRequestDataExport}
-        onViewFlaggedMessages={handleViewFlaggedMessages}
-      />
+      {showInfoPanel && (
+        <InfoPanel
+          channel={selectedChannel}
+          currentUser={currentUser}
+          onRequestDataExport={handleRequestDataExport}
+          onViewFlaggedMessages={handleViewFlaggedMessages}
+          onClose={() => setShowInfoPanel(false)}
+          userActivity={userActivity}
+          activityLoading={activityLoading}
+          activityError={activityError}
+        />
+      )}
 
       {/* Create Channel Modal */}
       <CreateChannelModal
@@ -1633,26 +1704,6 @@ const ChatPage: React.FC = () => {
         onCreateChannel={handleCreateChannel}
         loading={createChannelLoading}
       />
-      {selectedChannelId && (
-        <div style={{ margin: '16px 0', padding: '12px', background: '#f6f8fa', borderRadius: 8 }}>
-          <strong>User Activity (This Channel):</strong>
-          {activityLoading ? (
-            <span> Loading...</span>
-          ) : activityError ? (
-            <span style={{ color: 'red' }}> {activityError}</span>
-          ) : userActivity ? (
-            <span>
-              {' '}Messages Sent: {userActivity.messages_sent || 0},
-              Messages Read: {userActivity.messages_read || 0},
-              Reactions: {userActivity.reactions_given || 0},
-              Files Shared: {userActivity.files_shared || 0},
-              Time Spent: {userActivity.time_spent_minutes || 0} min
-            </span>
-          ) : (
-            <span> No activity data.</span>
-          )}
-        </div>
-      )}
     </div>
   );
 };
