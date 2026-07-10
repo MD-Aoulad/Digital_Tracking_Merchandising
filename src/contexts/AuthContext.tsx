@@ -226,7 +226,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const checkServiceStatus = async () => {
       try {
-        const response = await fetch('http://localhost:3010/health', {
+        const response = await fetch(`${process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:8080/api/auth'}/health`, {
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });

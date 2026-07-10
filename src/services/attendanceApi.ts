@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Attendance, CurrentAttendanceStatus, TeamStatus } from './api';
 
-const ATTENDANCE_API_BASE = 'http://localhost:3007/api/attendance';
+const ATTENDANCE_API_BASE = process.env.REACT_APP_ATTENDANCE_API_URL || 'http://localhost:3007/api/attendance';
 
 // ===== API RESPONSE INTERFACES =====
 

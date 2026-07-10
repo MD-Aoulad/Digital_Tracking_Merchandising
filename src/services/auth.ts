@@ -138,7 +138,7 @@ const apiRequestWithRetry = async <T>(
   const timeoutId = setTimeout(() => controller.abort(), AUTH_CONFIG.TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:3010'}${endpoint}`, {
+    const response = await fetch(`${process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:8080/api/auth'}${endpoint}`, {
       ...options,
       signal: controller.signal,
       headers: {

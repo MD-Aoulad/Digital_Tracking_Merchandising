@@ -152,8 +152,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - WEBSOCKET_PORT=3003
     depends_on:
-      - chat-db
-      - redis
+      chat-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -180,8 +182,10 @@ services:
       - MAX_FILE_SIZE=5242880
       - DEFAULT_GEOFENCE_RADIUS=100
     depends_on:
-      - attendance-db
-      - redis
+      attendance-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -203,8 +207,10 @@ services:
       - TODO_DB_URL=postgresql://todo_user:todo_password@todo-db:5432/todo_db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - todo-db
-      - redis
+      todo-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -228,8 +234,10 @@ services:
       - REPORT_DB_URL=postgresql://report_user:report_password@report-db:5432/report_db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - report-db
-      - redis
+      report-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -253,8 +261,10 @@ services:
       - APPROVAL_DB_URL=postgresql://approval_user:approval_password@approval-db:5432/approval_db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - approval-db
-      - redis
+      approval-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -276,8 +286,10 @@ services:
       - WORKPLACE_DB_URL=postgresql://workplace_user:workplace_password@workplace-db:5432/workplace_db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - workplace-db
-      - redis
+      workplace-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -299,8 +311,10 @@ services:
       - NOTIFICATION_DB_URL=postgresql://notification_user:notification_password@notification-db:5432/notification_db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - notification-db
-      - redis
+      notification-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -321,7 +335,7 @@ services:
     environment:
       - NODE_ENV=development
       - REACT_APP_API_URL=http://localhost:8080
-      - REACT_APP_AUTH_SERVICE_URL=http://localhost:3010
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:8080/api/auth
       - REACT_APP_CHAT_API_URL=http://localhost:8080/api/chat
       - REACT_APP_CHAT_SOCKET_URL=http://localhost:8080
       - REACT_APP_ENABLE_ERROR_MONITORING=true
@@ -330,8 +344,10 @@ services:
       - REACT_APP_MAX_RETRY_ATTEMPTS=3
       - REACT_APP_HEALTH_CHECK_INTERVAL=30000
     depends_on:
-      - api-gateway
-      - auth-service
+      api-gateway:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -357,7 +373,7 @@ services:
     environment:
       - NODE_ENV=development
       - REACT_APP_API_URL=http://localhost:8080
-      - REACT_APP_AUTH_SERVICE_URL=http://localhost:3010
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:8080/api/auth
       - REACT_APP_CHAT_API_URL=http://localhost:8080/api/chat
       - REACT_APP_CHAT_SOCKET_URL=http://localhost:8080
       - REACT_APP_ENABLE_ERROR_MONITORING=true
@@ -366,7 +382,8 @@ services:
       - REACT_APP_MAX_RETRY_ATTEMPTS=3
       - REACT_APP_HEALTH_CHECK_INTERVAL=30000
     depends_on:
-      - auth-service
+      auth-service:
+        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -388,6 +405,7 @@ services:
       - "5432:5432"
     volumes:
       - auth-db-data:/var/lib/postgresql/data
+      - ./microservices/auth-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -407,6 +425,7 @@ services:
       - "5433:5432"
     volumes:
       - user-db-data:/var/lib/postgresql/data
+      - ./microservices/user-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -426,6 +445,7 @@ services:
       - "5434:5432"
     volumes:
       - chat-db-data:/var/lib/postgresql/data
+      - ./microservices/chat-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -445,6 +465,7 @@ services:
       - "5435:5432"
     volumes:
       - attendance-db-data:/var/lib/postgresql/data
+      - ./microservices/attendance-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -464,6 +485,7 @@ services:
       - "5441:5432"
     volumes:
       - iam-db-data:/var/lib/postgresql/data
+      - ./microservices/iam-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -483,6 +505,7 @@ services:
       - "5436:5432"
     volumes:
       - todo-db-data:/var/lib/postgresql/data
+      - ./microservices/todo-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -502,6 +525,7 @@ services:
       - "5437:5432"
     volumes:
       - report-db-data:/var/lib/postgresql/data
+      - ./microservices/report-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -521,6 +545,7 @@ services:
       - "5438:5432"
     volumes:
       - approval-db-data:/var/lib/postgresql/data
+      - ./microservices/approval-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -540,6 +565,7 @@ services:
       - "5439:5432"
     volumes:
       - workplace-db-data:/var/lib/postgresql/data
+      - ./microservices/workplace-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped
@@ -559,6 +585,7 @@ services:
       - "5440:5432"
     volumes:
       - notification-db-data:/var/lib/postgresql/data
+      - ./microservices/notification-service/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - microservices-network
     restart: unless-stopped

@@ -167,7 +167,7 @@ const LoginForm: React.FC = () => {
 
   const checkServiceStatus = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:3010/health', {
+      const response = await fetch(`${process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:8080/api/auth'}/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(5000)
       });
@@ -591,7 +591,7 @@ const LoginForm: React.FC = () => {
         <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
           <p><strong>Debug Info:</strong></p>
           <p>• Frontend: Running on localhost:3000</p>
-          <p>• Auth Service: localhost:3010</p>
+          <p>• Auth Service: {process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:8080/api/auth'}</p>
           <p>• Network: {isOffline ? 'Offline' : 'Online'}</p>
           <p>• Service: {serviceStatus}</p>
           <p>• Retry Attempts: {retryAttempts}/{MAX_RETRY_ATTEMPTS}</p>
